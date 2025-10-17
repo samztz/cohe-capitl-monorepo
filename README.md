@@ -55,14 +55,27 @@ flowchart LR
     D3[Treasury Address]
   end
 
-  A2 --> B1
-  A3 --> B2
-  A5 --> D2
-  D2 --> B3
-  B3 --> B2
-  C2 --> B2
-  B2 --> A6
-````
+    A1-- personal_sign -->B1
+    A3-- REST API -->B2
+    A5-- 调用合约 -->D2
+    D2-- 事件通知 -->B3
+    B3-- 更新状态 -->B2
+    B2-- 审核接口 -->C2
+    C2-- 更新保单 -->B2
+    B2-- JSON 响应 -->A6
+```
+
+🧩 技术栈
+模块	技术	说明
+前端 (Mobile)	React Native + Expo + WalletConnect v2 + ethers v6	BSC 钱包登录、签名、支付
+后台 (Web)	Next.js 14 + Tailwind + shadcn/ui	管理员审核、配置、状态查看
+后端 API	NestJS + Fastify + Prisma + PostgreSQL	核心 API 与业务逻辑
+数据层	PostgreSQL (Neon/Supabase)	结构化存储
+存储层	Cloudflare R2 / S3 兼容	文件、合同、附件
+区块链交互	ethers v6 + Ankr RPC (BSC)	钱包验证、支付监听
+DevOps	Docker + Railway/Render 部署 + GitHub Actions CI/CD	部署与监控
+认证体系	SIWE (Sign-In with Ethereum) + JWT (15min)	钱包签名登录
+ORM	Prisma	类型安全的数据库访问
 
 ---
 
@@ -336,7 +349,11 @@ contract PremiumCollector {
 ## 📖 License
 
 MIT License © 2025 samztz
+<<<<<<< HEAD
 本仓库仅供演示与教学用途，不构成实际保险产品或金融服务。
 
 ```
 ```
+=======
+仅供演示与教学用途，不构成实际保险产品或金融服务。
+>>>>>>> 1d3c21c0e6aacd0e046f3dd0511f6cb838e7d643
