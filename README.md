@@ -1,4 +1,4 @@
-````markdown
+
 # 🛡️ Web3 Insurance MVP
 
 一个面向 Web3 用户的 **去中心化登录 + 中心化管理** 的保险 DApp MVP。  
@@ -20,20 +20,17 @@
 
 ## 🧭 系统架构图（Mermaid）
 
-> 说明：为兼容 GitHub 渲染，以下 Mermaid **不含换行 `<br/>`、emoji、或断开的箭头**。
-
 ```mermaid
 flowchart LR
   subgraph UserApp["Mobile DApp (React Native)"]
-    A1[Connect Wallet (WalletConnect)]
+    A1[Connect Wallet WalletConnect]
     A2[SIWE Login Signature]
     A3[Fill Insurance Form]
     A4[Sign Contract]
-    A5[Pay Premium (BEP-20)]
+    A5[Pay Premium BEP-20]
     A6[View Policy Status & Countdown]
     A1 --> A2 --> A3 --> A4 --> A5 --> A6
   end
-
   subgraph API["Backend API (NestJS + Prisma)"]
     B1[Auth: SIWE + JWT]
     B2[Policy Service: CRUD]
@@ -41,41 +38,26 @@ flowchart LR
     B4[File Storage: R2 or S3]
     B5[Audit Log and Risk Rules]
   end
-
   subgraph Admin["Admin Dashboard (Next.js)"]
     C1[Admin Login]
-    C2[Review Policy (Approve or Reject)]
+    C2[Review Policy Approve or Reject]
     C3[View Payments]
     C4[Monitoring and Reports]
   end
-
   subgraph Chain["BSC Blockchain"]
     D1[Verify Wallet Signature]
     D2[PremiumCollector.sol Event]
     D3[Treasury Address]
   end
-
     A1-- personal_sign -->B1
     A3-- REST API -->B2
-    A5-- 调用合约 -->D2
-    D2-- 事件通知 -->B3
-    B3-- 更新状态 -->B2
-    B2-- 审核接口 -->C2
-    C2-- 更新保单 -->B2
-    B2-- JSON 响应 -->A6
+    A5-- Call Contract -->D2
+    D2-- Event Notice -->B3
+    B3-- Update Status -->B2
+    B2-- Review API -->C2
+    C2-- Update Policy -->B2
+    B2-- JSON Response -->A6
 ```
-
-🧩 技术栈
-模块	技术	说明
-前端 (Mobile)	React Native + Expo + WalletConnect v2 + ethers v6	BSC 钱包登录、签名、支付
-后台 (Web)	Next.js 14 + Tailwind + shadcn/ui	管理员审核、配置、状态查看
-后端 API	NestJS + Fastify + Prisma + PostgreSQL	核心 API 与业务逻辑
-数据层	PostgreSQL (Neon/Supabase)	结构化存储
-存储层	Cloudflare R2 / S3 兼容	文件、合同、附件
-区块链交互	ethers v6 + Ankr RPC (BSC)	钱包验证、支付监听
-DevOps	Docker + Railway/Render 部署 + GitHub Actions CI/CD	部署与监控
-认证体系	SIWE (Sign-In with Ethereum) + JWT (15min)	钱包签名登录
-ORM	Prisma	类型安全的数据库访问
 
 ---
 
@@ -306,46 +288,6 @@ contract PremiumCollector {
 
 ---
 
-## ✅ 开发任务清单（Notion / Markdown）
-
-> 目标：**15–20 天交付完整 MVP**。勾选即可同步进度。
-
-### Phase 1 — 基础架构与登录（Day 1–3）
-
-* [ ] 建立 Monorepo（pnpm + turbo）
-* [ ] 初始化 mobile / admin / api 三个应用
-* [ ] 配置 Postgres + Prisma（User/SKU/Policy/Payment）
-* [ ] 实现 SIWE 登录（nonce / verify / JWT）
-* [ ] 搭建基础 UI（主题、导航、表单组件）
-* [ ] Docker 本地环境、.env 模板
-
-### Phase 2 — 保单流程与签署（Day 4–10）
-
-* [ ] SKU 列表与详情（Mock → DB）
-* [ ] 表单提交（Policy Draft）
-* [ ] 合同签署（contract_hash + personal_sign）
-* [ ] 支付流程（BEP-20 转账到 Treasury 或合约调用）
-* [ ] 支付监听（轮询或事件订阅 → Payment 绑定）
-* [ ] 工单/日志（最小实现）
-
-### Phase 3 — 审核后台与倒计时（Day 11–14）
-
-* [ ] 管理员登录
-* [ ] 待审核 Policy 列表与详情
-* [ ] 审核动作（Approve/Reject）与状态变更
-* [ ] endAt 写入与倒计时组件
-* [ ] 支付记录、审计日志列表
-
-### Phase 4 — 测试与上线（Day 15–20）
-
-* [ ] 端到端测试：登录 → 签署 → 支付 → 审核 → 倒计时
-* [ ] 异常与错误提示（余额不足、网络错误、超时）
-* [ ] 部署：API（Render/Railway）、Admin（Vercel）、DNS/HTTPS（Cloudflare）
-* [ ] Demo 钱包与测试币准备、演示脚本/截图
-* [ ] 文档打包与交付说明（SOW/操作手册）
-
----
-
 ## 📖 License
 
 MIT License © 2025 samztz
@@ -356,4 +298,4 @@ MIT License © 2025 samztz
 ```
 =======
 仅供演示与教学用途，不构成实际保险产品或金融服务。
->>>>>>> 1d3c21c0e6aacd0e046f3dd0511f6cb838e7d643
+
