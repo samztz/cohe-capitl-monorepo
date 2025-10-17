@@ -60,6 +60,8 @@ flowchart LR
     B2-- 审核接口 -->C2
     C2-- 更新保单 -->B2
     B2-- JSON 响应 -->A6
+```
+
 🧩 技术栈
 模块	技术	说明
 前端 (Mobile)	React Native + Expo + WalletConnect v2 + ethers v6	BSC 钱包登录、签名、支付
