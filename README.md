@@ -247,37 +247,6 @@ STORAGE_SECRET_KEY=xxx
 
 ---
 
-## 🧾 合约示例（可选）
-
-```solidity
-// contracts/PremiumCollector.sol
-// SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
-
-interface IERC20 {
-  function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);
-}
-
-contract PremiumCollector {
-  address public treasury;
-
-  event PremiumPaid(bytes32 policyId, address indexed from, uint256 amount, address token);
-
-  constructor(address _treasury) {
-    treasury = _treasury;
-  }
-
-  function purchasePolicy(bytes32 policyId, uint256 amount, address token) external {
-    require(treasury != address(0), "treasury not set");
-    require(amount > 0, "amount zero");
-    IERC20(token).transferFrom(msg.sender, treasury, amount);
-    emit PremiumPaid(policyId, msg.sender, amount, token);
-  }
-}
-```
-
----
-
 ## 🔒 安全与合规基线
 
 * JWT 短期（15m）+ Refresh；写操作校验 **JWT 地址 == 请求地址**。
@@ -285,17 +254,3 @@ contract PremiumCollector {
 * 上传采用服务端签名 URL，存储桶默认私有。
 * 审计日志记录：登录、签署、支付、审批、状态变更。
 * 唯一约束 `(walletAddress, skuId)` 限制「单地址/单保险」。
-
----
-
-## 📖 License
-
-MIT License © 2025 samztz
-<<<<<<< HEAD
-本仓库仅供演示与教学用途，不构成实际保险产品或金融服务。
-
-```
-```
-=======
-仅供演示与教学用途，不构成实际保险产品或金融服务。
-
