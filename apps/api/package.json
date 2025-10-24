@@ -4,6 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "start": "nest start",
+    "start:dev": "nest start --watch",
+    "start:debug": "nest start --debug --watch",
+    "build": "nest build",
     "migrate:dev": "dotenv -e ../../.env -- prisma migrate dev",
     "migrate:diff": "dotenv -e ../../.env -- prisma migrate diff --from-schema-datamodel prisma/schema.prisma --to-schema-datamodel prisma/schema.prisma --exit-code",
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -29,6 +33,7 @@
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.10",
+    "@types/node": "^20.19.23",
     "prisma": "^6.18.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"
