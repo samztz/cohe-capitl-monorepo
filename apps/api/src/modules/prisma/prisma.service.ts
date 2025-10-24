@@ -31,9 +31,27 @@ interface UserUpsertArgs {
   };
 }
 
+interface UserFindUniqueArgs {
+  where: {
+    walletAddress: string;
+  };
+}
+
+interface UserUpdateArgs {
+  where: {
+    walletAddress: string;
+  };
+  data: {
+    nonce?: string;
+    lastLoginAt?: Date;
+  };
+}
+
 interface PrismaClientInstance {
   user: {
     upsert(args: UserUpsertArgs): Promise<UserEntity>;
+    findUnique(args: UserFindUniqueArgs): Promise<UserEntity | null>;
+    update(args: UserUpdateArgs): Promise<UserEntity>;
   };
   $on(event: 'beforeExit', listener: () => Promise<void> | void): void;
   $disconnect(): Promise<void>;

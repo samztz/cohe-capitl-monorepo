@@ -15,7 +15,9 @@
     "prisma:deploy": "dotenv -e ../../.env -- prisma migrate deploy",
     "migrate:dev": "dotenv -e ../../.env -- prisma migrate dev",
     "migrate:diff": "dotenv -e ../../.env -- prisma migrate diff --from-schema-datamodel prisma/schema.prisma --to-schema-datamodel prisma/schema.prisma --exit-code",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:cov": "jest --coverage"
   },
   "keywords": [],
   "author": "",
@@ -42,9 +44,14 @@
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.10",
+    "@nestjs/testing": "^11.1.7",
+    "@types/jest": "^30.0.0",
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^20.19.23",
     "dotenv-cli": "^8.0.0",
+    "jest": "^30.2.0",
     "prisma": "^6.18.0",
+    "ts-jest": "^29.4.5",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"
   }
