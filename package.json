@@ -10,7 +10,9 @@
     "dev": "turbo run dev --parallel",
     "build": "turbo run build",
     "lint": "turbo run lint",
-    "format": "prettier -w ."
+    "format": "prettier -w .",
+    "prisma": "pnpm --filter api exec -- prisma",
+    "ci": "pnpm lint && pnpm typecheck && pnpm test"
   },
   "devDependencies": {
     "prettier": "^3.6.2",
