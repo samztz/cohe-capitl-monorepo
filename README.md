@@ -174,42 +174,81 @@ model Payment {
 
 ## ⚙️ 本地开发
 
+### 🚀 Quick Start (10 分钟)
+
+详细的开发指南请查看：
+- **API 后端**: [apps/api/README.md](apps/api/README.md)
+- **管理后台**: apps/admin/README.md (待完成)
+- **移动端**: apps/mobile/README.md (待完成)
+
 ### 先决条件
 
 * Node.js ≥ 20.x
-* pnpm ≥ 9.x
-* Docker（用于本地 Postgres）
+* pnpm ≥ 10.x
+* Docker & Docker Compose（用于本地 PostgreSQL）
 * 可选：BSC Testnet RPC
 
 ### 安装与启动
 
 ```bash
 # 1) 安装依赖
-pnpm i
+pnpm install
 
-# 2) 启动本地数据库
-docker compose up -d
+# 2) 配置环境变量
+cp .env.example .env
+# 编辑 .env 文件，至少设置：
+# - DATABASE_URL
+# - JWT_SECRET (生成: openssl rand -base64 32)
 
-# 3) 初始化数据库
-pnpm --filter api prisma migrate dev
+# 3) 启动 PostgreSQL 数据库
+docker compose -f infra/docker/docker-compose.yml up -d db
 
-# 4) 分别启动服务
+# 4) 生成 Prisma Client 和应用数据库迁移
+pnpm --filter api prisma:generate
+pnpm --filter api prisma:migrate
+
+# 5) 启动 API 服务器
 pnpm --filter api dev
+
+# 6) (可选) 启动其他服务
 pnpm --filter admin dev
 pnpm --filter mobile start
 ```
 
-### 环境变量示例（根目录 `.env` 或分别配置）
+### 验证安装
 
+```bash
+# 检查 API 健康状态
+curl http://localhost:3001
+
+# 请求 SIWE nonce
+curl -X POST http://localhost:3001/auth/siwe/nonce \
+  -H "Content-Type: application/json" \
+  -d '{"walletAddress": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"}'
 ```
-DATABASE_URL=postgresql://user:pass@localhost:5432/web3_insurance
-JWT_SECRET=replace_with_secure_random
+
+### 环境变量配置
+
+根目录 `.env` 文件包含所有必需的环境变量。关键配置：
+
+```bash
+# 数据库
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/cohe_capital_dev
+
+# JWT 认证
+JWT_SECRET=your-secure-random-secret-here  # 使用 openssl rand -base64 32 生成
+
+# SIWE 配置
+SIWE_DOMAIN=localhost
+SIWE_URI=http://localhost:3001
+SIWE_CHAIN_ID=1
+
+# 可选配置
 RPC_BSC=https://bsc-dataseed.binance.org/
 TREASURY_ADDRESS=0xYourTreasuryWallet
-STORAGE_BUCKET_URL=https://r2.example.com
-STORAGE_ACCESS_KEY=xxx
-STORAGE_SECRET_KEY=xxx
 ```
+
+完整的环境变量说明请参考 [apps/api/.env.example](apps/api/.env.example)
 
 ---
 
