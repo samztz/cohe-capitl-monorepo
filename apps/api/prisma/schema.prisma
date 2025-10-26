@@ -52,6 +52,8 @@ model Policy {
   walletAddress String
   premiumAmt    Decimal   @db.Decimal(38, 18)
   status        String    @default("pending")
+  contractHash  String?
+  userSig       String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 

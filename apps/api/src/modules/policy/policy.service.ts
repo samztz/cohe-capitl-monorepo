@@ -6,11 +6,13 @@
  */
 
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { generateContractHash } from './utils/contract-hash.util';
 
 /** Ethereum address type alias (0x + 40 hex characters) */
 type Address = `0x${string}`;
@@ -37,6 +39,23 @@ export interface CreatePolicyInput {
   skuId: string;
   userId: string;
   walletAddress: Address;
+}
+
+/**
+ * Contract signing input
+ */
+export interface ContractSignInput {
+  policyId: string;
+  contractPayload: Record<string, unknown>;
+  userSig: string;
+  userId: string; // For ownership verification
+}
+
+/**
+ * Contract signing result
+ */
+export interface ContractSignResult {
+  contractHash: string;
 }
 
 @Injectable()
@@ -106,5 +125,71 @@ export class PolicyService {
       }
       throw error;
     }
+  }
+
+  /**
+   * Sign a policy contract
+   *
+   * Generates a canonical hash of the contract payload and stores
+   * it along with the user's signature. Updates policy status to "under_review".
+   *
+   * Process:
+   * 1. Verify policy exists and belongs to the authenticated user
+   * 2. Verify policy is in "pending" status (can only sign once)
+   * 3. Generate canonical JSON hash of contract payload
+   * 4. Store contractHash and userSig
+   * 5. Update status to "under_review"
+   *
+   * @param input - Contract signing data
+   * @returns Contract hash (0x-prefixed)
+   * @throws NotFoundException if policy not found
+   * @throws BadRequestException if policy already signed or doesn't belong to user
+   */
+  async signContract(
+    input: ContractSignInput,
+  ): Promise<ContractSignResult> {
+    const { policyId, contractPayload, userSig, userId } = input;
+
+    // Load policy and verify ownership
+    const policy = await this.prisma.policy.findUnique({
+      where: { id: policyId },
+    });
+
+    if (!policy) {
+      throw new NotFoundException(`Policy with ID ${policyId} not found`);
+    }
+
+    if (policy.userId !== userId) {
+      throw new BadRequestException(
+        'Policy does not belong to the authenticated user',
+      );
+    }
+
+    // Verify policy status - can only sign pending policies
+    if (policy.status !== 'pending') {
+      throw new BadRequestException(
+        `Policy status is "${policy.status}" - can only sign policies in "pending" status`,
+      );
+    }
+
+    // Already signed check
+    if (policy.contractHash || policy.userSig) {
+      throw new BadRequestException('Policy contract has already been signed');
+    }
+
+    // Generate canonical hash
+    const contractHash = generateContractHash(contractPayload);
+
+    // Update policy with contract hash, signature, and new status
+    await this.prisma.policy.update({
+      where: { id: policyId },
+      data: {
+        contractHash,
+        userSig,
+        status: 'under_review',
+      },
+    });
+
+    return { contractHash };
   }
 }

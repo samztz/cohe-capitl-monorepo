@@ -23,9 +23,11 @@ import {
 import { z } from 'zod';
 import { JwtAuthGuard } from '../auth/jwt.guard';
 import { AuthenticatedUser } from '../auth/jwt.strategy';
-import { PolicyService, Policy } from './policy.service';
+import { PolicyService, Policy, ContractSignResult } from './policy.service';
 import { CreatePolicyDto } from './dto/create-policy.dto';
 import { PolicyResponseDto } from './dto/policy-response.dto';
+import { ContractSignDto } from './dto/contract-sign.dto';
+import { ContractSignResponseDto } from './dto/contract-sign-response.dto';
 
 /**
  * Validation schema for policy creation request
@@ -33,6 +35,19 @@ import { PolicyResponseDto } from './dto/policy-response.dto';
  */
 const CreatePolicyRequestSchema = z.object({
   skuId: z.string().min(1, 'SKU_ID_REQUIRED'),
+});
+
+/**
+ * Validation schema for contract signing request
+ * Validates policyId (UUID), contractPayload (object), and userSig (hex string)
+ */
+const ContractSignRequestSchema = z.object({
+  policyId: z.string().uuid('POLICY_ID_MUST_BE_UUID'),
+  contractPayload: z.record(z.unknown()).refine(
+    (obj) => Object.keys(obj).length > 0,
+    { message: 'CONTRACT_PAYLOAD_CANNOT_BE_EMPTY' },
+  ),
+  userSig: z.string().regex(/^0x[a-fA-F0-9]+$/, 'USER_SIG_MUST_BE_HEX'),
 });
 
 /**
@@ -133,6 +148,89 @@ export class PolicyController {
       skuId,
       userId,
       walletAddress: address,
+    });
+  }
+
+  /**
+   * Sign a policy contract
+   *
+   * POST /policy/contract-sign
+   *
+   * Generates a canonical hash of the contract payload and stores it
+   * with the user's signature. Updates policy status to "under_review".
+   *
+   * @param body - Request body containing policyId, contractPayload, userSig
+   * @param req - Request with authenticated user info from JWT
+   * @returns Contract hash (0x-prefixed)
+   * @throws BadRequestException if validation fails or policy already signed
+   * @throws NotFoundException if policy not found
+   *
+   * @example
+   * Request:
+   * POST /policy/contract-sign
+   * Authorization: Bearer <jwt-token>
+   * {
+   *   "policyId": "uuid",
+   *   "contractPayload": { "key": "value", ... },
+   *   "userSig": "0x1234..."
+   * }
+   *
+   * Response:
+   * {
+   *   "contractHash": "0xa1b2c3..."
+   * }
+   */
+  @Post('contract-sign')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT')
+  @ApiOperation({
+    summary: 'Sign policy contract',
+    description:
+      'Generate canonical hash of contract payload, store signature, and update policy status to "under_review". ' +
+      'Can only sign policies in "pending" status that belong to the authenticated user.',
+  })
+  @ApiBody({ type: ContractSignDto })
+  @ApiResponse({
+    status: 201,
+    description: 'Contract signed successfully, hash returned',
+    type: ContractSignResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description:
+      'Invalid request - validation failed, policy already signed, or wrong status',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - Invalid or missing JWT token',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Policy not found',
+  })
+  async signContract(
+    @Body() body: unknown,
+    @Req() req: { user: AuthenticatedUser },
+  ): Promise<ContractSignResult> {
+    // Validate request body using Zod schema
+    const parsed = ContractSignRequestSchema.safeParse(body);
+
+    if (!parsed.success) {
+      throw new BadRequestException({
+        message: 'Invalid request body',
+        errors: parsed.error.issues,
+      });
+    }
+
+    const { policyId, contractPayload, userSig } = parsed.data;
+    const { userId } = req.user;
+
+    // Sign contract with authenticated user's ID
+    return this.policyService.signContract({
+      policyId,
+      contractPayload,
+      userSig,
+      userId,
     });
   }
 }
