@@ -23,3 +23,20 @@ model User {
   createdAt     DateTime  @default(now())
   lastLoginAt   DateTime?
 }
+
+model Sku {
+  id           String   @id @default(uuid())
+  name         String
+  chainId      Int
+  tokenAddress String
+  termDays     Int      @default(90)
+  premiumAmt   Decimal  @db.Decimal(38, 18)
+  coverageAmt  Decimal  @db.Decimal(38, 18)
+  termsUrl     String
+  status       String   @default("active")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([status])
+  @@index([chainId])
+}

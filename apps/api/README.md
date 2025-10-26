@@ -36,13 +36,13 @@ Edit `.env` and update at minimum:
 From the monorepo root:
 
 ```bash
-docker compose up -d postgres
+docker compose -f infra/docker/docker-compose.yml up -d db
 ```
 
 Verify the database is running:
 
 ```bash
-docker compose ps
+docker compose -f infra/docker/docker-compose.yml ps
 ```
 
 ### 4. Run Database Migrations
@@ -237,8 +237,8 @@ Prisma will:
 ⚠️ **WARNING**: This will delete all data!
 
 ```bash
-docker compose down -v
-docker compose up -d postgres
+docker compose -f infra/docker/docker-compose.yml down -v
+docker compose -f infra/docker/docker-compose.yml up -d db
 pnpm --filter api prisma:migrate
 ```
 
@@ -343,9 +343,9 @@ NODE_ENV=production pnpm --filter api start
 **Problem**: `Error: P1001: Can't reach database server`
 
 **Solutions**:
-1. Verify PostgreSQL is running: `docker compose ps`
+1. Verify PostgreSQL is running: `docker compose -f infra/docker/docker-compose.yml ps`
 2. Check `DATABASE_URL` in `.env`
-3. Restart database: `docker compose restart postgres`
+3. Restart database: `docker compose -f infra/docker/docker-compose.yml restart db`
 
 ### Prisma Client Errors
 
