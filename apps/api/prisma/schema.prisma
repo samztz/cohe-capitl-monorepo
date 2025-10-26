@@ -56,8 +56,28 @@ model Policy {
   userSig       String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+  payments      Payment[]
 
   @@unique([walletAddress, skuId])
   @@index([userId])
   @@index([status])
+}
+
+model Payment {
+  id           String   @id @default(uuid())
+  policyId     String
+  policy       Policy   @relation(fields: [policyId], references: [id])
+  txHash       String   @unique
+  chainId      Int
+  tokenAddress String
+  fromAddress  String
+  toAddress    String
+  amount       Decimal  @db.Decimal(38, 18)
+  confirmed    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([policyId])
+  @@index([txHash])
+  @@index([confirmed])
 }

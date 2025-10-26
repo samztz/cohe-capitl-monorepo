@@ -43,7 +43,7 @@ const CreatePolicyRequestSchema = z.object({
  */
 const ContractSignRequestSchema = z.object({
   policyId: z.string().uuid('POLICY_ID_MUST_BE_UUID'),
-  contractPayload: z.record(z.unknown()).refine(
+  contractPayload: z.record(z.string(), z.unknown()).refine(
     (obj) => Object.keys(obj).length > 0,
     { message: 'CONTRACT_PAYLOAD_CANNOT_BE_EMPTY' },
   ),

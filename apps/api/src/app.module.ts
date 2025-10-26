@@ -7,6 +7,7 @@ import { PrismaModule } from './modules/prisma/prisma.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { ProductsModule } from './modules/products/products.module';
 import { PolicyModule } from './modules/policy/policy.module';
+import { PaymentModule } from './modules/payment/payment.module';
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { PolicyModule } from './modules/policy/policy.module';
     AuthModule,
     ProductsModule,
     PolicyModule,
+    PaymentModule,
   ],
   controllers: [AppController],
   providers: [AppService],
