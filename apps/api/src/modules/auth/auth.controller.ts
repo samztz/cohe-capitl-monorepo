@@ -14,10 +14,22 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiBody,
+} from '@nestjs/swagger';
 import { z } from 'zod';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt.guard';
 import { AuthenticatedUser } from './jwt.strategy';
+import { RequestNonceDto } from './dto/request-nonce.dto';
+import { VerifySignatureDto } from './dto/verify-signature.dto';
+import { NonceResponseDto } from './dto/nonce-response.dto';
+import { VerifyResponseDto } from './dto/verify-response.dto';
+import { MeResponseDto } from './dto/me-response.dto';
 
 /** Ethereum address type alias (0x + 40 hex characters) */
 type Address = `0x${string}`;
@@ -47,6 +59,7 @@ const SiweVerifyRequestSchema = z.object({
  * SIWE Authentication Controller
  * Base route: /auth/siwe
  */
+@ApiTags('Auth')
 @Controller('auth/siwe')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
@@ -64,6 +77,21 @@ export class AuthController {
    * @throws BadRequestException if wallet address format is invalid
    */
   @Post('nonce')
+  @ApiOperation({
+    summary: 'Request SIWE nonce',
+    description:
+      'Generate a unique UUID nonce for Sign-In with Ethereum. The nonce is stored with the wallet address and must be included in the SIWE message.',
+  })
+  @ApiBody({ type: RequestNonceDto })
+  @ApiResponse({
+    status: 201,
+    description: 'Nonce generated successfully',
+    type: NonceResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid wallet address format',
+  })
   async createNonce(@Body() body: unknown): Promise<{ nonce: string }> {
     // Validate request body using Zod schema
     const parsed = SiweNonceRequestSchema.safeParse(body);
@@ -90,6 +118,21 @@ export class AuthController {
    * @throws BadRequestException if message/signature is invalid or nonce doesn't match
    */
   @Post('verify')
+  @ApiOperation({
+    summary: 'Verify SIWE signature',
+    description:
+      'Verify the SIWE message signature and issue a JWT token (15 min expiry). Requires a valid SIWE message and Ethereum signature.',
+  })
+  @ApiBody({ type: VerifySignatureDto })
+  @ApiResponse({
+    status: 201,
+    description: 'Signature verified, JWT token issued',
+    type: VerifyResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid SIWE message format, signature, or nonce mismatch',
+  })
   async verify(
     @Body() body: unknown,
   ): Promise<{ token: string; address: string }> {
@@ -122,6 +165,21 @@ export class AuthController {
    */
   @Get('me')
   @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT')
+  @ApiOperation({
+    summary: 'Get current user',
+    description:
+      'Retrieve authenticated user information from JWT token. Requires valid JWT token in Authorization header.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'User information retrieved successfully',
+    type: MeResponseDto,
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - Invalid or missing JWT token',
+  })
   async getMe(
     @Req() req: { user: AuthenticatedUser },
   ): Promise<{ userId: string; address: string }> {

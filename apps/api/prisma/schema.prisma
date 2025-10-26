@@ -22,6 +22,7 @@ model User {
   email         String?
   createdAt     DateTime  @default(now())
   lastLoginAt   DateTime?
+  policies      Policy[]
 }
 
 model Sku {
@@ -36,7 +37,25 @@ model Sku {
   status       String   @default("active")
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+  policies     Policy[]
 
   @@index([status])
   @@index([chainId])
+}
+
+model Policy {
+  id            String    @id @default(uuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id])
+  skuId         String
+  sku           Sku       @relation(fields: [skuId], references: [id])
+  walletAddress String
+  premiumAmt    Decimal   @db.Decimal(38, 18)
+  status        String    @default("pending")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([walletAddress, skuId])
+  @@index([userId])
+  @@index([status])
 }

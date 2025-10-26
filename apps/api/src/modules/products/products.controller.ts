@@ -6,12 +6,15 @@
  */
 
 import { Controller, Get } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { ProductsService, Sku } from './products.service';
+import { ProductResponseDto } from './dto/product-response.dto';
 
 /**
  * Products API Controller
  * Base route: /products
  */
+@ApiTags('Products')
 @Controller('products')
 export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
@@ -46,6 +49,16 @@ export class ProductsController {
    * ]
    */
   @Get()
+  @ApiOperation({
+    summary: 'Get active insurance products',
+    description:
+      'Retrieve all active insurance product SKUs. Returns product details including pricing, coverage, chain info, and terms. Public endpoint - no authentication required.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'List of active insurance products',
+    type: [ProductResponseDto],
+  })
   async getProducts(): Promise<Sku[]> {
     return this.productsService.getActiveProducts();
   }
