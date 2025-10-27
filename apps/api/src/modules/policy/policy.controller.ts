@@ -9,6 +9,8 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Get,
+  Param,
   Post,
   Req,
   UseGuards,
@@ -19,6 +21,7 @@ import {
   ApiResponse,
   ApiBearerAuth,
   ApiBody,
+  ApiParam,
 } from '@nestjs/swagger';
 import { z } from 'zod';
 import { JwtAuthGuard } from '../auth/jwt.guard';
@@ -28,6 +31,7 @@ import { CreatePolicyDto } from './dto/create-policy.dto';
 import { PolicyResponseDto } from './dto/policy-response.dto';
 import { ContractSignDto } from './dto/contract-sign.dto';
 import { ContractSignResponseDto } from './dto/contract-sign-response.dto';
+import { CountdownResponseDto } from './dto/countdown-response.dto';
 
 /**
  * Validation schema for policy creation request
@@ -232,5 +236,114 @@ export class PolicyController {
       userSig,
       userId,
     });
+  }
+
+  /**
+   * Get policy countdown
+   *
+   * GET /policy/:id/countdown
+   *
+   * Returns time remaining for active policies. Shows expired status if past endAt.
+   *
+   * Business logic:
+   * - If status !== 'active': returns current status with secondsRemaining=0
+   * - If status === 'active':
+   *   - Calculates secondsRemaining = max(0, endAt - now)
+   *   - Calculates daysRemaining = floor(secondsRemaining / 86400)
+   *   - If now >= endAt: returns status='expired', secondsRemaining=0
+   *
+   * @param id - Policy UUID
+   * @returns Countdown information with time remaining
+   * @throws BadRequestException if ID format is invalid
+   * @throws NotFoundException if policy not found
+   *
+   * @example
+   * Request:
+   * GET /policy/550e8400-e29b-41d4-a716-446655440000/countdown
+   *
+   * Response (Active):
+   * {
+   *   "policyId": "550e8400-e29b-41d4-a716-446655440000",
+   *   "status": "active",
+   *   "now": "2025-10-27T00:00:00.000Z",
+   *   "startAt": "2025-10-27T00:00:00.000Z",
+   *   "endAt": "2026-01-25T00:00:00.000Z",
+   *   "secondsRemaining": 7776000,
+   *   "daysRemaining": 90
+   * }
+   *
+   * @example
+   * Response (Expired):
+   * {
+   *   "policyId": "550e8400-e29b-41d4-a716-446655440000",
+   *   "status": "expired",
+   *   "now": "2026-02-01T00:00:00.000Z",
+   *   "startAt": "2025-10-27T00:00:00.000Z",
+   *   "endAt": "2026-01-25T00:00:00.000Z",
+   *   "secondsRemaining": 0,
+   *   "daysRemaining": 0
+   * }
+   *
+   * @example
+   * Response (Non-active):
+   * {
+   *   "policyId": "550e8400-e29b-41d4-a716-446655440000",
+   *   "status": "under_review",
+   *   "now": "2025-10-27T00:00:00.000Z",
+   *   "secondsRemaining": 0,
+   *   "daysRemaining": 0
+   * }
+   */
+  @Get(':id/countdown')
+  @ApiOperation({
+    summary: 'Get policy countdown',
+    description:
+      'Returns time remaining for active policies. ' +
+      'Shows expired status if past endAt. ' +
+      'Returns secondsRemaining=0 for non-active policies.',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Policy UUID',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Countdown information retrieved successfully',
+    type: CountdownResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid policy ID format',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Policy not found',
+  })
+  async getCountdown(@Param('id') id: string): Promise<CountdownResponseDto> {
+    // Validate UUID format
+    const uuidSchema = z.string().uuid();
+    const parsed = uuidSchema.safeParse(id);
+
+    if (!parsed.success) {
+      throw new BadRequestException({
+        message: 'Invalid policy ID format',
+        errors: parsed.error.issues,
+      });
+    }
+
+    // Get countdown
+    const result = await this.policyService.getCountdown(parsed.data);
+
+    // Format response
+    return {
+      policyId: result.policyId,
+      status: result.status as any,
+      now: result.now.toISOString(),
+      startAt: result.startAt?.toISOString(),
+      endAt: result.endAt?.toISOString(),
+      secondsRemaining: result.secondsRemaining,
+      daysRemaining: result.daysRemaining,
+    };
   }
 }

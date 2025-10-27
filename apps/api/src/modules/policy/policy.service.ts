@@ -58,6 +58,19 @@ export interface ContractSignResult {
   contractHash: string;
 }
 
+/**
+ * Countdown result
+ */
+export interface CountdownResult {
+  policyId: string;
+  status: string;
+  now: Date;
+  startAt?: Date;
+  endAt?: Date;
+  secondsRemaining: number;
+  daysRemaining: number;
+}
+
 @Injectable()
 export class PolicyService {
   constructor(private readonly prisma: PrismaService) {}
@@ -191,5 +204,88 @@ export class PolicyService {
     });
 
     return { contractHash };
+  }
+
+  /**
+   * Get policy countdown information
+   *
+   * Calculates time remaining for active policies and handles expiration.
+   *
+   * Business rules:
+   * - If status !== 'active': return current status with secondsRemaining=0
+   * - If status === 'active':
+   *   - Calculate secondsRemaining = max(0, endAt - now)
+   *   - Calculate daysRemaining = floor(secondsRemaining / 86400)
+   *   - If now >= endAt: return status='expired', secondsRemaining=0
+   *
+   * Note: We do NOT persist the 'expired' status to the database because:
+   * 1. Expiration is a time-based state that can be computed on-the-fly
+   * 2. Avoids database writes on every countdown request
+   * 3. Prevents race conditions from concurrent requests
+   * 4. A separate batch job can periodically update expired policies if needed
+   *
+   * @param policyId - Policy UUID
+   * @returns Countdown information with time remaining
+   * @throws NotFoundException if policy not found
+   *
+   * @example
+   * // Active policy with time remaining
+   * const countdown = await policyService.getCountdown('uuid');
+   * // Returns: { policyId, status: 'active', secondsRemaining: 7776000, daysRemaining: 90, ... }
+   *
+   * @example
+   * // Expired policy
+   * const countdown = await policyService.getCountdown('uuid');
+   * // Returns: { policyId, status: 'expired', secondsRemaining: 0, daysRemaining: 0, ... }
+   *
+   * @example
+   * // Non-active policy
+   * const countdown = await policyService.getCountdown('uuid');
+   * // Returns: { policyId, status: 'under_review', secondsRemaining: 0, daysRemaining: 0, ... }
+   */
+  async getCountdown(policyId: string): Promise<CountdownResult> {
+    // Load policy
+    const policy = await this.prisma.policy.findUnique({
+      where: { id: policyId },
+    });
+
+    if (!policy) {
+      throw new NotFoundException(`Policy with ID ${policyId} not found`);
+    }
+
+    const now = new Date();
+    let status = policy.status;
+    let secondsRemaining = 0;
+    let daysRemaining = 0;
+
+    // Only calculate countdown for active policies
+    if (policy.status === 'active' && policy.endAt) {
+      const endAtTime = policy.endAt.getTime();
+      const nowTime = now.getTime();
+
+      if (nowTime >= endAtTime) {
+        // Policy has expired
+        status = 'expired';
+        secondsRemaining = 0;
+        daysRemaining = 0;
+        // Note: We do NOT persist 'expired' status to DB here
+        // See function documentation for reasoning
+      } else {
+        // Policy is still active - calculate remaining time
+        const millisRemaining = endAtTime - nowTime;
+        secondsRemaining = Math.floor(millisRemaining / 1000);
+        daysRemaining = Math.floor(secondsRemaining / 86400);
+      }
+    }
+
+    return {
+      policyId: policy.id,
+      status,
+      now,
+      startAt: policy.startAt || undefined,
+      endAt: policy.endAt || undefined,
+      secondsRemaining,
+      daysRemaining,
+    };
   }
 }

@@ -7,7 +7,6 @@
 ## [Unreleased]
 
 ### 待开发功能
-- 倒计时接口（Epic 2 - Issue #10）
 - Admin 审核前端（Epic 6 - Issue #25-31）⭐ 新增
 - 移动端 DApp UI（Epic 3 - Issue #12-16）
 - 前后端联调与测试（Epic 4 - Issue #17-20）
@@ -15,6 +14,111 @@
 
 ### 📋 规划变更
 - **2025-10-27**: 新增 Epic 6 - Admin 审核前端（Web Admin Panel），包含 7 个 Issue (#25-31)
+
+---
+
+## [2025-10-27] - Epic 2 保单倒计时接口 ✅ 完成
+
+### ✅ Added - 保单倒计时接口 (Policy Countdown)
+
+**功能**: GET /policy/:id/countdown - 保单倒计时查询接口
+
+**实现细节**:
+- **业务规则**:
+  - ✅ 如果 status !== 'active'：返回当前状态，secondsRemaining=0
+  - ✅ 如果 status === 'active'：
+    - 计算 secondsRemaining = max(0, endAt - now（秒）)
+    - 计算 daysRemaining = floor(secondsRemaining / 86400)
+    - 如果 now >= endAt：返回 status='expired', secondsRemaining=0
+  - ✅ 不持久化 'expired' 状态到数据库（注释说明原因）
+
+- **计算逻辑**:
+  - 使用服务器当前时间（Date.now()）
+  - 毫秒级精度转换为秒
+  - 向下取整计算天数
+
+- **响应格式**:
+  ```json
+  {
+    "policyId": "uuid",
+    "status": "active|expired|under_review|pending|rejected",
+    "now": "2025-10-27T00:00:00.000Z",
+    "startAt": "2025-10-27T00:00:00.000Z",  // 可选
+    "endAt": "2026-01-25T00:00:00.000Z",    // 可选
+    "secondsRemaining": 7776000,
+    "daysRemaining": 90
+  }
+  ```
+
+**为什么不持久化 expired 状态**（详见代码注释）:
+1. 过期状态是时间相关的，可以实时计算
+2. 避免每次请求都进行数据库写操作
+3. 防止并发请求的竞争条件
+4. 如需持久化，建议使用独立的批处理任务
+
+**相关文件**:
+```
+apps/api/src/modules/policy/
+├── policy.controller.ts           # 新增 GET /policy/:id/countdown 端点
+├── policy.service.ts              # 新增 getCountdown() 方法
+└── dto/
+    └── countdown-response.dto.ts  # 倒计时响应 DTO
+```
+
+**API 示例**:
+```bash
+# Active policy (还有90天)
+GET /policy/{policyId}/countdown
+Response: {
+  "policyId": "uuid",
+  "status": "active",
+  "now": "2025-10-27T00:00:00.000Z",
+  "startAt": "2025-10-27T00:00:00.000Z",
+  "endAt": "2026-01-25T00:00:00.000Z",
+  "secondsRemaining": 7776000,
+  "daysRemaining": 90
+}
+
+# Expired policy (已过期)
+GET /policy/{policyId}/countdown
+Response: {
+  "policyId": "uuid",
+  "status": "expired",
+  "now": "2026-02-01T00:00:00.000Z",
+  "startAt": "2025-10-27T00:00:00.000Z",
+  "endAt": "2026-01-25T00:00:00.000Z",
+  "secondsRemaining": 0,
+  "daysRemaining": 0
+}
+
+# Non-active policy (待审核)
+GET /policy/{policyId}/countdown
+Response: {
+  "policyId": "uuid",
+  "status": "under_review",
+  "now": "2025-10-27T00:00:00.000Z",
+  "secondsRemaining": 0,
+  "daysRemaining": 0
+}
+```
+
+**错误处理**:
+- ✅ 400 - Invalid UUID format
+- ✅ 404 - Policy not found
+- ✅ Zod 验证错误
+
+**测试验证**:
+```bash
+# 测试不存在的保单 (404)
+curl http://localhost:3001/policy/550e8400-e29b-41d4-a716-446655440000/countdown
+# 返回: {"message":"Policy with ID ... not found","error":"Not Found","statusCode":404}
+
+# 测试无效UUID (400)
+curl http://localhost:3001/policy/invalid-uuid/countdown
+# 返回: {"message":"Invalid policy ID format",...}
+```
+
+**Swagger 文档**: http://localhost:3001/api#/Policy
 
 ---
 
