@@ -17,6 +17,101 @@
 
 ---
 
+## [2025-10-27] - Epic 3 移动端项目初始化 ✅ 完成
+
+### ✅ Added - React Native (Expo) 项目初始化 (Issue #11)
+
+**功能**: 初始化 Expo React Native 移动端应用基础架构
+
+**实现细节**:
+- **项目结构**:
+  - ✅ Expo TypeScript 项目（blank-typescript 模板）
+  - ✅ 完整的 src/ 目录结构（components, screens, navigation, hooks, services, store, utils, types）
+  - ✅ pnpm workspace 集成（@cohe-capital/mobile）
+
+- **依赖包安装**:
+  - ✅ **导航**: @react-navigation/native, @react-navigation/native-stack, react-native-screens, react-native-safe-area-context
+  - ✅ **状态管理**: zustand
+  - ✅ **数据请求**: @tanstack/react-query, axios
+  - ✅ **表单**: react-hook-form, zod, @hookform/resolvers
+  - ✅ **UI 组件**: react-native-paper
+  - ✅ **工具库**: dayjs, expo-constants, dotenv
+
+- **环境变量配置**:
+  - ✅ `.env.example` 示例文件（EXPO_PUBLIC_API_BASE, EXPO_PUBLIC_CHAIN_ID）
+  - ✅ `app.config.ts` 动态读取环境变量
+  - ✅ `src/utils/config.ts` 配置工具函数
+
+- **TypeScript 配置**:
+  - ✅ `tsconfig.json` 严格模式 + 路径别名（@/* → src/*）
+  - ✅ `src/types/env.d.ts` 环境变量类型定义
+
+**相关文件**:
+```
+apps/mobile/
+├── package.json           (新增 - pnpm workspace 配置)
+├── app.json               (新增 - Expo 基础配置)
+├── app.config.ts          (新增 - 动态环境变量配置)
+├── App.tsx                (新增 - 根组件)
+├── tsconfig.json          (新增 - TypeScript 配置)
+├── babel.config.js        (新增 - Babel 配置)
+├── .env.example           (新增 - 环境变量示例)
+├── .gitignore             (新增)
+├── README.md              (新增 - 项目文档)
+└── src/
+    ├── components/        (新增 - 可复用组件目录)
+    ├── screens/           (新增 - 页面组件目录)
+    ├── navigation/        (新增 - 导航配置目录)
+    ├── hooks/             (新增 - 自定义 Hook 目录)
+    ├── services/          (新增 - API 服务层目录)
+    ├── store/             (新增 - Zustand 状态管理目录)
+    ├── types/             (新增 - TypeScript 类型定义目录)
+    │   └── env.d.ts       (新增 - 环境变量类型)
+    └── utils/             (新增 - 工具函数目录)
+        └── config.ts      (新增 - 配置读取工具)
+```
+
+**环境变量**:
+```bash
+# .env.example
+EXPO_PUBLIC_API_BASE=http://localhost:3001
+EXPO_PUBLIC_CHAIN_ID=97  # BSC Testnet
+```
+
+**测试命令**:
+```bash
+# 使用 pnpm workspace 启动
+pnpm --filter mobile dev
+
+# 或直接在 apps/mobile 目录下
+npm run dev
+
+# 其他平台
+pnpm --filter mobile android  # Android 模拟器
+pnpm --filter mobile ios      # iOS 模拟器
+pnpm --filter mobile web      # Web 浏览器
+```
+
+**验证结果**:
+- ✅ `pnpm --filter mobile dev` 成功执行并显示 Expo help
+- ✅ TypeScript 配置正确
+- ✅ src/ 目录结构完整（8 个子目录）
+- ✅ 所有依赖包安装成功（1311 个包已解析）
+- ✅ pnpm workspace 正确识别 @cohe-capital/mobile 包
+
+**注意事项**:
+- 项目使用 Expo 52.x + React Native 0.76.6
+- 环境变量必须以 `EXPO_PUBLIC_` 前缀才能在运行时访问
+- 使用 `expo-constants` 读取配置，不使用 react-native-dotenv
+- 首次运行需要扫描 QR 码或使用模拟器
+
+**下一步 (Epic 3 Issue #12)**:
+- [ ] 集成 WalletConnect / MetaMask 登录
+- [ ] 创建登录页面 UI
+- [ ] 实现钱包连接逻辑
+
+---
+
 ## [2025-10-27] - Epic 2 保单倒计时接口 ✅ 完成
 
 ### ✅ Added - 保单倒计时接口 (Policy Countdown)

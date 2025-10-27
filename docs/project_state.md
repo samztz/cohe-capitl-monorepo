@@ -1,7 +1,7 @@
 # 🧭 Project State - Cohe Capital 项目状态追踪
 
 > **MVP 版本**: v0.1.0
-> **最后更新**: 2025-10-27 12:10
+> **最后更新**: 2025-10-27 13:50
 > **管理工具**: Claude Code 自动同步
 > **协作规划**: ChatGPT (Epic 设计) + Claude Code (实现)
 > **协作规则**: 详见 [CLAUDE.md](../CLAUDE.md) 第 11 章
@@ -91,8 +91,8 @@
 
 | ID     | 子任务                                              | 状态     | Owner  | 完成时间       |
 | ------ | --------------------------------------------------- | -------- | ------ | -------------- |
-| #11    | 初始化 RN 项目结构（Expo + EAS）                    | ✅ 完成   | Samztz | 2024-10-26     |
-| #12    | 集成 WalletConnect / MetaMask 登录                  | 🟡 进行中 | Samztz | -              |
+| #11    | 初始化 RN 项目结构（Expo + EAS）                    | ✅ 完成   | Samztz | 2025-10-27     |
+| #12    | 集成 WalletConnect / MetaMask 登录                  | ⚪ 待做   | Samztz | -              |
 | #13    | 产品列表页（绑定 /products API）                    | ⚪ 待做   | Samztz | -              |
 | #14    | 保单详情页（/policies/:id）                         | ⚪ 待做   | Samztz | -              |
 | #15    | 签署与支付交互流（mock 钱包签名）                   | ⚪ 待做   | Samztz | -              |
@@ -100,9 +100,15 @@
 
 **已完成功能**:
 - ✅ Expo 项目初始化（TypeScript + React Navigation）
+- ✅ 完整的 src/ 目录结构（components, screens, navigation, hooks, services, store, utils, types）
+- ✅ pnpm workspace 集成 (@cohe-capital/mobile)
+- ✅ 所有核心依赖安装完成（react-navigation, zustand, react-query, react-hook-form, zod, react-native-paper等）
+- ✅ 环境变量配置 (.env.example + app.config.ts)
+- ✅ TypeScript 严格模式配置 + 路径别名
+- ✅ `pnpm --filter mobile dev` 启动脚本验证通过
 
 **下一步**:
-- 🟡 完成钱包连接页面（WalletConnect v2 / Mock 登录）
+- ⚪ 集成 WalletConnect / MetaMask 登录（Issue #12）
 - ⚪ 实现产品列表页（SKU 卡片 UI）
 - ⚪ 构建保单详情页与倒计时组件
 
