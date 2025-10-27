@@ -54,6 +54,8 @@ model Policy {
   status        String    @default("pending")
   contractHash  String?
   userSig       String?
+  startAt       DateTime? // Coverage start time (set when approved)
+  endAt         DateTime? // Coverage end time (startAt + termDays)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   payments      Payment[]

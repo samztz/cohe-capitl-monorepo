@@ -8,6 +8,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { ProductsModule } from './modules/products/products.module';
 import { PolicyModule } from './modules/policy/policy.module';
 import { PaymentModule } from './modules/payment/payment.module';
+import { AdminModule } from './modules/admin/admin.module';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { PaymentModule } from './modules/payment/payment.module';
     ProductsModule,
     PolicyModule,
     PaymentModule,
+    AdminModule,
   ],
   controllers: [AppController],
   providers: [AppService],

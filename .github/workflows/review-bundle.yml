@@ -1,0 +1,139 @@
+name: Create Review Bundle
+
+on:
+  workflow_dispatch:
+    inputs:
+      description:
+        description: 'Optional description for this bundle'
+        required: false
+        type: string
+
+jobs:
+  create-bundle:
+    name: Generate Review Bundle
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up permissions
+        run: chmod +x scripts/make_review_bundle.sh
+
+      - name: Generate review bundle
+        id: bundle
+        run: |
+          # Run the bundle script
+          BUNDLE_PATH=$(bash scripts/make_review_bundle.sh)
+
+          # Extract just the filename for the artifact
+          BUNDLE_FILE=$(basename "$BUNDLE_PATH")
+
+          # Set output for subsequent steps
+          echo "bundle_path=$BUNDLE_PATH" >> $GITHUB_OUTPUT
+          echo "bundle_file=$BUNDLE_FILE" >> $GITHUB_OUTPUT
+
+          # Display bundle info
+          echo "### Review Bundle Created 📦" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**File:** \`$BUNDLE_FILE\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Size:** $(du -h "$BUNDLE_PATH" | cut -f1)" >> $GITHUB_STEP_SUMMARY
+          echo "**Files:** $(unzip -l "$BUNDLE_PATH" | tail -n 1 | awk '{print $2}')" >> $GITHUB_STEP_SUMMARY
+
+          if [ -n "${{ inputs.description }}" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Description:** ${{ inputs.description }}" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Download the artifact from this workflow run to get the bundle." >> $GITHUB_STEP_SUMMARY
+
+      - name: Verify bundle contents
+        run: |
+          BUNDLE_PATH="${{ steps.bundle.outputs.bundle_path }}"
+
+          echo "Verifying bundle contents..."
+
+          # Check manifest.json exists
+          if unzip -l "$BUNDLE_PATH" | grep -q "manifest.json"; then
+            echo "✓ manifest.json found"
+          else
+            echo "✗ manifest.json missing"
+            exit 1
+          fi
+
+          # Check TREE.txt exists
+          if unzip -l "$BUNDLE_PATH" | grep -q "TREE.txt"; then
+            echo "✓ TREE.txt found"
+          else
+            echo "✗ TREE.txt missing"
+            exit 1
+          fi
+
+          # Check no .env files (except .env.example)
+          if unzip -l "$BUNDLE_PATH" | grep -v ".env.example" | grep -q "\.env"; then
+            echo "✗ Found .env files in bundle (security risk)"
+            exit 1
+          else
+            echo "✓ No .env files found (good)"
+          fi
+
+          # Check no secrets
+          FORBIDDEN_PATTERNS="\.pem|\.key|\.p12"
+          if unzip -l "$BUNDLE_PATH" | grep -qE "$FORBIDDEN_PATTERNS"; then
+            echo "✗ Found secret files in bundle (security risk)"
+            exit 1
+          else
+            echo "✓ No secret files found (good)"
+          fi
+
+          echo ""
+          echo "All verification checks passed ✓"
+
+      - name: Extract manifest for review
+        run: |
+          BUNDLE_PATH="${{ steps.bundle.outputs.bundle_path }}"
+
+          # Extract just the manifest for easy viewing
+          unzip -p "$BUNDLE_PATH" manifest.json > manifest-preview.json
+
+          echo "### Manifest Preview" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```json' >> $GITHUB_STEP_SUMMARY
+          head -n 20 manifest-preview.json >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload review bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: review-bundle
+          path: ${{ steps.bundle.outputs.bundle_path }}
+          retention-days: 30
+          compression-level: 0
+
+      - name: Upload manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: manifest-json
+          path: manifest-preview.json
+          retention-days: 30
+
+      - name: Comment with instructions
+        run: |
+          echo "### 📦 Review Bundle Ready" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "The review bundle has been created and uploaded as an artifact." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**To download:**" >> $GITHUB_STEP_SUMMARY
+          echo "1. Go to the 'Summary' page of this workflow run" >> $GITHUB_STEP_SUMMARY
+          echo "2. Scroll to 'Artifacts' section" >> $GITHUB_STEP_SUMMARY
+          echo "3. Download \`review-bundle\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Contents include:**" >> $GITHUB_STEP_SUMMARY
+          echo "- Source code from apps/api, apps/mobile, apps/admin" >> $GITHUB_STEP_SUMMARY
+          echo "- Shared packages (types, ui, config)" >> $GITHUB_STEP_SUMMARY
+          echo "- Configuration files and schemas" >> $GITHUB_STEP_SUMMARY
+          echo "- manifest.json with file hashes" >> $GITHUB_STEP_SUMMARY
+          echo "- TREE.txt with directory structure" >> $GITHUB_STEP_SUMMARY
