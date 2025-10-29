@@ -4,6 +4,60 @@
 
 ---
 
+## [2025-10-29] - Epic 3 ConnectScreen 重新设计 ✅ 完成
+
+### ✅ Updated - 欢迎页面 UI 重构（ConnectScreen）
+
+**功能**: 重新设计移动端欢迎页面，完全匹配设计稿 `docs/designs/欢迎页面.png`
+
+**实现细节**:
+- **UI 组件完全重写**:
+  - ✅ 头部区域：Logo（cohe-capitl-app-logo.png）+ Contact us 按钮
+  - ✅ Hero 区域：中心盾牌图标（welcome-logo.png）响应式布局
+  - ✅ 标题区域："THE **FIRST** CRYPTO INSURANCE ALTERNATIVE"（FIRST 高亮金色）
+  - ✅ 副标题："COVERING CRYPTO SINCE 2025"
+  - ✅ 底部 Connect Wallet 按钮（金色高亮 + 阴影效果）
+
+- **技术实现**:
+  - ✅ 使用原生 React Native 组件（SafeAreaView, StatusBar, TouchableOpacity）
+  - ✅ 移除 React Native Paper 依赖（此页面使用纯原生组件）
+  - ✅ 响应式图片尺寸（使用 Dimensions API，适配不同屏幕）
+  - ✅ 精确还原设计稿颜色：#0F111A（背景）、#FFD54F（金色）、#FFFFFF（标题）、#9CA3AF（副标题）
+  - ✅ 静态 UI 实现（钱包连接逻辑保留 TODO，暂时导航到 Products 页面）
+
+- **目录结构优化**:
+  - ✅ screens/ 按功能分类为 auth/, policy/, payment/ 三个子目录
+  - ✅ 批量修复所有 screen 文件的 import 路径（从 `../` 改为 `../../`）
+  - ✅ RootNavigator.tsx 更新所有 screen import 路径
+
+**相关文件**:
+```
+apps/mobile/src/screens/auth/ConnectScreen.tsx (完全重写)
+apps/mobile/src/navigation/RootNavigator.tsx (更新 import 路径)
+apps/mobile/src/screens/policy/*.tsx (修复 import 路径)
+apps/mobile/src/screens/payment/*.tsx (修复 import 路径)
+apps/mobile/assets/cohe-capitl-app-logo.png (已验证存在)
+apps/mobile/assets/welcome-logo.png (已验证存在)
+```
+
+**测试方法**:
+```bash
+# 启动开发服务器
+pnpm --filter mobile dev
+
+# 访问 http://localhost:8081
+# 在 Expo Go 或 Web 浏览器中查看欢迎页面
+```
+
+**注意事项**:
+- ⚠️ ConnectScreen 当前为静态 UI，钱包连接功能待 Issue #12 实现
+- ⚠️ Contact us 按钮当前仅 console.log，实际功能待后续实现
+- ⚠️ 临时行为：点击 Connect Wallet → 导航到 Products 页面（用于测试）
+- ✅ UI 完全还原设计稿要求
+- ✅ 移动端适配完成（使用 Dimensions API 实现响应式）
+
+---
+
 ## [Unreleased]
 
 ### 待开发功能

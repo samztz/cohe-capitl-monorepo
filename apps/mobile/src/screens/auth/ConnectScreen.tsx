@@ -1,140 +1,191 @@
 /**
- * Connect Screen (Landing + Wallet Connection)
- * User flow: Welcome page → Connect wallet
+ * Connect Screen - Welcome Page
+ * Matches design: docs/designs/欢迎页面.png
  */
 
 import React from 'react';
-import { View, StyleSheet, Image } from 'react-native';
-import { Text, Button, Divider } from 'react-native-paper';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Image,
+  TouchableOpacity,
+  SafeAreaView,
+  StatusBar,
+  Dimensions,
+} from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/types';
-import { colors, spacing } from '../../theme';
-import { useAuthStore } from '../../store/auth';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Connect'>;
 
-export default function ConnectScreen({ navigation }: Props) {
-  const mockLogin = useAuthStore((state) => state.mockLogin);
+const { width } = Dimensions.get('window');
 
-  // TODO: Implement real wallet connection with WalletConnect/MetaMask
-  // 1. Show wallet selection modal (WalletConnect, MetaMask, etc.)
-  // 2. Request wallet connection via WalletConnect SDK
-  // 3. Get user's wallet address
-  // 4. Call backend POST /auth/siwe/nonce to get nonce
-  // 5. Request user to sign SIWE message with nonce
-  // 6. Call backend POST /auth/siwe/verify with signature
-  // 7. Receive JWT token and store in auth store
-  // 8. Navigate to Products screen
-  const handleConnectWallet = () => {
-    // Placeholder for real wallet connection
-    console.log('TODO: Implement WalletConnect/MetaMask connection');
+export default function ConnectScreen({ navigation }: Props) {
+  const handleContactUs = () => {
+    // TODO: Implement contact us functionality
+    console.log('Contact us pressed');
   };
 
-  /**
-   * Mock login for development
-   * Sets a fake wallet address and navigates to Products
-   */
-  const handleMockLogin = () => {
-    mockLogin('0x1111111111111111111111111111111111111111');
+  const handleConnectWallet = () => {
+    // TODO: Implement wallet connection
+    // For now, navigate to Products for testing
     navigation.navigate('Products');
   };
 
   return (
-    <View style={styles.container}>
-      {/* Shield Icon Placeholder */}
-      <View style={styles.iconContainer}>
-        <Text style={styles.icon}>🛡️</Text>
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="#0F111A" />
+
+      {/* Header */}
+      <View style={styles.header}>
+        <Image
+          source={require('../../../assets/cohe-capitl-app-logo.png')}
+          style={styles.logo}
+          resizeMode="contain"
+        />
+        <TouchableOpacity
+          style={styles.contactButton}
+          onPress={handleContactUs}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.contactButtonText}>Contact us</Text>
+        </TouchableOpacity>
       </View>
 
-      <Text variant="displaySmall" style={styles.title}>
-        THE FIRST CRYPTO{'\n'}INSURANCE{'\n'}ALTERNATIVE
-      </Text>
+      {/* Hero Section */}
+      <View style={styles.heroSection}>
+        <View style={styles.shieldContainer}>
+          <Image
+            source={require('../../../assets/welcome-logo.png')}
+            style={styles.shieldImage}
+            resizeMode="contain"
+          />
+        </View>
 
-      <Text variant="bodyMedium" style={styles.subtitle}>
-        COVERING CRYPTO SINCE 2025
-      </Text>
+        {/* Title */}
+        <View style={styles.titleContainer}>
+          <Text style={styles.title}>
+            THE <Text style={styles.titleHighlight}>FIRST</Text> CRYPTO
+          </Text>
+          <Text style={styles.title}>INSURANCE</Text>
+          <Text style={styles.title}>ALTERNATIVE</Text>
+        </View>
 
-      {/* Real Wallet Connection (TODO) */}
-      <Button
-        mode="contained"
-        onPress={handleConnectWallet}
-        style={styles.button}
-        disabled
-      >
-        Connect Wallet
-      </Button>
+        {/* Subtitle */}
+        <Text style={styles.subtitle}>COVERING CRYPTO SINCE 2025</Text>
+      </View>
 
-      <Text variant="bodySmall" style={styles.comingSoon}>
-        (WalletConnect integration coming soon)
-      </Text>
-
-      <Divider style={styles.divider} />
-
-      {/* Mock Login for Development */}
-      <Button
-        mode="outlined"
-        onPress={handleMockLogin}
-        style={styles.mockButton}
-        textColor={colors.primary}
-      >
-        Mock Login (Dev Only)
-      </Button>
-
-      <Text variant="bodySmall" style={styles.hint}>
-        For development: Skip wallet connection
-      </Text>
-    </View>
+      {/* Connect Button */}
+      <View style={styles.bottomSection}>
+        <TouchableOpacity
+          style={styles.connectButton}
+          onPress={handleConnectWallet}
+          activeOpacity={0.9}
+        >
+          <Text style={styles.connectButtonText}>Connect Wallet</Text>
+        </TouchableOpacity>
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#0F111A',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 16,
+  },
+  logo: {
+    width: 120,
+    height: 32,
+  },
+  contactButton: {
+    backgroundColor: '#FFD54F',
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 8,
+    height: 32,
+    justifyContent: 'center',
+  },
+  contactButtonText: {
+    color: '#0F111A',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  heroSection: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: spacing.xl,
+    paddingHorizontal: 20,
   },
-  iconContainer: {
-    marginBottom: spacing.xl,
+  shieldContainer: {
+    marginBottom: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  icon: {
-    fontSize: 100,
+  shieldImage: {
+    width: width * 0.65,
+    height: width * 0.65,
+    maxWidth: 280,
+    maxHeight: 280,
+  },
+  titleContainer: {
+    alignItems: 'center',
+    marginBottom: 24,
   },
   title: {
-    color: colors.textPrimary,
+    color: '#FFFFFF',
+    fontSize: 28,
     fontWeight: '700',
-    marginBottom: spacing.md,
     textAlign: 'center',
-    letterSpacing: 1,
+    letterSpacing: 0.5,
+    lineHeight: 36,
+  },
+  titleHighlight: {
+    color: '#FFD54F',
   },
   subtitle: {
-    color: colors.textSecondary,
-    marginBottom: spacing.xxl,
-    textAlign: 'center',
+    color: '#9CA3AF',
+    fontSize: 12,
+    fontWeight: '500',
     letterSpacing: 2,
-  },
-  button: {
-    minWidth: 250,
-    marginBottom: spacing.sm,
-  },
-  comingSoon: {
-    color: colors.textTertiary,
-    marginBottom: spacing.xl,
-    fontStyle: 'italic',
-  },
-  divider: {
-    width: '80%',
-    marginVertical: spacing.xl,
-    backgroundColor: colors.divider,
-  },
-  mockButton: {
-    minWidth: 250,
-    borderColor: colors.primary,
-    marginBottom: spacing.sm,
-  },
-  hint: {
-    color: colors.textTertiary,
     textAlign: 'center',
+  },
+  bottomSection: {
+    paddingHorizontal: 20,
+    paddingBottom: 48,
+    alignItems: 'center',
+  },
+  connectButton: {
+    backgroundColor: '#FFD54F',
+    width: '70%',
+    minWidth: 200,
+    maxWidth: 280,
+    height: 48,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#FFD54F',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  connectButtonText: {
+    color: '#0F111A',
+    fontSize: 16,
+    fontWeight: '600',
+    letterSpacing: 0.5,
   },
 });
