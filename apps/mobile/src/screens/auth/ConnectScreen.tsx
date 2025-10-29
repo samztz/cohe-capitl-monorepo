@@ -39,11 +39,14 @@ export default function ConnectScreen({ navigation }: Props) {
 
       {/* Header */}
       <View style={styles.header}>
-        <Image
-          source={require('../../../assets/cohe-capitl-app-logo.png')}
-          style={styles.logo}
-          resizeMode="contain"
-        />
+        <View style={styles.logoTitleContainer}>
+          <Image
+            source={require('../../../assets/cohe-capitl-app-logo.png')}
+            style={styles.logo}
+            resizeMode="contain"
+          />
+          <Text style={styles.titleText}>COHE.CAPITL</Text>
+        </View>
         <TouchableOpacity
           style={styles.contactButton}
           onPress={handleContactUs}
@@ -103,8 +106,30 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 16,
   },
+  logoTitleContainer: {
+    width: 'auto',
+    display: 'flex',
+    justifyContent: 'flex-start',
+    flexDirection: 'row',
+    borderRadius: 4,
+  },
+  headerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    borderColor: 'white',
+    paddingTop: 50, // 考虑状态栏高度
+    paddingBottom: 10,
+  },
+  titleText:{
+    marginLeft: 8,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    letterSpacing: 0.5,
+  },
   logo: {
-    width: 120,
+    width: 32,
     height: 32,
   },
   contactButton: {
