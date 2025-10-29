@@ -3,6 +3,7 @@ dist
 .env
 .expo
 .next
+.pnpm-store/
 expo-temp/
 expo-temp/*
 pnpm-lock.yaml
