@@ -3,6 +3,8 @@ dist
 .env
 .expo
 .next
+expo-temp/
+expo-temp/*
 pnpm-lock.yaml
 .turbo/*
 
