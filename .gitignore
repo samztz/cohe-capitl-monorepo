@@ -11,3 +11,5 @@ pnpm-lock.yaml
 
 # Review bundles
 .review_bundles/
+apps/mobile/.turbo/turbo-dev.log
+apps/api/.turbo/turbo-dev.log
