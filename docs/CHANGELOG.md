@@ -4,6 +4,42 @@
 
 ---
 
+## [2025-10-29] - Epic 3 修复 SafeAreaView Deprecation 警告 ✅ 完成
+
+### ✅ Fixed - 迁移到 react-native-safe-area-context
+
+**功能**: 修复 React Native deprecated SafeAreaView 警告
+
+**实现细节**:
+- **问题**: React Native 核心库的 SafeAreaView 已被标记为 deprecated
+  ```
+  SafeAreaView has been deprecated and will be removed in a future release.
+  Please use 'react-native-safe-area-context' instead.
+  ```
+
+- **解决方案**:
+  - ✅ 将 ConnectScreen.tsx 的 SafeAreaView import 从 `react-native` 迁移到 `react-native-safe-area-context`
+  - ✅ 在 RootNavigator.tsx 添加 `SafeAreaProvider` 包裹整个导航容器
+  - ✅ 确保所有 SafeAreaView 使用官方推荐的库（已预装版本 5.6.1）
+
+**相关文件**:
+```
+apps/mobile/src/screens/auth/ConnectScreen.tsx (更新 import)
+apps/mobile/src/navigation/RootNavigator.tsx (添加 SafeAreaProvider)
+```
+
+**测试结果**:
+- ✅ 警告消失
+- ✅ 应用正常运行
+- ✅ SafeAreaView 功能保持一致
+
+**注意事项**:
+- `react-native-safe-area-context` 版本 5.6.1 已安装
+- SafeAreaProvider 必须包裹 NavigationContainer
+- 其他 screen 如使用 SafeAreaView，也需要迁移
+
+---
+
 ## [2025-10-29] - Epic 3 ConnectScreen 重新设计 ✅ 完成
 
 ### ✅ Updated - 欢迎页面 UI 重构（ConnectScreen）
