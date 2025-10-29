@@ -10,13 +10,13 @@ import { RootStackParamList } from './types';
 import { colors } from '../theme';
 
 // Import screens
-import ConnectScreen from '../screens/ConnectScreen';
-import ProductsScreen from '../screens/ProductsScreen';
-import PolicyFormScreen from '../screens/PolicyFormScreen';
-import ContractSignScreen from '../screens/ContractSignScreen';
-import PayScreen from '../screens/PayScreen';
-import TicketScreen from '../screens/TicketScreen';
-import PolicyStatusScreen from '../screens/PolicyStatusScreen';
+import ConnectScreen from '../screens/auth/ConnectScreen';
+import ProductsScreen from '../screens/policy/ProductsScreen';
+import PolicyFormScreen from '../screens/policy/PolicyFormScreen';
+import ContractSignScreen from '../screens/policy/ContractSignScreen';
+import PayScreen from '../screens/payment/PayScreen';
+import TicketScreen from '../screens/policy/TicketScreen';
+import PolicyStatusScreen from '../screens/policy/PolicyStatusScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 

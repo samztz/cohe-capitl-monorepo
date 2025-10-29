@@ -1,10 +1,10 @@
 {
   "name": "@cohe-capital/mobile",
   "version": "1.0.0",
-  "main": "expo/AppEntry.js",
+  "main": "index.js",
   "scripts": {
     "start": "expo start",
-    "dev": "expo start",
+    "dev": "expo start --tunnel",
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web"
@@ -17,25 +17,27 @@
     "axios": "^1.12.2",
     "dayjs": "^1.11.18",
     "dotenv": "^17.2.3",
-    "expo": "^52.0.29",
+    "expo": "^54.0.20",
     "expo-constants": "^18.0.10",
-    "expo-status-bar": "~2.0.0",
-    "react": "18.3.1",
-    "react-dom": "18.3.1",
+    "expo-status-bar": "~3.0.8",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
     "react-hook-form": "^7.65.0",
-    "react-native": "0.76.6",
+    "react-native": "0.81.5",
     "react-native-paper": "^5.14.5",
     "react-native-safe-area-context": "^5.6.1",
-    "react-native-screens": "^4.18.0",
-    "react-native-web": "~0.19.13",
+    "react-native-screens": "^4.16.0",
+    "react-native-web": "~0.21.2",
     "zod": "^3.25.76",
     "zustand": "^5.0.8"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
-    "@types/react": "~18.3.12",
-    "@types/react-native": "^0.73.0",
-    "typescript": "~5.3.3"
+    "@expo/cli": "^54.0.13",
+    "@expo/metro-runtime": "^6.1.2",
+    "@types/react": "~19.1.17",
+    "metro": "^0.83.3",
+    "typescript": "~5.9.3"
   },
   "private": true
 }
