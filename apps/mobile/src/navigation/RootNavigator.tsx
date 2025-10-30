@@ -6,7 +6,6 @@
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { RootStackParamList } from './types';
 import { colors } from '../theme';
 
@@ -23,8 +22,7 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function RootNavigator() {
   return (
-    <SafeAreaProvider>
-      <NavigationContainer>
+    <NavigationContainer>
       <Stack.Navigator
         initialRouteName="Connect"
         screenOptions={{
@@ -78,6 +76,5 @@ export default function RootNavigator() {
         />
       </Stack.Navigator>
     </NavigationContainer>
-    </SafeAreaProvider>
   );
 }

@@ -3,7 +3,7 @@
  * Matches design: docs/designs/欢迎页面.png
  */
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useAppKit, useAccount, ConnectButton } from '@reown/appkit-react-native';
 import { RootStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Connect'>;
@@ -22,16 +23,40 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Connect'>;
 const { width } = Dimensions.get('window');
 
 export default function ConnectScreen({ navigation }: Props) {
+  const { open } = useAppKit();
+  const { address, isConnected } = useAccount();
+
   const handleContactUs = () => {
     // TODO: Implement contact us functionality
     console.log('Contact us pressed');
   };
 
-  const handleConnectWallet = () => {
-    // TODO: Implement wallet connection
-    // For now, navigate to Products for testing
-    navigation.navigate('Products');
+  const handleConnectWallet = async () => {
+    try {
+      console.log('[ConnectScreen] Opening AppKit modal...');
+      await open();
+      console.log('[ConnectScreen] Modal opened');
+    } catch (error) {
+      console.error('[ConnectScreen] Error opening modal:', error);
+    }
   };
+
+  // Format address as 0xAb...1234
+  const getShortAddress = (): string => {
+    if (!address) return '';
+    return `${address.slice(0, 6)}...${address.slice(-4)}`;
+  };
+
+  // Navigate to Products if connected
+  useEffect(() => {
+    if (isConnected && address) {
+      console.log('[ConnectScreen] Wallet connected:', address);
+      // Auto-navigate after successful connection
+      setTimeout(() => {
+        navigation.navigate('Products');
+      }, 1000);
+    }
+  }, [isConnected, address, navigation]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -79,15 +104,23 @@ export default function ConnectScreen({ navigation }: Props) {
         <Text style={styles.subtitle}>COVERING CRYPTO SINCE 2025</Text>
       </View>
 
-      {/* Connect Button */}
+      {/* Connect Button or Connected Address */}
       <View style={styles.bottomSection}>
-        <TouchableOpacity
-          style={styles.connectButton}
-          onPress={handleConnectWallet}
-          activeOpacity={0.9}
-        >
-          <Text style={styles.connectButtonText}>Connect Wallet</Text>
-        </TouchableOpacity>
+        {isConnected && address ? (
+          <View style={styles.connectedContainer}>
+            <Text style={styles.connectedLabel}>Connected</Text>
+            <Text style={styles.connectedAddress}>{getShortAddress()}</Text>
+            <Text style={styles.navigatingText}>Navigating...</Text>
+          </View>
+        ) : (
+          <TouchableOpacity
+            style={styles.connectButton}
+            onPress={handleConnectWallet}
+            activeOpacity={0.9}
+          >
+            <Text style={styles.connectButtonText}>Connect Wallet</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -121,7 +154,7 @@ const styles = StyleSheet.create({
     paddingTop: 50, // 考虑状态栏高度
     paddingBottom: 10,
   },
-  titleText:{
+  titleText: {
     marginLeft: 8,
     fontSize: 16,
     fontWeight: '600',
@@ -212,5 +245,29 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     letterSpacing: 0.5,
+  },
+  connectedContainer: {
+    alignItems: 'center',
+    paddingVertical: 16,
+  },
+  connectedLabel: {
+    color: '#9CA3AF',
+    fontSize: 12,
+    fontWeight: '500',
+    letterSpacing: 1,
+    marginBottom: 8,
+    textTransform: 'uppercase',
+  },
+  connectedAddress: {
+    color: '#FFD54F',
+    fontSize: 16,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+    marginBottom: 8,
+  },
+  navigatingText: {
+    color: '#9CA3AF',
+    fontSize: 12,
+    fontStyle: 'italic',
   },
 });

@@ -4,8 +4,11 @@
  */
 
 import React from 'react';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { PaperProvider } from 'react-native-paper';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { AppKitProvider, AppKit } from '@reown/appkit-react-native';
+import { appKit } from '../config/AppKitConfig';
 import { theme } from '../theme';
 
 interface AppProvidersProps {
@@ -25,8 +28,12 @@ const queryClient = new QueryClient({
 
 export default function AppProviders({ children }: AppProvidersProps) {
   return (
-    <QueryClientProvider client={queryClient}>
-      <PaperProvider theme={theme}>{children}</PaperProvider>
-    </QueryClientProvider>
+    <SafeAreaProvider>
+      <QueryClientProvider client={queryClient}>
+        <AppKitProvider instance={appKit}>
+          <PaperProvider theme={theme}>{children}</PaperProvider>
+        </AppKitProvider>
+      </QueryClientProvider>
+    </SafeAreaProvider>
   );
 }

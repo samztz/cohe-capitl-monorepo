@@ -4,8 +4,9 @@
     "slug": "cohe-capital-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
-    "sdkVersion": "54.0.0", 
+    "icon": "./assets/cohe-capitl-app-logo.png",
+    "sdkVersion": "54.0.0",
+    "scheme": "cohecapitl",
     "userInterfaceStyle": "light",
     "splash": {
       "image": "./assets/splash.png",
@@ -21,10 +22,31 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.cohecapital.mobile"
+      "package": "com.cohecapital.mobile",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "data": [
+            {
+              "scheme": "cohecapitl"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "kotlinVersion": "1.8.0"
+          }
+        }
+      ]
+    ]
   }
 }

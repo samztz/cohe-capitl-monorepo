@@ -13,3 +13,6 @@ pnpm-lock.yaml
 .review_bundles/
 apps/mobile/.turbo/turbo-dev.log
 apps/api/.turbo/turbo-dev.log
+apps/mobile/android/*
+apps/mobile/ios/*
+

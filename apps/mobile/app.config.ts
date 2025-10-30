@@ -10,7 +10,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   slug: 'cohe-capital-mobile',
   version: '1.0.0',
   orientation: 'portrait',
-  icon: './assets/icon.png',
+  icon: './assets/cohe-capitl-app-logo.png',
   userInterfaceStyle: 'light',
   splash: {
     image: './assets/splash.png',
