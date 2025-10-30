@@ -14,7 +14,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Products'>;
 
 export default function ProductsScreen({ navigation }: Props) {
   const handleSelectProduct = (productId: string) => {
-    navigation.navigate('PolicyForm', { productId });
+    navigation.navigate('PolicyDetail');
   };
 
   return (

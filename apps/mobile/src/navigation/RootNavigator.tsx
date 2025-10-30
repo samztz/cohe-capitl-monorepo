@@ -14,6 +14,8 @@ import ConnectScreen from '../screens/auth/ConnectScreen';
 import EmailVerifyStart from '../screens/auth/EmailVerifyStart';
 import EmailVerifyCode from '../screens/auth/EmailVerifyCode';
 import ProductsScreen from '../screens/policy/ProductsScreen';
+import PolicyDetailScreen from '../screens/policy/PolicyDetailScreen';
+import PurchaseSuccessScreen from '../screens/policy/PurchaseSuccessScreen';
 import PolicyFormScreen from '../screens/policy/PolicyFormScreen';
 import ContractSignScreen from '../screens/policy/ContractSignScreen';
 import PayScreen from '../screens/payment/PayScreen';
@@ -60,6 +62,16 @@ export default function RootNavigator() {
           name="Products"
           component={ProductsScreen}
           options={{ title: 'Insurance Products' }}
+        />
+        <Stack.Screen
+          name="PolicyDetail"
+          component={PolicyDetailScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="PurchaseSuccess"
+          component={PurchaseSuccessScreen}
+          options={{ headerShown: false }}
         />
         <Stack.Screen
           name="PolicyForm"
