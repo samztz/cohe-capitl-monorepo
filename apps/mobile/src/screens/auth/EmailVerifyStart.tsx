@@ -46,7 +46,7 @@ export default function EmailVerifyStart({ navigation }: Props) {
 
       // Mock API call - simulate network delay
       await new Promise((resolve) => setTimeout(resolve, 800));
-
+      console.log('code sent')
       // Show success toast
       Alert.alert(
         'Code Sent',
@@ -54,13 +54,11 @@ export default function EmailVerifyStart({ navigation }: Props) {
         [
           {
             text: 'OK',
-            onPress: () => {
-              // Navigate to code entry screen
-              navigation.navigate('EmailVerifyCode', { email });
-            },
           },
         ]
       );
+      console.log('navigate');
+      navigation.navigate('EmailVerifyCode', { email });
     } catch (error) {
       Alert.alert('Error', 'Failed to send verification code');
     } finally {

@@ -11,6 +11,8 @@ import { colors } from '../theme';
 
 // Import screens
 import ConnectScreen from '../screens/auth/ConnectScreen';
+import EmailVerifyStart from '../screens/auth/EmailVerifyStart';
+import EmailVerifyCode from '../screens/auth/EmailVerifyCode';
 import ProductsScreen from '../screens/policy/ProductsScreen';
 import PolicyFormScreen from '../screens/policy/PolicyFormScreen';
 import ContractSignScreen from '../screens/policy/ContractSignScreen';
@@ -24,7 +26,7 @@ export default function RootNavigator() {
   return (
     <NavigationContainer>
       <Stack.Navigator
-        initialRouteName="Connect"
+        initialRouteName="EmailVerifyStart"
         screenOptions={{
           headerStyle: {
             backgroundColor: colors.background,
@@ -42,6 +44,16 @@ export default function RootNavigator() {
         <Stack.Screen
           name="Connect"
           component={ConnectScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="EmailVerifyStart"
+          component={EmailVerifyStart}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="EmailVerifyCode"
+          component={EmailVerifyCode}
           options={{ headerShown: false }}
         />
         <Stack.Screen
