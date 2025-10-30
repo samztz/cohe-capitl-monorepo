@@ -4,6 +4,8 @@
 
 export type RootStackParamList = {
   Connect: undefined;
+  EmailVerifyStart: undefined;
+  EmailVerifyCode: { email: string };
   Products: undefined;
   PolicyForm: { productId: string };
   ContractSign: { policyId: string };

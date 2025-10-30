@@ -26,6 +26,7 @@
     "expo-application": "~7.0.7",
     "expo-build-properties": "^1.0.9",
     "expo-constants": "^18.0.10",
+    "expo-secure-store": "^15.0.7",
     "expo-status-bar": "~3.0.8",
     "fast-text-encoding": "^1.0.6",
     "react": "19.1.0",

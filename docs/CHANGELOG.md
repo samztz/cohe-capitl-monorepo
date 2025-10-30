@@ -4,6 +4,72 @@
 
 ---
 
+## [2025-10-30] - Epic 3 SIWE (Sign-In with Ethereum) 完整实现 ✅ 完成
+
+### ✅ Added - 完整的 SIWE 钱包登录流程
+
+**功能**: 实现从钱包连接到 JWT 认证的完整 SIWE 登录流程
+
+**实现细节**:
+- **SIWE 消息格式化**: 实现 EIP-4361 标准的消息格式化工具
+- **认证状态管理**: 使用 Zustand 实现全局认证状态，配合 expo-secure-store 安全存储 JWT
+- **登录主流程**: 完整的 5 步登录流程（连接钱包 → 获取 nonce → 格式化消息 → 签名 → 验证）
+- **UI 集成**: ConnectScreen 支持多种状态展示（未连接、连接中、签名中、已认证）
+- **错误处理**: 覆盖所有失败场景，包括用户拒绝、网络错误、验证失败等
+- **持久化**: JWT 和用户信息安全存储，支持自动登录
+
+**技术栈**:
+- `@reown/appkit-react-native`: WalletConnect v2 官方 SDK
+- `@reown/appkit-ethers-react-native`: Ethers.js 适配器
+- `zustand`: 状态管理
+- `expo-secure-store`: 安全存储 JWT
+- `viem`: 链配置
+
+**相关文件**:
+```
+apps/mobile/src/lib/siweUtil.ts (SIWE 消息格式化工具)
+apps/mobile/src/store/authStore.ts (认证状态管理)
+apps/mobile/src/features/auth/siweLogin.ts (登录主流程)
+apps/mobile/src/screens/auth/ConnectScreen.tsx (UI 集成)
+apps/mobile/docs/SIWE_TESTING_GUIDE.md (测试指南)
+```
+
+**API 端点**:
+- `GET /auth/siwe/nonce`: 获取登录 nonce
+- `POST /auth/siwe/verify`: 验证签名并返回 JWT
+
+**测试方法**:
+```bash
+# 启动后端
+pnpm --filter api dev
+
+# 启动移动应用
+pnpm --filter mobile start -- --clear
+
+# 测试登录流程
+1. 点击 "Connect Wallet" 按钮
+2. 选择钱包并连接
+3. 在钱包中签名消息
+4. 验证成功后自动跳转到产品页面
+```
+
+**错误类型处理**:
+- `WALLET_NOT_CONNECTED`: 钱包未连接
+- `NONCE_FETCH_FAILED`: 获取 nonce 失败
+- `USER_REJECTED`: 用户拒绝签名
+- `SIGNATURE_FAILED`: 签名失败
+- `VERIFICATION_FAILED`: 验证失败
+- `NETWORK_ERROR`: 网络错误
+
+**注意事项**:
+- 需要安装 MetaMask 或 Trust Wallet 等支持 WalletConnect 的钱包
+- 使用 BSC Testnet (chainId: 97) 进行测试
+- PROJECT_ID: e1d4344896342c6efb5aab6396d3ae24
+- pulse.walletconnect.org 的 400 错误为遥测服务，不影响核心功能
+- JWT 存储在 SecureStore 中，应用重启后自动恢复认证状态
+
+---
+
 ## [2025-10-29] - Epic 3 修复 SafeAreaView Deprecation 警告 ✅ 完成
 
 ### ✅ Fixed - 迁移到 react-native-safe-area-context

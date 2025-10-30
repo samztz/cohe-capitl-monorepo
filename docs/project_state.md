@@ -85,14 +85,14 @@
 
 **目标**：在 Expo 环境下实现完整的 UI 演示流，无需真实合约即可完整交互。
 
-**状态**: 🟡 16.7% 完成 (1/6 任务完成)
+**状态**: 🟡 33.3% 完成 (2/6 任务完成)
 
 ### Issues
 
 | ID     | 子任务                                              | 状态     | Owner  | 完成时间       |
 | ------ | --------------------------------------------------- | -------- | ------ | -------------- |
 | #11    | 初始化 RN 项目结构（Expo + EAS）                    | ✅ 完成   | Samztz | 2025-10-27     |
-| #12    | 集成 WalletConnect / MetaMask 登录                  | ⚪ 待做   | Samztz | -              |
+| #12    | 集成 WalletConnect / MetaMask 登录                  | ✅ 完成   | Samztz | 2025-10-30     |
 | #13    | 产品列表页（绑定 /products API）                    | ⚪ 待做   | Samztz | -              |
 | #14    | 保单详情页（/policies/:id）                         | ⚪ 待做   | Samztz | -              |
 | #15    | 签署与支付交互流（mock 钱包签名）                   | ⚪ 待做   | Samztz | -              |
@@ -101,6 +101,12 @@
 **已完成功能**:
 - ✅ Expo 项目初始化（TypeScript + React Navigation）
 - ✅ 完整的 src/ 目录结构（components, screens, navigation, hooks, services, store, utils, types）
+- ✅ WalletConnect v2 集成（@reown/appkit-react-native + Ethers 适配器）
+- ✅ SIWE 完整登录流程（连接钱包 → 签名消息 → JWT 认证）
+- ✅ Auth Store 全局状态管理（Zustand + expo-secure-store）
+- ✅ ConnectScreen UI 多状态支持（未连接/连接中/签名中/已认证）
+- ✅ 错误处理与用户反馈机制
+- ✅ JWT 持久化与自动登录功能
 - ✅ pnpm workspace 集成 (@cohe-capital/mobile)
 - ✅ 所有核心依赖安装完成（react-navigation, zustand, react-query, react-hook-form, zod, react-native-paper等）
 - ✅ 环境变量配置 (.env.example + app.config.ts)

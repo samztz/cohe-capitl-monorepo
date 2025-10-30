@@ -1,9 +1,10 @@
 /**
  * Connect Screen - Welcome Page
  * Matches design: docs/designs/欢迎页面.png
+ * Implements SIWE (Sign-In with Ethereum) login flow
  */
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -12,51 +13,148 @@ import {
   TouchableOpacity,
   StatusBar,
   Dimensions,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useAppKit, useAccount, ConnectButton } from '@reown/appkit-react-native';
+import { useAppKit, useAccount } from '@reown/appkit-react-native';
 import { RootStackParamList } from '../../navigation/types';
+import { useAuthStore } from '../../store/authStore';
+import { loginWithWallet, LoginErrorType } from '../../features/auth/siweLogin';
+import { resetAuth } from '../../dev/resetAuth';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Connect'>;
 
 const { width } = Dimensions.get('window');
 
 export default function ConnectScreen({ navigation }: Props) {
-  const { open } = useAppKit();
+  const { open, disconnect } = useAppKit();
   const { address, isConnected } = useAccount();
+  const { isAuthenticated, user, loadStoredAuth, logout: logoutStore } = useAuthStore();
+  const [isSigningIn, setIsSigningIn] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  const handleContactUs = () => {
-    // TODO: Implement contact us functionality
-    console.log('Contact us pressed');
+  // Load stored auth on component mount
+  useEffect(() => {
+    loadStoredAuth();
+  }, []);
+
+  const handleLogout = async () => {
+    // Temporary logout button (replaces "Contact us" button)
+    // TODO: In production, implement separate "Contact us" functionality
+    try {
+      setIsLoggingOut(true);
+      console.log('[ConnectScreen] Starting logout...');
+
+      // Call resetAuth utility to disconnect and clear all storage
+      const result = await resetAuth({ disconnect });
+
+      // Also clear Zustand store state
+      await logoutStore();
+
+      console.log('[ConnectScreen] Logout completed:', result);
+
+      // Show success message
+      Alert.alert(
+        'Logged Out',
+        `Successfully logged out and cleared ${result.removedKeys.length} storage keys.`,
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              // Reset local state
+              setLocalError(null);
+              console.log('[ConnectScreen] UI reset complete');
+            },
+          },
+        ]
+      );
+    } catch (error) {
+      console.error('[ConnectScreen] Logout error:', error);
+      Alert.alert('Logout Error', 'Failed to logout. Please try again.');
+    } finally {
+      setIsLoggingOut(false);
+    }
   };
 
   const handleConnectWallet = async () => {
     try {
-      console.log('[ConnectScreen] Opening AppKit modal...');
-      await open();
-      console.log('[ConnectScreen] Modal opened');
+      setLocalError(null);
+
+      // If already connected but not authenticated, directly try to sign in
+      if (isConnected && !isAuthenticated) {
+        await performSiweLogin();
+      } else {
+        // Open wallet modal for connection
+        console.log('[ConnectScreen] Opening AppKit modal...');
+        await open();
+        console.log('[ConnectScreen] Modal opened');
+      }
     } catch (error) {
-      console.error('[ConnectScreen] Error opening modal:', error);
+      console.error('[ConnectScreen] Error:', error);
+      setLocalError('Failed to connect wallet');
+    }
+  };
+
+  const performSiweLogin = async () => {
+    try {
+      setIsSigningIn(true);
+      setLocalError(null);
+      console.log('[ConnectScreen] Starting SIWE login...');
+
+      await loginWithWallet();
+
+      console.log('[ConnectScreen] SIWE login successful');
+      // Navigation will be handled by the effect below
+    } catch (error: any) {
+      console.error('[ConnectScreen] SIWE login error:', error);
+
+      // Handle specific error types
+      let errorMessage = 'Login failed. Please try again.';
+      if (error.type === LoginErrorType.USER_REJECTED) {
+        errorMessage = 'Sign-in cancelled';
+      } else if (error.type === LoginErrorType.NONCE_FETCH_FAILED) {
+        errorMessage = 'Network error. Please check your connection';
+      } else if (error.type === LoginErrorType.VERIFICATION_FAILED) {
+        errorMessage = 'Login expired. Please try again';
+      }
+
+      setLocalError(errorMessage);
+
+      // Show alert for errors
+      Alert.alert('Login Failed', errorMessage, [{ text: 'OK' }]);
+    } finally {
+      setIsSigningIn(false);
     }
   };
 
   // Format address as 0xAb...1234
   const getShortAddress = (): string => {
-    if (!address) return '';
-    return `${address.slice(0, 6)}...${address.slice(-4)}`;
+    const displayAddress = user?.address || address;
+    if (!displayAddress) return '';
+    return `${displayAddress.slice(0, 6)}...${displayAddress.slice(-4)}`;
   };
 
-  // Navigate to Products if connected
+  // Trigger SIWE login when wallet is connected but not authenticated
   useEffect(() => {
-    if (isConnected && address) {
-      console.log('[ConnectScreen] Wallet connected:', address);
-      // Auto-navigate after successful connection
+    if (isConnected && address && !isAuthenticated && !isSigningIn) {
+      console.log('[ConnectScreen] Wallet connected, starting SIWE login...');
+      performSiweLogin();
+    }
+  }, [isConnected, address, isAuthenticated]);
+
+  // Navigate to Products when authenticated
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      console.log('[ConnectScreen] User authenticated:', user.address);
+      // Auto-navigate after successful authentication
       setTimeout(() => {
         navigation.navigate('Products');
       }, 1000);
     }
-  }, [isConnected, address, navigation]);
+  }, [isAuthenticated, user, navigation]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -74,10 +172,13 @@ export default function ConnectScreen({ navigation }: Props) {
         </View>
         <TouchableOpacity
           style={styles.contactButton}
-          onPress={handleContactUs}
+          onPress={handleLogout}
           activeOpacity={0.8}
+          disabled={isLoggingOut}
         >
-          <Text style={styles.contactButtonText}>Contact us</Text>
+          <Text style={styles.contactButtonText}>
+            {isLoggingOut ? 'Logging out...' : 'Logout'}
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -106,13 +207,35 @@ export default function ConnectScreen({ navigation }: Props) {
 
       {/* Connect Button or Connected Address */}
       <View style={styles.bottomSection}>
-        {isConnected && address ? (
+        {isAuthenticated && user ? (
+          // Authenticated State - Show user address
           <View style={styles.connectedContainer}>
-            <Text style={styles.connectedLabel}>Connected</Text>
+            <Text style={styles.connectedLabel}>Signed In</Text>
             <Text style={styles.connectedAddress}>{getShortAddress()}</Text>
-            <Text style={styles.navigatingText}>Navigating...</Text>
+            <Text style={styles.navigatingText}>Navigating to insurance products...</Text>
+          </View>
+        ) : isSigningIn ? (
+          // Signing In State - Show loading
+          <View style={styles.connectedContainer}>
+            <ActivityIndicator size="large" color="#FFD54F" />
+            <Text style={styles.signingInText}>Signing in with wallet...</Text>
+            <Text style={styles.signingInSubtext}>Please check your wallet</Text>
+          </View>
+        ) : isConnected && !isAuthenticated ? (
+          // Connected but not authenticated - Show signing prompt
+          <View style={styles.connectedContainer}>
+            <Text style={styles.connectedLabel}>Wallet Connected</Text>
+            <Text style={styles.connectedAddress}>{getShortAddress()}</Text>
+            <TouchableOpacity
+              style={[styles.connectButton, styles.signButton]}
+              onPress={performSiweLogin}
+              activeOpacity={0.9}
+            >
+              <Text style={styles.connectButtonText}>Sign In</Text>
+            </TouchableOpacity>
           </View>
         ) : (
+          // Not connected - Show connect button
           <TouchableOpacity
             style={styles.connectButton}
             onPress={handleConnectWallet}
@@ -120,6 +243,13 @@ export default function ConnectScreen({ navigation }: Props) {
           >
             <Text style={styles.connectButtonText}>Connect Wallet</Text>
           </TouchableOpacity>
+        )}
+
+        {/* Error Message */}
+        {localError && (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>{localError}</Text>
+          </View>
         )}
       </View>
     </SafeAreaView>

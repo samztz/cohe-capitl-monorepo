@@ -24,6 +24,8 @@
 
 import { Module } from '@nestjs/common';
 import { PassportModule } from '@nestjs/passport';
+import { JwtModule } from '@nestjs/jwt';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { PrismaModule } from '../prisma/prisma.module';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
@@ -36,6 +38,7 @@ import { JwtAuthGuard } from './jwt.guard';
  * Imports:
  * - PrismaModule: For database access to User table
  * - PassportModule: Configured with 'jwt' as default strategy
+ * - JwtModule: JWT token generation with configurable secret and expiry
  *
  * Controllers:
  * - AuthController: Handles /auth/siwe/* endpoints
@@ -49,7 +52,23 @@ import { JwtAuthGuard } from './jwt.guard';
  * - JwtAuthGuard: Can be used by other modules to protect their routes
  */
 @Module({
-  imports: [PrismaModule, PassportModule.register({ defaultStrategy: 'jwt' })],
+  imports: [
+    PrismaModule,
+    PassportModule.register({ defaultStrategy: 'jwt' }),
+    JwtModule.registerAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => {
+        const expiresIn = configService.get<string>('JWT_EXPIRES_IN') || '7d';
+        return {
+          secret: configService.get<string>('JWT_SECRET') || 'change_me',
+          signOptions: {
+            expiresIn: expiresIn as any,
+          },
+        };
+      },
+    }),
+  ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy, JwtAuthGuard],
   exports: [JwtAuthGuard],
