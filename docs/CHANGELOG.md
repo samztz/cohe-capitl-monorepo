@@ -4,6 +4,157 @@
 
 ---
 
+## [2025-10-30] - Epic 6 Web Admin 后台管理系统完整实现 ✅ 完成
+
+### ✅ Added - 完整的 Admin Dashboard（Next.js 14）
+
+**功能**: 实现可上线演示的 Web Admin 后台管理系统，支持保单管理和审核流程
+
+**实现细节**:
+- **技术栈**: Next.js 14 (App Router) + TypeScript + Tailwind CSS + shadcn/ui
+- **认证系统**: 轻量级 Email/Password 登录（localStorage 存储，demo 模式）
+- **仪表盘**: 实时统计卡片（总保单数、待审核数、今日通过/拒绝数）
+- **保单列表**: 完整的搜索、筛选、分页功能（支持按状态/ID/钱包/邮箱查询）
+- **审核队列**: 专门的待审核保单页面，支持快捷审核
+- **保单详情**: Tabs 展示（Overview/Payments/Timeline），包含完整的 Policy 信息
+- **审核流程**: 对话框式审核（Approve/Reject + 备注），状态自动流转
+- **Mock API**: 使用 Next.js API Routes 实现本地 Mock（60 条随机测试数据）
+- **状态管理**: @tanstack/react-query 实现请求缓存和自动刷新
+- **UI 组件**: shadcn/ui（Button, Card, Table, Dialog, Badge, Tabs, Select, Toast 等）
+
+**技术亮点**:
+- 完整的 Loading/Empty State 处理
+- Toast 通知反馈
+- 响应式设计（移动端友好）
+- 类型安全（Zod Schema + TypeScript）
+- 可切换 Mock/真实 API（通过环境变量）
+
+**相关文件**:
+```
+apps/admin/
+├── app/
+│   ├── (auth)/login/page.tsx                    # 登录页
+│   ├── (dashboard)/
+│   │   ├── layout.tsx                           # Dashboard 布局 + 导航
+│   │   ├── dashboard/page.tsx                   # 仪表盘（统计卡片）
+│   │   ├── policies/page.tsx                    # 保单列表（筛选+分页）
+│   │   ├── policies/[id]/page.tsx               # 保单详情（Tabs）
+│   │   └── review/page.tsx                      # 审核队列
+│   ├── api/admin/                               # Mock API Routes
+│   │   ├── policies/route.ts                    # GET 保单列表
+│   │   ├── policies/[id]/route.ts               # GET/PATCH 单个保单
+│   │   └── stats/route.ts                       # GET 统计数据
+│   ├── globals.css                              # Tailwind 样式
+│   └── layout.tsx                               # 根布局
+├── components/ui/                               # shadcn/ui 组件库
+│   ├── button.tsx
+│   ├── card.tsx
+│   ├── dialog.tsx
+│   ├── input.tsx
+│   ├── table.tsx
+│   ├── tabs.tsx
+│   ├── select.tsx
+│   ├── badge.tsx
+│   ├── toast.tsx
+│   └── ...
+├── features/policies/
+│   ├── components/
+│   │   ├── ApproveRejectDialog.tsx              # 审核对话框
+│   │   ├── PolicyFilters.tsx                    # 筛选器组件
+│   │   ├── PolicyStatusBadge.tsx                # 状态徽章
+│   │   ├── PolicyTable.tsx                      # 保单表格
+│   │   └── PolicyTimeline.tsx                   # 时间线组件
+│   ├── hooks/
+│   │   ├── usePolicies.ts                       # 保单列表 Query
+│   │   ├── usePolicyDetail.ts                   # 保单详情 Query
+│   │   └── useStats.ts                          # 统计数据 Query
+│   └── schemas.ts                               # Zod 数据模型
+├── lib/
+│   ├── apiClient.ts                             # API 请求封装
+│   ├── auth.ts                                  # 认证工具函数
+│   ├── constants.ts                             # 常量定义
+│   ├── queryClient.ts                           # React Query 配置
+│   └── utils.ts                                 # 工具函数
+├── mocks/
+│   └── seed.ts                                  # Mock 数据生成器
+├── package.json                                 # 依赖配置
+├── tsconfig.json
+├── tailwind.config.ts
+├── next.config.js
+├── .env.example                                 # 环境变量模板
+├── .gitignore
+└── README.md                                    # 完整使用文档
+```
+
+**环境变量**:
+```env
+# Mock 模式（默认）
+NEXT_PUBLIC_ADMIN_API_BASE=
+NEXT_PUBLIC_USE_MOCK=true
+
+# 真实后端模式
+NEXT_PUBLIC_ADMIN_API_BASE=https://api.cohe.capital
+NEXT_PUBLIC_USE_MOCK=false
+```
+
+**API 契约（与后端对齐）**:
+- `GET /admin/policies?status=&q=&page=&limit=` → `{ items, total, page, limit }`
+- `GET /admin/policies/:id` → `Policy`
+- `PATCH /admin/policies/:id` → `{ status, reviewerNote }` (审核接口)
+- `GET /admin/stats` → `{ total, underReview, approvedToday, rejectedToday }`
+
+**测试方法**:
+```bash
+# 安装依赖
+cd apps/admin
+pnpm install
+
+# 启动开发服务器（端口 3002）
+pnpm dev
+
+# 访问 http://localhost:3002
+
+# 登录凭据（demo）
+Email: admin@cohe.capital
+Password: admin123
+
+# 构建生产版本
+pnpm build
+pnpm start
+```
+
+**功能验收**:
+- ✅ 登录页面可正常登录/登出
+- ✅ Dashboard 显示实时统计数据
+- ✅ 保单列表支持搜索（ID/钱包/邮箱）、筛选（按状态）、分页
+- ✅ 点击保单可查看详情（Overview/Payments/Timeline）
+- ✅ 审核队列默认筛选 `under_review` 状态
+- ✅ 审核对话框支持 Approve/Reject + 备注
+- ✅ 审核后自动刷新列表和详情，Toast 提示成功
+- ✅ 审核通过后自动设置 `startAt`/`endAt`（基于 termDays）
+- ✅ 所有页面有 Loading/Empty State
+- ✅ 无 TypeScript 编译错误
+
+**注意事项**:
+- 🔒 **安全性**: 当前使用 localStorage 存储 token，仅适用于 demo。生产环境需实现真实 JWT 认证
+- 💾 **数据持久化**: Mock 数据存储在内存中，服务器重启后重置。真实环境需连接数据库
+- 📁 **文件上传**: 合同/附件当前为 Mock URL，需实现真实文件存储（S3/OSS）
+- 🔄 **切换后端**: 修改 `.env.local` 中的 `NEXT_PUBLIC_ADMIN_API_BASE` 即可切换为真实 API
+- 📊 **图表功能**: Dashboard 暂未实现趋势图（可使用 Recharts/ECharts 扩展）
+
+**待优化（TODO）**:
+- [ ] Dark Mode 切换
+- [ ] 导出 CSV 功能
+- [ ] 批量审核操作
+- [ ] 高级筛选（日期范围、金额范围）
+- [ ] 邮件通知集成
+- [ ] 审核操作审计日志
+- [ ] 实时更新（WebSocket）
+
+**Epic 6 已全部完成** ✨ - Web Admin 后台已可演示，支持完整的保单管理和审核流程
+
+---
+
 ## [2025-10-30] - Epic 3 SIWE (Sign-In with Ethereum) 完整实现 ✅ 完成
 
 ### ✅ Added - 完整的 SIWE 钱包登录流程

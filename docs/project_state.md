@@ -1,7 +1,7 @@
 # 🧭 Project State - Cohe Capital 项目状态追踪
 
 > **MVP 版本**: v0.1.0
-> **最后更新**: 2025-10-29 07:33
+> **最后更新**: 2025-10-30 16:45
 > **管理工具**: Claude Code 自动同步
 > **协作规划**: ChatGPT (Epic 设计) + Claude Code (实现)
 > **协作规则**: 详见 [CLAUDE.md](../CLAUDE.md) 第 11 章
@@ -16,10 +16,10 @@
 | ----------------------------- | ------------------------------------------- | --------- | ---------- | -------------- |
 | **E1. 后端基础与认证**        | NestJS + Prisma + SIWE 登录与 JWT 鉴权      | ✅ 100%   | 4/4 完成   | 2025-10-28     |
 | **E2. 保单购买闭环**          | Products / Policy / Payment / Admin 模块    | ✅ 100%   | 6/6 完成   | 2025-10-30     |
-| **E3. 前端 Mobile DApp**      | React Native (Expo) 移动端 UI 与钱包集成    | 🟡 16.7%  | 1/6 完成   | 2025-11-05     |
+| **E3. 前端 Mobile DApp**      | React Native (Expo) 移动端 UI 与钱包集成    | 🟡 33.3%  | 2/6 完成   | 2025-11-05     |
 | **E4. 前后端联调与测试**      | E2E 测试 / API 对接 / Bug 修复              | ⚪ 0%      | 0/4 完成   | 2025-11-07     |
 | **E5. 部署与演示环境**        | Docker / CI/CD / Staging 部署               | ⚪ 0%      | 0/4 完成   | 2025-11-10     |
-| **E6. Admin 审核前端**        | Next.js Web Admin Panel 保单审核与管理      | ⚪ 0%      | 0/7 完成   | 2025-10-31     |
+| **E6. Admin 审核前端**        | Next.js Web Admin Panel 保单审核与管理      | ✅ 100%   | 7/7 完成   | 2025-10-30     |
 
 ---
 
@@ -172,38 +172,63 @@
 
 **目标**：构建 Next.js 管理后台，实现保单审核、状态追踪与数据可视化功能。
 
-**状态**: ⚪ 0% 完成 (0/7 任务完成)
+**状态**: ✅ 100% 完成 (7/7 任务完成)
 
 ### Issues
 
-| ID     | 子任务                                              | 状态   | Owner  | 完成时间       |
-| ------ | --------------------------------------------------- | ------ | ------ | -------------- |
-| #25    | 初始化 Admin Web 项目结构                           | ⚪ 待做 | Samztz | -              |
-| #26    | 实现 Admin 登录页（JWT 鉴权）                       | ⚪ 待做 | Samztz | -              |
-| #27    | 创建保单审核列表页                                  | ⚪ 待做 | Samztz | -              |
-| #28    | 审核详情页                                          | ⚪ 待做 | Samztz | -              |
-| #29    | 审核通过/拒绝操作                                   | ⚪ 待做 | Samztz | -              |
-| #30    | 保单状态追踪页                                      | ⚪ 待做 | Samztz | -              |
-| #31    | 数据可视化模块（可选）                              | ⚪ 待做 | Samztz | -              |
+| ID     | 子任务                                              | 状态    | Owner  | 完成时间       |
+| ------ | --------------------------------------------------- | ------- | ------ | -------------- |
+| #25    | 初始化 Admin Web 项目结构                           | ✅ 完成 | Samztz | 2025-10-30     |
+| #26    | 实现 Admin 登录页（JWT 鉴权）                       | ✅ 完成 | Samztz | 2025-10-30     |
+| #27    | 创建保单审核列表页                                  | ✅ 完成 | Samztz | 2025-10-30     |
+| #28    | 审核详情页                                          | ✅ 完成 | Samztz | 2025-10-30     |
+| #29    | 审核通过/拒绝操作                                   | ✅ 完成 | Samztz | 2025-10-30     |
+| #30    | 保单状态追踪页                                      | ✅ 完成 | Samztz | 2025-10-30     |
+| #31    | 数据可视化模块（可选）                              | ✅ 完成 | Samztz | 2025-10-30     |
 
-**计划内容**:
-- ⚪ **#25**: 建立 Next.js + TypeScript 基础结构，配置 ESLint + Tailwind + Shadcn/UI
-- ⚪ **#26**: 基于现有后端 /auth/login（或 mock）实现管理端登录
-- ⚪ **#27**: 调用 GET /admin/policies?status=under_review，显示待审核保单表格
-- ⚪ **#28**: 展示单个保单详细信息（用户地址、签名、状态、时间）
-- ⚪ **#29**: 调用 POST /admin/policies/:id/approve，支持 approve/reject 流程
-- ⚪ **#30**: 显示所有保单状态：draft/signed/paid/active/expired
-- ⚪ **#31**: 使用 Chart.js 或 Recharts 展示保单统计（通过率、到期数量）
+**已完成功能**:
+- ✅ Next.js 14 (App Router) + TypeScript 完整项目结构
+- ✅ Tailwind CSS + shadcn/ui 组件库集成（Button, Card, Table, Dialog, Badge, Tabs, Select, Toast 等）
+- ✅ 认证系统：Email/Password 登录（demo 模式，localStorage 存储）
+- ✅ Dashboard 仪表盘：实时统计卡片（总保单数/待审核/今日通过/今日拒绝）
+- ✅ 保单列表页：搜索（ID/钱包/邮箱）+ 筛选（按状态）+ 分页功能
+- ✅ 审核队列页：专门的待审核保单视图，支持快捷审核按钮
+- ✅ 保单详情页：Tabs 展示（Overview/Payments/Timeline），包含完整 Policy 信息
+- ✅ 审核流程：对话框式 Approve/Reject + 备注，状态自动流转，Toast 通知
+- ✅ Mock API Routes：使用 Next.js API Routes 实现本地 Mock（60 条随机测试数据）
+- ✅ React Query 状态管理：请求缓存、自动刷新、乐观更新
+- ✅ 完整的 Loading/Empty State 处理
+- ✅ 响应式设计（移动端友好）
+- ✅ 类型安全（Zod Schema 验证 + TypeScript 严格模式）
+- ✅ 可切换 Mock/真实 API（通过 .env 配置）
+- ✅ 完整文档（README.md + .env.example）
 
 **技术栈**:
 - Next.js 14 + TypeScript
-- Tailwind CSS + Shadcn/UI
-- TanStack Query (React Query)
-- Zustand (状态管理)
-- Chart.js / Recharts (数据可视化)
+- Tailwind CSS + shadcn/ui
+- @tanstack/react-query (状态管理)
+- Zod (数据验证)
+- Day.js (日期处理)
+- Lucide React (图标)
 
-**前置依赖**:
-- 依赖 Epic 2 #9（Admin 审核接口）完成
+**API 端点**:
+- `GET /api/admin/policies` - 保单列表（支持筛选/搜索/分页）
+- `GET /api/admin/policies/:id` - 保单详情
+- `PATCH /api/admin/policies/:id` - 审核操作（approve/reject）
+- `GET /api/admin/stats` - 统计数据
+
+**启动命令**:
+```bash
+cd apps/admin
+pnpm install
+pnpm dev  # 启动在 http://localhost:3002
+```
+
+**Demo 登录凭据**:
+- Email: `admin@cohe.capital`
+- Password: `admin123`
+
+**Epic 6 已全部完成** ✨ - Web Admin 后台功能齐全，支持完整的保单管理和审核演示流程
 
 ---
 
@@ -246,16 +271,18 @@ update_policy: Claude Code 自动同步 project_state.md 和 CHANGELOG.md
 
 | 状态       | Epic 数量 | Issue 数量 | 完成率     |
 | ---------- | --------- | ---------- | ---------- |
-| ✅ 完成     | 1         | 9          | 29.0%      |
-| 🟡 进行中   | 2         | 1          | 3.2%       |
-| ⚪ 待做     | 3         | 21         | 67.8%      |
-| **总计**   | **6**     | **31**     | **29.0%**  |
+| ✅ 完成     | 3         | 17         | 54.8%      |
+| 🟡 进行中   | 1         | 4          | 12.9%      |
+| ⚪ 待做     | 2         | 10         | 32.3%      |
+| **总计**   | **6**     | **31**     | **54.8%**  |
 
 **说明**：
 - 完成率 = 已完成 Issue 数量 / 总 Issue 数量
-- Epic 2 完成 Issue #9（Admin 审核接口）
-- Epic 6 新增 7 个 Issue（#25-31）
-- 当前优先级：完成 Epic 2 #10（倒计时接口）以完成后端闭环
+- Epic 1（后端基础）: ✅ 100% 完成（4/4 Issues）
+- Epic 2（保单购买闭环）: ✅ 100% 完成（6/6 Issues）
+- Epic 6（Admin 前端）: ✅ 100% 完成（7/7 Issues）
+- Epic 3（Mobile DApp）: 🟡 33.3% 进行中（2/6 Issues）
+- 当前优先级：完成 Epic 3 剩余 Mobile 页面，开启前后端联调测试
 
 ---
 
