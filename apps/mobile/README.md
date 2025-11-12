@@ -28,9 +28,22 @@ cp .env.example .env
 
 3. Update `.env` with your configuration:
 ```
+# API Configuration
 EXPO_PUBLIC_API_BASE=http://localhost:3001
-EXPO_PUBLIC_CHAIN_ID=97
+
+# SIWE (Sign-In with Ethereum) Configuration
+EXPO_PUBLIC_SIWE_DOMAIN=localhost
+EXPO_PUBLIC_SIWE_URI=http://localhost:3001
+
+# Blockchain Configuration
+EXPO_PUBLIC_CHAIN_ID=97  # BSC Testnet (56 for Mainnet)
 ```
+
+**Environment Variables Explained**:
+- `EXPO_PUBLIC_API_BASE`: Backend API base URL
+- `EXPO_PUBLIC_SIWE_DOMAIN`: Domain used in SIWE message (should match backend expectation)
+- `EXPO_PUBLIC_SIWE_URI`: URI used in SIWE message (typically same as API base)
+- `EXPO_PUBLIC_CHAIN_ID`: Blockchain network chain ID (97 for BSC Testnet)
 
 ## Development
 

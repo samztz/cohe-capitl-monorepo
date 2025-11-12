@@ -4,6 +4,84 @@
 
 ---
 
+## [2025-01-15] - Mobile SIWE 登录流程修复 - 适配后端契约 ✅ 完成
+
+### ✅ Fixed - 移动端 SIWE 接口适配后端契约
+
+**功能**: 修复移动端 SIWE (Sign-In with Ethereum) 登录流程，使其完全适配后端 API 契约
+
+**问题描述**:
+- 原移动端 SIWE 客户端与后端接口契约不匹配，导致登录失败
+- `getNonce()` 误用 GET 请求，期望后端返回 domain/uri/chainId
+- `verifySignature()` 期望返回 accessToken 和完整 user 对象
+- 缺少调用 `/auth/siwe/me` 获取用户信息的步骤
+
+**实现细节**:
+- **修改 `getNonce()` 方法**: 改为 POST /auth/siwe/nonce，发送 `{ walletAddress }`，返回 `{ nonce }`
+- **SIWE 消息格式化**: domain/uri/chainId 从环境变量读取（不依赖后端返回）
+  - `EXPO_PUBLIC_SIWE_DOMAIN` (默认 'localhost')
+  - `EXPO_PUBLIC_SIWE_URI` (默认 API_BASE)
+  - `EXPO_PUBLIC_CHAIN_ID` (默认 97)
+- **修改 `verifySignature()` 方法**: 适配后端返回 `{ token, address }`
+- **新增 `getMe()` 方法**: 使用 token 调用 GET /auth/siwe/me，获取 `{ userId, address }`
+- **完整登录流程**:
+  1. 连接钱包获取 address
+  2. POST /auth/siwe/nonce 获取 nonce
+  3. 使用环境变量 + nonce 格式化 SIWE 消息
+  4. 用户签名
+  5. POST /auth/siwe/verify 验证签名，获取 token
+  6. GET /auth/siwe/me 获取用户信息
+  7. 构造 User 对象并存储到 Zustand + SecureStore
+
+**相关文件**:
+```
+apps/mobile/src/features/auth/siweLogin.ts        # 修复 SIWE 登录逻辑
+apps/mobile/.env.example                          # 添加 SIWE 环境变量说明
+apps/mobile/README.md                             # 更新环境变量文档
+```
+
+**环境变量**:
+```env
+# API Configuration
+EXPO_PUBLIC_API_BASE=http://localhost:3001
+
+# SIWE (Sign-In with Ethereum) Configuration
+EXPO_PUBLIC_SIWE_DOMAIN=localhost
+EXPO_PUBLIC_SIWE_URI=http://localhost:3001
+
+# Blockchain Configuration
+EXPO_PUBLIC_CHAIN_ID=97  # BSC Testnet (56 for Mainnet)
+```
+
+**后端契约（已对齐）**:
+- POST /auth/siwe/nonce, Body: `{ walletAddress }`, 返回: `{ nonce }`
+- POST /auth/siwe/verify, Body: `{ message, signature }`, 返回: `{ token, address }`
+- GET /auth/siwe/me, Headers: `Authorization: Bearer <token>`, 返回: `{ userId, address }`
+
+**测试方法**:
+```bash
+# 1. 启动后端
+pnpm --filter api dev
+
+# 2. 配置移动端环境变量
+cd apps/mobile
+cp .env.example .env
+# 根据实际情况修改 .env 中的 SIWE_DOMAIN 和 SIWE_URI
+
+# 3. 启动移动端
+pnpm --filter mobile dev
+
+# 4. 使用 AppKit 连接钱包，观察完整登录流程
+```
+
+**注意事项**:
+- 不修改后端实现，仅调整移动端以适配现有后端契约
+- 所有 SIWE 配置通过环境变量管理，避免硬编码
+- 保留完整的错误处理和用户友好提示（LoginErrorType）
+- User 对象的 createdAt/updatedAt 由前端生成（后端 /me 不返回时间戳）
+
+---
+
 ## [2025-10-30] - Epic 6 Web Admin 后台管理系统完整实现 ✅ 完成
 
 ### ✅ Added - 完整的 Admin Dashboard（Next.js 14）

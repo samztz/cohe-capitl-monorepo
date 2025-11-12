@@ -1,7 +1,7 @@
 /**
  * Connect Screen - Welcome Page
  * Matches design: docs/designs/欢迎页面.png
- * Implements SIWE (Sign-In with Ethereum) login flow
+ * Implements SIWE (Sign-In with Ethereum) login flow using official AppKit hooks
  */
 
 import React, { useEffect, useState } from 'react';
@@ -21,7 +21,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAppKit, useAccount } from '@reown/appkit-react-native';
 import { RootStackParamList } from '../../navigation/types';
 import { useAuthStore } from '../../store/authStore';
-import { loginWithWallet, LoginErrorType } from '../../features/auth/siweLogin';
+import { useSiweAuth } from '../../hooks/useSiweAuth';
 import { resetAuth } from '../../dev/resetAuth';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Connect'>;
@@ -29,47 +29,89 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Connect'>;
 const { width } = Dimensions.get('window');
 
 export default function ConnectScreen({ navigation }: Props) {
+  // AppKit hooks
   const { open, disconnect } = useAppKit();
   const { address, isConnected } = useAccount();
-  const { isAuthenticated, user, loadStoredAuth, logout: logoutStore } = useAuthStore();
-  const [isSigningIn, setIsSigningIn] = useState(false);
+
+  // Auth hooks
+  const { isAuthenticated, user, loadStoredAuth } = useAuthStore();
+  const { login, isLoading: isSiweLoading, error: siweError, clearError } = useSiweAuth();
+
+  // Local state
   const [localError, setLocalError] = useState<string | null>(null);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  // Load stored auth on component mount
+  // Load stored auth on mount
   useEffect(() => {
     loadStoredAuth();
   }, []);
 
+  // Auto-trigger SIWE login when wallet connects
+  useEffect(() => {
+    if (isConnected && address && !isAuthenticated && !isSiweLoading) {
+      console.log('[ConnectScreen] Wallet connected, starting SIWE login...');
+      handleSiweLogin();
+    }
+  }, [isConnected, address, isAuthenticated]);
+
+  // Navigate to Products when authenticated
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      console.log('[ConnectScreen] User authenticated:', user.address);
+      setTimeout(() => {
+        navigation.navigate('Products');
+      }, 1000);
+    }
+  }, [isAuthenticated, user, navigation]);
+
+  /**
+   * Handle wallet connection
+   */
+  const handleConnectWallet = async () => {
+    try {
+      setLocalError(null);
+      clearError();
+
+      if (isConnected && !isAuthenticated) {
+        // Already connected, just need SIWE login
+        await handleSiweLogin();
+      } else {
+        // Open AppKit modal to connect wallet
+        console.log('[ConnectScreen] Opening AppKit modal...');
+        await open();
+      }
+    } catch (error) {
+      console.error('[ConnectScreen] Error:', error);
+      setLocalError('Failed to connect wallet');
+    }
+  };
+
+  /**
+   * Handle SIWE login
+   */
+  const handleSiweLogin = async () => {
+    const success = await login();
+    if (!success && siweError) {
+      Alert.alert('Login Failed', siweError, [{ text: 'OK' }]);
+    }
+  };
+
+  /**
+   * Handle logout
+   */
   const handleLogout = async () => {
-    // Temporary logout button (replaces "Contact us" button)
-    // TODO: In production, implement separate "Contact us" functionality
     try {
       setIsLoggingOut(true);
       console.log('[ConnectScreen] Starting logout...');
 
-      // Call resetAuth utility to disconnect and clear all storage
       const result = await resetAuth({ disconnect });
-
-      // Also clear Zustand store state
-      await logoutStore();
 
       console.log('[ConnectScreen] Logout completed:', result);
 
-      // Show success message
       Alert.alert(
         'Logged Out',
         `Successfully logged out and cleared ${result.removedKeys.length} storage keys.`,
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              // Reset local state
-              setLocalError(null);
-              console.log('[ConnectScreen] UI reset complete');
-            },
-          },
-        ]
+        [{ text: 'OK', onPress: () => setLocalError(null) }]
       );
     } catch (error) {
       console.error('[ConnectScreen] Logout error:', error);
@@ -79,82 +121,17 @@ export default function ConnectScreen({ navigation }: Props) {
     }
   };
 
-  const handleConnectWallet = async () => {
-    try {
-      setLocalError(null);
-
-      // If already connected but not authenticated, directly try to sign in
-      if (isConnected && !isAuthenticated) {
-        await performSiweLogin();
-      } else {
-        // Open wallet modal for connection
-        console.log('[ConnectScreen] Opening AppKit modal...');
-        await open();
-        console.log('[ConnectScreen] Modal opened');
-      }
-    } catch (error) {
-      console.error('[ConnectScreen] Error:', error);
-      setLocalError('Failed to connect wallet');
-    }
-  };
-
-  const performSiweLogin = async () => {
-    try {
-      setIsSigningIn(true);
-      setLocalError(null);
-      console.log('[ConnectScreen] Starting SIWE login...');
-
-      await loginWithWallet();
-
-      console.log('[ConnectScreen] SIWE login successful');
-      // Navigation will be handled by the effect below
-    } catch (error: any) {
-      console.error('[ConnectScreen] SIWE login error:', error);
-
-      // Handle specific error types
-      let errorMessage = 'Login failed. Please try again.';
-      if (error.type === LoginErrorType.USER_REJECTED) {
-        errorMessage = 'Sign-in cancelled';
-      } else if (error.type === LoginErrorType.NONCE_FETCH_FAILED) {
-        errorMessage = 'Network error. Please check your connection';
-      } else if (error.type === LoginErrorType.VERIFICATION_FAILED) {
-        errorMessage = 'Login expired. Please try again';
-      }
-
-      setLocalError(errorMessage);
-
-      // Show alert for errors
-      Alert.alert('Login Failed', errorMessage, [{ text: 'OK' }]);
-    } finally {
-      setIsSigningIn(false);
-    }
-  };
-
-  // Format address as 0xAb...1234
+  /**
+   * Format address as 0xAb...1234
+   */
   const getShortAddress = (): string => {
     const displayAddress = user?.address || address;
     if (!displayAddress) return '';
     return `${displayAddress.slice(0, 6)}...${displayAddress.slice(-4)}`;
   };
 
-  // Trigger SIWE login when wallet is connected but not authenticated
-  useEffect(() => {
-    if (isConnected && address && !isAuthenticated && !isSigningIn) {
-      console.log('[ConnectScreen] Wallet connected, starting SIWE login...');
-      performSiweLogin();
-    }
-  }, [isConnected, address, isAuthenticated]);
-
-  // Navigate to Products when authenticated
-  useEffect(() => {
-    if (isAuthenticated && user) {
-      console.log('[ConnectScreen] User authenticated:', user.address);
-      // Auto-navigate after successful authentication
-      setTimeout(() => {
-        navigation.navigate('Products');
-      }, 1000);
-    }
-  }, [isAuthenticated, user, navigation]);
+  // Get current error message
+  const errorMessage = localError || siweError;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -192,7 +169,6 @@ export default function ConnectScreen({ navigation }: Props) {
           />
         </View>
 
-        {/* Title */}
         <View style={styles.titleContainer}>
           <Text style={styles.title}>
             THE <Text style={styles.titleHighlight}>FIRST</Text> CRYPTO
@@ -201,21 +177,20 @@ export default function ConnectScreen({ navigation }: Props) {
           <Text style={styles.title}>ALTERNATIVE</Text>
         </View>
 
-        {/* Subtitle */}
         <Text style={styles.subtitle}>COVERING CRYPTO SINCE 2025</Text>
       </View>
 
-      {/* Connect Button or Connected Address */}
+      {/* Connect Button or Status */}
       <View style={styles.bottomSection}>
         {isAuthenticated && user ? (
-          // Authenticated State - Show user address
+          // Authenticated - Show user address
           <View style={styles.connectedContainer}>
             <Text style={styles.connectedLabel}>Signed In</Text>
             <Text style={styles.connectedAddress}>{getShortAddress()}</Text>
             <Text style={styles.navigatingText}>Navigating to insurance products...</Text>
           </View>
-        ) : isSigningIn ? (
-          // Signing In State - Show loading
+        ) : isSiweLoading ? (
+          // Signing In - Show loading
           <View style={styles.connectedContainer}>
             <ActivityIndicator size="large" color="#FFD54F" />
             <Text style={styles.signingInText}>Signing in with wallet...</Text>
@@ -228,7 +203,7 @@ export default function ConnectScreen({ navigation }: Props) {
             <Text style={styles.connectedAddress}>{getShortAddress()}</Text>
             <TouchableOpacity
               style={[styles.connectButton, styles.signButton]}
-              onPress={performSiweLogin}
+              onPress={handleSiweLogin}
               activeOpacity={0.9}
             >
               <Text style={styles.connectButtonText}>Sign In</Text>
@@ -246,9 +221,9 @@ export default function ConnectScreen({ navigation }: Props) {
         )}
 
         {/* Error Message */}
-        {localError && (
+        {errorMessage && (
           <View style={styles.errorContainer}>
-            <Text style={styles.errorText}>{localError}</Text>
+            <Text style={styles.errorText}>{errorMessage}</Text>
           </View>
         )}
       </View>
@@ -275,14 +250,6 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
     flexDirection: 'row',
     borderRadius: 4,
-  },
-  headerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    borderColor: 'white',
-    paddingTop: 50, // 考虑状态栏高度
-    paddingBottom: 10,
   },
   titleText: {
     marginLeft: 8,
@@ -399,5 +366,32 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
     fontSize: 12,
     fontStyle: 'italic',
+  },
+  signButton: {
+    marginTop: 12,
+  },
+  signingInText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+    marginTop: 12,
+  },
+  signingInSubtext: {
+    color: '#9CA3AF',
+    fontSize: 12,
+    marginTop: 4,
+  },
+  errorContainer: {
+    marginTop: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: '#EF4444',
+    borderRadius: 8,
+    maxWidth: 280,
+  },
+  errorText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    textAlign: 'center',
   },
 });
