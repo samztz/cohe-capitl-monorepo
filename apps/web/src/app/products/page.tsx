@@ -6,6 +6,8 @@ import { API_ENDPOINTS } from '@/api/client'
 import * as Types from '@/types'
 import * as Utils from '@/utils'
 import Link from 'next/link'
+import Image from 'next/image'
+import BottomNav from '@/components/BottomNav'
 
 export default function ProductsPage() {
   const { data: products, isLoading, error } = useQuery({
@@ -16,81 +18,127 @@ export default function ProductsPage() {
     },
   })
 
-  if (isLoading) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="text-center">Loading products...</div>
-      </div>
-    )
-  }
+  // Mock product for display if API fails
+  const mockProducts = [
+    {
+      id: 'mock-1',
+      name: 'YULIY SHIELD INSURANCE',
+      description: 'Coverage for Coinbase Custody claims',
+      coverageAmount: '10000',
+      premiumAmount: '100',
+      termDays: 90,
+    }
+  ]
 
-  if (error) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="text-center text-red-600">
-          Error loading products: {error.message}
-        </div>
-      </div>
-    )
-  }
+  const displayProducts = products || mockProducts
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-8">Insurance Products</h1>
+    <div className="min-h-screen bg-[#0F111A] flex flex-col">
+      {/* Header */}
+      <header className="px-5 py-4 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Image
+            src="/assets/cohe-capitl-app-logo.png"
+            alt="Cohe Capital Logo"
+            width={32}
+            height={32}
+            className="w-8 h-8"
+          />
+          <span className="text-white text-base font-semibold tracking-wide">
+            COHE.CAPITL
+          </span>
+        </div>
+        <div className="bg-[#FFD54F] text-[#0F111A] px-4 py-1.5 rounded-lg text-sm font-semibold h-8 flex items-center">
+          0xAB...B064
+        </div>
+      </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {products?.map((product) => (
-          <div
-            key={product.id}
-            className="border border-gray-200 dark:border-gray-800 rounded-lg p-6 hover:shadow-lg transition-shadow"
-          >
-            <h2 className="text-xl font-semibold mb-2">{product.name}</h2>
-            <p className="text-gray-600 dark:text-gray-400 mb-4 line-clamp-2">
-              {product.description}
-            </p>
-
-            <div className="space-y-2 mb-4">
-              <div className="flex justify-between">
-                <span className="text-gray-600 dark:text-gray-400">Coverage:</span>
-                <span className="font-semibold">
-                  {Utils.formatCurrency(product.coverageAmount)} USDT
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600 dark:text-gray-400">Premium:</span>
-                <span className="font-semibold">
-                  {Utils.formatCurrency(product.premiumAmount)} USDT
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600 dark:text-gray-400">Term:</span>
-                <span className="font-semibold">{product.termDays} days</span>
-              </div>
-            </div>
-
-            <div className="flex gap-2">
-              <Link
-                href="/policy/detail"
-                className="flex-1 text-center px-4 py-2 border border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
-              >
-                View Details
-              </Link>
-              <Link
-                href={`/policy/form/${product.id}`}
-                className="flex-1 text-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                Purchase
-              </Link>
-            </div>
-          </div>
-        ))}
+      {/* Back Button */}
+      <div className="px-5 py-4">
+        <Link href="/" className="text-white text-sm flex items-center gap-2 hover:opacity-80">
+          &lt; BACK
+        </Link>
       </div>
 
-      {products?.length === 0 && (
-        <div className="text-center text-gray-600 dark:text-gray-400">
-          No products available at the moment.
+      {/* Content */}
+      <div className="flex-1 px-5 pb-8">
+        {/* Title */}
+        <h1 className="text-white text-2xl font-bold mb-2">
+          Insurance Products
+        </h1>
+        <p className="text-[#9CA3AF] text-sm mb-8">
+          Select an insurance product
+        </p>
+
+        {/* Loading State */}
+        {isLoading && (
+          <div className="text-center text-[#9CA3AF] py-12">
+            Loading products...
+          </div>
+        )}
+
+        {/* Error State */}
+        {error && (
+          <div className="bg-red-500/10 border border-red-500/50 rounded-lg p-4 mb-6">
+            <p className="text-red-500 text-sm">
+              Error loading products. Showing mock data.
+            </p>
+          </div>
+        )}
+
+        {/* Product Cards */}
+        <div className="space-y-4">
+          {displayProducts.map((product) => (
+            <div
+              key={product.id}
+              className="bg-[#1A1D2E] rounded-lg p-6 border border-[#374151]"
+            >
+              <h2 className="text-white text-lg font-bold mb-2">
+                {product.name}
+              </h2>
+              <p className="text-[#9CA3AF] text-sm mb-4">
+                {product.description}
+              </p>
+
+              <div className="space-y-2 mb-6 text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-[#9CA3AF]">Coverage:</span>
+                  <span className="text-white font-semibold">
+                    {Utils.formatCurrency(product.coverageAmount)} USDT
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[#9CA3AF]">Premium:</span>
+                  <span className="text-white font-semibold">
+                    {Utils.formatCurrency(product.premiumAmount)} USDT
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[#9CA3AF]">Term:</span>
+                  <span className="text-white font-semibold">{product.termDays} days</span>
+                </div>
+              </div>
+
+              <Link
+                href={`/policy/form/${product.id}`}
+                className="block text-center px-4 py-3 bg-[#FFD54F] text-[#0F111A] rounded-lg hover:brightness-110 transition-all font-semibold text-sm"
+              >
+                Select
+              </Link>
+            </div>
+          ))}
         </div>
-      )}
+
+        {/* Empty State */}
+        {!isLoading && displayProducts.length === 0 && (
+          <div className="text-center text-[#9CA3AF] py-12">
+            No products available at the moment.
+          </div>
+        )}
+      </div>
+
+      {/* Bottom Navigation */}
+      <BottomNav />
     </div>
   )
 }

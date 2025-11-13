@@ -2,81 +2,82 @@
 
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 
 export default function PurchaseSuccessPage() {
   const params = useParams()
   const policyId = params.policyId as string
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <div className="max-w-2xl w-full">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-24 h-24 bg-green-100 dark:bg-green-900 rounded-full mb-6">
-            <svg className="w-12 h-12 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-          <h1 className="text-4xl font-bold mb-4">Purchase Successful!</h1>
-          <p className="text-xl text-gray-600 dark:text-gray-400">
-            Your insurance policy has been created
-          </p>
+    <div className="min-h-screen bg-[#0F111A] flex flex-col">
+      {/* Header */}
+      <header className="px-5 py-4 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Image
+            src="/assets/cohe-capitl-app-logo.png"
+            alt="Cohe Capital Logo"
+            width={32}
+            height={32}
+            className="w-8 h-8"
+          />
+          <span className="text-white text-base font-semibold tracking-wide">
+            COHE.CAPITL
+          </span>
+        </div>
+        <Link
+          href="/"
+          className="bg-[#FFD54F] text-[#0F111A] px-4 py-1.5 rounded-lg text-sm font-semibold h-8 flex items-center hover:brightness-110 transition-all"
+        >
+          Contact us
+        </Link>
+      </header>
+
+      {/* Content */}
+      <div className="flex-1 flex flex-col items-center justify-center px-5 pb-12">
+        {/* Shield Logo */}
+        <div className="mb-12 flex items-center justify-center">
+          <Image
+            src="/assets/welcome-logo.png"
+            alt="Shield Logo"
+            width={180}
+            height={180}
+            className="w-[45vw] h-[45vw] max-w-[180px] max-h-[180px]"
+            priority
+          />
         </div>
 
-        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-8 mb-6">
-          <h2 className="text-lg font-semibold mb-6 text-center">What happens next?</h2>
+        {/* Title */}
+        <h1 className="text-[#FFD54F] text-2xl font-bold mb-2 tracking-wide">
+          CONGRATULATIONS
+        </h1>
+        <h2 className="text-white text-xl font-bold mb-12">
+          YOU SUCCESSFULLY INSURED !!!
+        </h2>
 
-          <div className="space-y-6">
-            <div className="flex items-start gap-4">
-              <div className="flex-shrink-0 w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center text-blue-600 dark:text-blue-400 font-semibold">
-                1
-              </div>
-              <div>
-                <h3 className="font-medium mb-1">Payment Verification</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  We're verifying your payment on the blockchain. This usually takes 5-10 minutes.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-4">
-              <div className="flex-shrink-0 w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center text-blue-600 dark:text-blue-400 font-semibold">
-                2
-              </div>
-              <div>
-                <h3 className="font-medium mb-1">Policy Review</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Our team will review your policy application. This typically takes 24-48 hours.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-4">
-              <div className="flex-shrink-0 w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center text-blue-600 dark:text-blue-400 font-semibold">
-                3
-              </div>
-              <div>
-                <h3 className="font-medium mb-1">Policy Activation</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Once approved, your policy will be activated and you'll receive a confirmation email.
-                </p>
-              </div>
-            </div>
-          </div>
+        {/* Status */}
+        <div className="flex items-center gap-2 mb-12">
+          <span className="text-green-500">✓</span>
+          <span className="text-green-500 text-sm">Securiting</span>
         </div>
 
-        <div className="space-y-3">
-          <Link
-            href={`/policy/ticket/${policyId}`}
-            className="block w-full text-center py-3 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-          >
-            View Policy Ticket
-          </Link>
-          <Link
-            href="/products"
-            className="block w-full text-center py-3 px-4 border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-          >
-            Browse More Products
-          </Link>
+        {/* Policy Details */}
+        <div className="w-full max-w-sm space-y-3 text-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-[#9CA3AF]">Insurance Amount</span>
+            <span className="text-white font-semibold">600 USDC</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-[#9CA3AF]">Insurance Cost</span>
+            <span className="text-white font-semibold">60 USDC</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-[#9CA3AF]">Insurance Period</span>
+            <span className="text-white font-semibold">2025-09-16 - 2026-05-03</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-[#9CA3AF]">Guarantee Countdown</span>
+            <span className="text-white font-semibold">89DAYS 20H 59M 30S</span>
+          </div>
         </div>
       </div>
     </div>

@@ -62,7 +62,7 @@ export default function Home() {
       {/* Bottom Section */}
       <div className="px-5 pb-12 flex flex-col items-center">
         <Link
-          href="/auth/connect"
+          href="/auth/email-verify"
           className="bg-[#FFD54F] text-[#0F111A] w-[70%] min-w-[200px] max-w-[280px] h-12 rounded-lg flex items-center justify-center text-base font-semibold tracking-wide hover:brightness-110 transition-all shadow-[0_4px_16px_rgba(255,213,79,0.3)]"
         >
           Connect Wallet
