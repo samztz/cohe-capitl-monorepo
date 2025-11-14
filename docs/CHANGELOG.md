@@ -4,6 +4,1350 @@
 
 ---
 
+## [2025-11-14] - 🧪 整理和优化后端测试套件 ✅ 完成
+
+### ✅ Added - 统一的测试管理系统
+
+**功能描述**:
+将散落在 `apps/api` 根目录的测试文件整理到结构化的测试目录，并创建了统一的测试运行脚本，支持一键运行所有测试并输出可视化报告。
+
+**目录结构**:
+```
+apps/api/tests/
+├── unit/                           # 单元测试（无依赖，可离线运行）
+│   ├── siwe-basic.test.js
+│   ├── siwe-nonce-format.test.js
+│   ├── siwe-message-format.test.js
+│   └── siwe-message-builder.test.js
+│
+├── integration/                    # 集成测试（需要 API 运行）
+│   ├── api-nonce-endpoint.test.sh
+│   ├── policy-api.test.js
+│   └── policy-api-auth.test.js
+│
+├── e2e/                            # 端到端测试（完整流程）
+│   ├── siwe-auth-flow.test.js
+│   └── siwe-complete-flow.test.js
+│
+├── run-all-tests.sh                # 主测试运行脚本 ⭐
+└── README.md                       # 完整文档
+```
+
+**测试运行脚本特性**:
+1. **彩色输出** - 使用颜色区分测试状态（绿色=通过，红色=失败，黄色=跳过）
+2. **进度指示** - 每个测试显示运行状态和结果
+3. **分类运行** - 按 Unit/Integration/E2E 分类运行
+4. **智能跳过** - API 未运行时自动跳过集成测试
+5. **统计报告** - 显示总数、通过、失败、跳过的测试数量
+6. **进度条可视化** - 用进度条显示测试通过率
+7. **退出码** - 成功返回 0，失败返回 1（适合 CI/CD）
+
+**使用方式**:
+```bash
+# 一键运行所有测试
+./apps/api/tests/run-all-tests.sh
+
+# 或从 api 目录
+cd apps/api
+./tests/run-all-tests.sh
+```
+
+**测试输出示例**:
+```
+╔══════════════════════════════════════════════════════════════╗
+║           Cohe Capital API Test Suite Runner                ║
+╚══════════════════════════════════════════════════════════════╝
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  📦 Unit Tests
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+▶ Running: siwe-nonce-format
+  ✓ PASSED
+
+▶ Running: siwe-message-format
+  ✓ PASSED
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  🔗 Integration Tests
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✓ API server is running at http://localhost:3001
+
+▶ Running: api-nonce-endpoint
+  ✓ PASSED
+
+╔══════════════════════════════════════════════════════════════╗
+║                      Test Summary                            ║
+╚══════════════════════════════════════════════════════════════╝
+
+  ✓ [UNIT] siwe-nonce-format
+  ✓ [UNIT] siwe-message-format
+  ✓ [INTEGRATION] api-nonce-endpoint
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Total Tests:    9
+  Passed:         9 (100%)
+  Failed:         0 (0%)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✓  ALL TESTS PASSED! 🎉
+
+  ████████████████████████████████████████ 100%
+```
+
+**测试覆盖范围**:
+- ✅ **SIWE 认证**: Nonce 格式、消息格式、完整认证流程
+- ✅ **API 端点**: Nonce 生成、Policy CRUD
+- ✅ **JWT 认证**: 带认证的 API 调用
+- ✅ **端到端流程**: 从 nonce 生成到签名验证的完整流程
+
+**相关文件**:
+```
+apps/api/tests/run-all-tests.sh    # 主测试脚本
+apps/api/tests/README.md            # 完整文档
+apps/api/tests/unit/*               # 4 个单元测试
+apps/api/tests/integration/*        # 3 个集成测试
+apps/api/tests/e2e/*                # 2 个端到端测试
+```
+
+**价值**:
+1. **提高代码质量** - 每次修改后运行测试，确保没有破坏现有功能
+2. **加速开发** - 快速发现问题，减少调试时间
+3. **便于重构** - 有测试保护，可以放心重构代码
+4. **文档化** - 测试本身就是最好的使用示例
+5. **CI/CD 友好** - 可直接集成到自动化流程
+
+**使用场景**:
+```bash
+# 场景1: 修改后端代码后验证
+git add .
+./apps/api/tests/run-all-tests.sh  # 确保所有测试通过
+git commit -m "fix: ..."
+
+# 场景2: Pull Request 前验证
+./apps/api/tests/run-all-tests.sh
+# 所有绿色 ✓ 才能提交 PR
+
+# 场景3: 部署前验证
+pnpm build
+./apps/api/tests/run-all-tests.sh
+# 确认生产环境可用
+```
+
+**开发者体验**:
+- 🎨 漂亮的彩色输出
+- 📊 清晰的统计数据
+- 🚀 快速执行（单元测试 < 1s）
+- 📝 详细的 README 文档
+- 🔧 易于添加新测试
+
+---
+
+## [2025-11-14] - ✨ 实现 Settings 页面 Disconnect Wallet 功能 ✅ 完成
+
+### ✅ Added - 完整的钱包断开连接功能
+
+**功能描述**:
+在 Settings 页面实现了完整的钱包断开连接功能，包括真实钱包地址显示、确认对话框、加载状态和完整的清理流程。
+
+**实现功能**:
+1. **显示真实钱包地址**
+   - Header 显示当前连接的钱包地址（格式：0xABCD...1234）
+   - Account 部分显示完整的钱包地址信息
+   - 从 AppKit 和 authStore 获取地址数据
+
+2. **Disconnect Wallet 按钮**
+   - 点击按钮显示确认对话框
+   - 防止用户意外断开连接
+   - 加载状态显示（Disconnecting...）
+   - Disabled 状态防止重复点击
+
+3. **确认对话框**
+   - 美观的模态对话框设计
+   - 警告图标和清晰的文案
+   - Cancel 和 Disconnect 两个操作按钮
+   - 半透明背景遮罩
+
+4. **完整的断开流程**
+   - 调用 `resetAuth()` 清理所有存储
+   - 断开 WalletConnect 会话
+   - 清除 JWT token 和用户数据
+   - 清除 WalletConnect/AppKit 缓存
+   - 清空 authStore 状态
+   - 重定向到登录页面
+
+**相关文件**:
+```
+apps/web/src/app/settings/page.tsx    # Settings 页面完整实现
+apps/web/src/lib/resetAuth.ts          # 复用现有的认证重置工具
+apps/web/src/store/authStore.ts        # 使用 logout 清空状态
+```
+
+**UI 特性**:
+- 🎨 红色主题的 Disconnect 按钮（警告色）
+- ⚠️ 确认对话框防止误操作
+- 🔄 加载状态和 spinner 动画
+- 🚫 Disabled 状态防止重复操作
+- 📱 响应式设计，适配移动端
+- 🎭 流畅的过渡动画
+
+**技术实现**:
+```typescript
+// 集成钱包和认证状态
+import { useAppKit, useAppKitAccount } from '@reown/appkit/react'
+import { useAuthStore } from '@/store/authStore'
+import { resetAuth } from '@/lib/resetAuth'
+
+// 格式化地址显示
+const formatAddress = (addr) => {
+  if (!addr) return 'Not Connected'
+  return `${addr.slice(0, 6)}...${addr.slice(-4)}`
+}
+
+// 断开连接流程
+const confirmDisconnect = async () => {
+  setIsDisconnecting(true)
+  await resetAuth({ close })  // 清理所有存储和会话
+  logoutStore()               // 清空 auth store
+  router.push('/auth/connect') // 重定向到登录页
+}
+```
+
+**用户体验**:
+1. 用户点击 "Disconnect Wallet"
+2. 显示确认对话框询问是否确认断开
+3. 用户确认后显示加载状态
+4. 完成所有清理操作
+5. 自动跳转到登录页面
+6. 用户需要重新连接钱包才能访问
+
+**测试要点**:
+- ✅ 钱包地址正确显示
+- ✅ 确认对话框正常弹出
+- ✅ Cancel 按钮关闭对话框
+- ✅ Disconnect 按钮触发断开流程
+- ✅ 加载状态正确显示
+- ✅ 存储和会话完全清理
+- ✅ 重定向到登录页面成功
+
+---
+
+## [2025-11-14] - 🔧 修复 SIWE Nonce 格式问题（UUID 连字符）✅ 完成
+
+### ✅ Fixed - Nonce 不能包含连字符等特殊字符
+
+**问题表现**:
+后端仍然报错：`invalid message: max line number was 9`，即使消息格式完全正确（10行，空行位置正确）。
+
+**根本原因**:
+后端使用 `randomUUID()` 生成 nonce，产生的格式为 `79ac432d-57ab-4a3b-a5aa-ff10e2d0e09a`（包含连字符）。
+
+**SIWE v3.0.0 的 nonce 字段不接受连字符等特殊字符，只接受字母和数字！**
+
+根据 EIP-4361 标准，nonce 的 ABNF 定义是：
+```
+nonce = 8*ALPHA / 8*DIGIT
+```
+即：nonce 必须是字母或数字字符，不包括特殊字符。
+
+**测试验证**:
+```bash
+❌ UUID with hyphens: "79ac432d-57ab-4a3b-a5aa-ff10e2d0e09a" → FAILED
+✅ UUID without hyphens: "79ac432d57ab4a3ba5aaff10e2d0e09a" → SUCCESS
+✅ Alphanumeric: "wD5bHPxpRSfXWkYNK8m3v" → SUCCESS
+```
+
+**修复方案**:
+在后端生成 nonce 时移除连字符：
+```typescript
+// 修复前
+const nonce = randomUUID(); // "79ac432d-57ab-4a3b-a5aa-ff10e2d0e09a"
+
+// 修复后
+const nonce = randomUUID().replace(/-/g, ''); // "79ac432d57ab4a3ba5aaff10e2d0e09a"
+```
+
+**相关文件**:
+```
+apps/api/src/modules/auth/auth.service.ts:37   # requestNonce() - 初始 nonce 生成
+apps/api/src/modules/auth/auth.service.ts:134  # verifySignature() - 刷新 nonce
+apps/api/test-uuid-nonce.js                    # 新增：测试不同 nonce 格式
+apps/api/test-e2e-nonce.js                     # 新增：E2E 流程测试
+apps/api/test-real-api.sh                      # 新增：真实 API 测试脚本
+```
+
+**测试结果**:
+```bash
+# E2E 测试
+node apps/api/test-e2e-nonce.js
+# ✅ E2E Test: SUCCESS - Complete flow works correctly!
+
+# 真实 API 测试
+./apps/api/test-real-api.sh
+# ✅ All tests passed! Backend is ready for SIWE authentication.
+
+# API 响应示例
+curl -X POST http://localhost:3001/auth/siwe/nonce
+# {"nonce":"e887d727c2a246ad8a00f4d68635e3ae"}  ✅ 无连字符！
+```
+
+**关键要点**:
+- UUID 的连字符会导致 SIWE 解析失败
+- 移除连字符后，nonce 变成 32 个十六进制字符（a-f0-9）
+- 保持了 UUID 的唯一性和随机性
+- 符合 SIWE v3.0.0 的 alphanumeric-only 要求
+
+---
+
+## [2025-11-14] - 🔧 修复 SIWE 消息 statement 后多余空行问题 ✅ 完成
+
+### ✅ Fixed - statement 和 URI 之间只能有一个空行
+
+**问题表现**:
+后端报错：`invalid message: max line number was 9`，消息有9行但解析失败。
+
+**根本原因**:
+`siweUtil.ts` 在生成消息时，statement 后面添加了一个空行（line 49: `\n${statement}\n`），然后在 URI 前又添加了一个空行（line 53: `\nURI:`），导致 statement 和 URI 之间有**两个空行**，违反了 SIWE 格式规范。
+
+**错误的消息格式**（11行，两个空行）:
+```
+Line 0: domain wants you to sign in...
+Line 1: address
+Line 2: (blank)
+Line 3: statement
+Line 4: (blank)
+Line 5: (blank)  ❌ 多余的空行！
+Line 6: URI: ...
+...
+Line 10: Issued At: ...
+```
+❌ 解析失败：`invalid message: max line number was 6`
+
+**正确的消息格式**（10行，只有一个空行）:
+```
+Line 0: domain wants you to sign in...
+Line 1: address
+Line 2: (blank)
+Line 3: statement
+Line 4: (blank)  ✅ 唯一的空行
+Line 5: URI: ...
+Line 6: Version: 1
+Line 7: Chain ID: 97
+Line 8: Nonce: ...
+Line 9: Issued At: ...
+```
+✅ 解析成功！
+
+**修复方案**:
+重构 `formatSiweMessage` 函数，逻辑更清晰：
+1. address 后总是添加一个空行
+2. 如果有 statement，添加 statement + 一个空行
+3. 然后直接添加 URI（不需要额外空行）
+
+**相关文件**:
+```
+apps/web/src/lib/siweUtil.ts           # 修复空行逻辑
+apps/api/test-our-format.js            # 新增：测试我们的格式函数
+apps/api/test-siwe-format.js           # 新增：对比正确和错误格式
+```
+
+**测试验证**:
+```bash
+node apps/api/test-our-format.js
+# ✅ SUCCESS! Message parsed correctly
+```
+
+**关键代码变更**:
+```typescript
+// 修复前：重复添加空行
+message += `${address}\n`
+if (statement) {
+  message += `\n${statement}\n`  // 这里有 \n
+}
+message += `\nURI: ${uri}\n`     // 这里又有 \n，导致两个空行！
+
+// 修复后：清晰的逻辑
+message += `${address}\n`
+message += `\n`                  // address 后的空行
+if (statement) {
+  message += `${statement}\n`
+  message += `\n`                // statement 后的空行
+}
+message += `URI: ${uri}\n`       // 直接添加 URI，无需额外空行
+```
+
+---
+
+## [2025-11-14] - 🔧 修复 SIWE 消息格式错误（深度排查）✅ 完成
+
+### ✅ Fixed - SIWE v3.0.0 强制要求 statement 字段
+
+**问题表现**:
+用户报告登录时出现错误：`Error: Invalid SIWE message format`
+即使修复了空行问题，错误仍然重复出现。
+
+**深度排查过程**:
+
+通过创建测试脚本直接调用 `siwe` 库进行解析，发现真正的根本原因：
+
+**SIWE v3.0.0 库强制要求消息必须包含 `statement` 字段！**
+
+测试结果：
+```bash
+❌ WITHOUT statement: invalid message: max line number was 7
+✅ WITH statement: SUCCESS!
+```
+
+**根本原因**:
+后端使用的 `siwe@3.0.0` 库在解析消息时，**强制要求** statement 字段。如果消息中没有 statement，解析会失败并报错 "invalid message: max line number was 7"。
+
+这是 SIWE v3.0.0 的一个破坏性变更，与 EIP-4361 标准（statement 是可选字段）不一致。
+
+**修复前的消息**（没有 statement）：
+```
+localhost wants you to sign in with your Ethereum account:
+0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+
+URI: http://localhost:3001
+Version: 1
+Chain ID: 97
+Nonce: wD5bHPxpRSfXWkYNK8m3v
+Issued At: 2024-01-01T00:00:00.000Z
+```
+❌ 解析失败：`invalid message: max line number was 7`
+
+**修复后的消息**（添加 statement）：
+```
+localhost wants you to sign in with your Ethereum account:
+0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+
+Sign in with Ethereum to the app.
+
+URI: http://localhost:3001
+Version: 1
+Chain ID: 97
+Nonce: wD5bHPxpRSfXWkYNK8m3v
+Issued At: 2024-01-01T00:00:00.000Z
+```
+✅ 解析成功！
+
+**修复方案**:
+
+在 `apps/web/src/hooks/useSiweAuth.ts` 中添加 statement 字段：
+
+```typescript
+// 修改前：没有 statement
+const siweMessage = formatSiweMessage({
+  domain: SIWE_DOMAIN,
+  address,
+  // 没有 statement  ❌
+  uri: SIWE_URI,
+  version: '1',
+  chainId: CHAIN_ID,
+  nonce,
+  issuedAt: new Date().toISOString(),
+})
+
+// 修改后：添加 statement
+const siweMessage = formatSiweMessage({
+  domain: SIWE_DOMAIN,
+  address,
+  statement: 'Sign in with Ethereum to the app.',  // ✅ 必需字段！
+  uri: SIWE_URI,
+  version: '1',
+  chainId: CHAIN_ID,
+  nonce,
+  issuedAt: new Date().toISOString(),
+})
+```
+
+**相关文件**:
+```
+apps/web/src/hooks/useSiweAuth.ts     # 添加 statement 字段
+apps/web/src/lib/siweUtil.ts          # 修复空行格式（已在之前修复）
+apps/api/test-siwe.js                 # 用于测试 SIWE 消息解析的测试脚本
+```
+
+**排查方法**:
+通过创建独立的 Node.js 测试脚本，直接调用 `siwe` 库测试不同格式的消息，最终发现 statement 是必需的。
+
+**测试验证**:
+```bash
+# 测试脚本验证
+cd apps/api && node test-siwe.js
+
+# 应该看到：
+✅ SUCCESS! (with statement)
+❌ FAILED: invalid message: max line number was 7 (without statement)
+```
+
+**重要发现**:
+- SIWE v3.0.0 强制要求 statement，这可能是库的 bug 或设计变更
+- EIP-4361 标准中 statement 是可选的
+- 建议后续考虑降级到 SIWE v2.x 或向 SIWE 库提 issue
+
+**参考资料**:
+- SIWE 库：https://github.com/spruceid/siwe
+- EIP-4361 标准：https://eips.ethereum.org/EIPS/eip-4361
+
+---
+
+## [2025-11-14] - 🚨 紧急修复：无限签名请求循环 ✅ 完成
+
+### ✅ Hotfix - 修复 Effect 依赖导致的无限 MetaMask 签名弹窗问题
+
+**问题表现**:
+用户报告打开 `/auth/connect` 页面后，MetaMask 签名请求无限弹出，无法停止。
+
+**根本原因分析**:
+
+1. **Effect 依赖包含了变化的函数引用** (`login`, `clearError`, `close`)
+   - 这些函数在每次渲染时都会重新创建
+   - 导致 Effect 重新触发 → 调用 `login()` → 失败后调用 `close()` → `close` 引用变化 → Effect 再次触发
+   - 形成**无限循环**
+
+2. **缺少防重复触发机制**
+   - 没有标志位防止同一个 address 重复尝试登录
+   - `close()` 断开钱包后，可能又重新连接，再次触发登录
+
+3. **自动登录逻辑与用户需求不符**
+   - 用户要求："完全取消已连接钱包但还没有后端 sign in 的状态"
+   - 但之前的代码在检测到钱包连接后自动触发 SIWE，违反了二元状态设计
+
+**修复方案**:
+
+### 1. **移除 Effect 依赖中的函数引用**
+
+```typescript
+// 修改前：依赖包含 login, clearError, close
+useEffect(() => {
+  autoLogin()
+}, [
+  authStoreLoading,
+  isAuthenticated,
+  isConnected,
+  address,
+  login,        // ❌ 每次渲染都变化
+  clearError,   // ❌ 每次渲染都变化
+  close,        // ❌ 每次渲染都变化
+])
+
+// 修改后：只依赖必要的状态
+useEffect(() => {
+  handleSiweLogin()
+}, [
+  isConnected,
+  address,       // ✅ 只依赖 address 变化
+  walletProvider,
+  isAuthenticated,
+  isSiweLoading,
+  chainId,
+])
+```
+
+### 2. **使用 useRef 标记用户主动发起的流程**
+
+```typescript
+const isUserInitiatedFlow = useRef(false)
+
+// 只有用户点击 Connect Wallet 时才标记
+const handleConnectWallet = async () => {
+  isUserInitiatedFlow.current = true
+  await open()
+}
+
+// Effect 中检查标志位
+useEffect(() => {
+  if (!isUserInitiatedFlow.current) {
+    return // 不是用户主动触发，跳过
+  }
+  // ...执行 SIWE 登录
+}, [isConnected, address, ...])
+```
+
+### 3. **新增 Effect 2：强制二元状态，断开 stale 连接**
+
+```typescript
+/**
+ * Effect 2: Enforce binary state
+ * 如果检测到钱包已连接但用户未认证，且不是用户主动触发的流程，
+ * 说明这是从上次会话残留的连接 → 自动断开
+ */
+useEffect(() => {
+  if (authStoreLoading || isAuthenticated || isUserInitiatedFlow.current) {
+    return
+  }
+
+  if (isConnected && address) {
+    console.log('[ConnectPage] Detected stale wallet connection, disconnecting...')
+    close()
+  }
+}, [authStoreLoading, isAuthenticated, isConnected, address, isSiweLoading, close])
+```
+
+### 4. **简化状态机：只有两个状态**
+
+- **未连接** → 显示 "Connect Wallet" 按钮
+- **已认证** → 自动跳转 Dashboard
+- **已连接但未认证的中间态** → 自动断开，回到"未连接"
+
+**修复后的流程**:
+
+```
+1. 用户打开 /auth/connect
+   ↓
+2. authStore 验证 localStorage 中的 token（后端 /auth/siwe/me）
+   ↓
+3a. Token 有效 → 跳转 Dashboard ✅
+3b. Token 无效 → 清理 localStorage
+   ↓
+4. 检查钱包连接状态
+   ↓
+5a. 钱包未连接 → 显示 "Connect Wallet" 按钮 ✅
+5b. 钱包已连接但未认证 → 自动断开（stale connection）
+   ↓
+6. 用户点击 "Connect Wallet"
+   ↓
+7. 设置 isUserInitiatedFlow.current = true
+   ↓
+8. 打开 AppKit 钱包选择弹窗
+   ↓
+9. 用户选择钱包并连接
+   ↓
+10. Effect 3 检测到钱包连接 + isUserInitiatedFlow = true
+    ↓
+11. 自动触发 SIWE 签名请求（只触发一次）
+    ↓
+12a. 签名成功 → 保存 token → 跳转 Dashboard ✅
+12b. 签名失败/拒绝 → 断开钱包 → 重置 isUserInitiatedFlow → 显示错误 ✅
+```
+
+**相关文件**:
+```
+apps/web/src/app/auth/connect/page.tsx    # 完全重构逻辑，使用 useRef 防止无限循环
+```
+
+**关键改进**:
+- ✅ **无限循环修复**: 移除 Effect 依赖中的函数引用
+- ✅ **防重复触发**: 使用 `isUserInitiatedFlow` ref 标记用户主动操作
+- ✅ **强制二元状态**: 自动断开 stale 钱包连接
+- ✅ **用户体验**: 只在用户点击时才触发签名，不会自动弹窗
+
+**测试方法**:
+```bash
+# 1. 清除浏览器所有数据
+- 打开 DevTools → Application → Clear storage → Clear site data
+
+# 2. 访问页面
+- 访问 http://localhost:3000
+- 应该只看到 "Connect Wallet" 按钮，不会自动弹出签名
+
+# 3. 测试登录
+- 点击 "Connect Wallet"
+- 选择钱包并连接
+- 应该只弹出一次签名请求
+- 签名成功后跳转 Dashboard
+
+# 4. 测试 stale connection
+- 不要 Logout，直接刷新页面
+- 如果之前的 token 已过期，应该：
+  a. authStore 验证 token 失败
+  b. 清理 localStorage
+  c. 检测到钱包还连着 → 自动断开
+  d. 显示 "Connect Wallet" 按钮
+
+# 5. 验证无无限循环
+- 在任何情况下，MetaMask 签名请求应该最多只弹出一次
+```
+
+**破坏性变更**:
+- 不再在页面加载时自动触发 SIWE 登录
+- 用户必须主动点击 "Connect Wallet" 才会开始登录流程
+
+---
+
+## [2025-11-14] - 🔐 认证系统安全性和逻辑重构 ✅ 完成
+
+### ✅ Fixed - 修复认证系统的安全漏洞、竞态条件、性能问题和 UX 缺陷
+
+**问题诊断**:
+通过全面代码审查，发现了认证流程中的多个关键问题：
+
+1. **🚨 安全漏洞 (P0)**: `authStore.loadStoredAuth` 从 localStorage 读取 JWT 后直接信任，未与后端验证有效性
+   - 攻击者可手动修改 localStorage 伪造身份
+   - Token 可能已过期、被撤销或被篡改
+   - 存在认证绕过、权限提升、数据泄露风险
+
+2. **🔁 竞态条件 (P1)**: 多个组件重复调用 `loadStoredAuth`
+   - `page.tsx`、`auth/connect/page.tsx`、`useRequireAuth` 都在调用
+   - 同一页面可能触发 2-3 次 localStorage 读取
+   - 如果加入 token 验证 API，会产生多次重复请求
+
+3. **⏱️ 性能问题 (P1)**: 不必要的 100ms 延迟
+   - `page.tsx` 和 `connect/page.tsx` 都有人为的 100ms setTimeout
+   - 每次页面加载强制等待 100-200ms
+   - localStorage 是同步操作，无需延迟
+
+4. **🔄 UX 问题 (P0)**: Logout 逻辑混乱
+   - 只调用 `close()` 但未清理 localStorage
+   - 未调用 `authStore.logout()`
+   - Alert 提示 "cleared storage keys" 但实际未清理
+   - Logout 后立即 `loadStoredAuth()` 重新加载未清理的数据
+
+5. **🔀 状态逻辑 (P0)**: auth/connect 页面存在三态混乱
+   - 未连接钱包 / 已连接但未 Sign In / 已 Sign In
+   - 中间态容易卡住，用户体验差
+
+**修复方案**:
+
+### 1. **authStore.ts - 添加 JWT Token 后端验证**
+
+```typescript
+// 修改前：直接信任 localStorage 中的 token
+if (storedToken && storedUserData) {
+  const user = JSON.parse(storedUserData) as User
+  // TODO: Optionally validate token with backend here
+  set({ token: storedToken, user, isAuthenticated: true })
+}
+
+// 修改后：调用后端 /auth/siwe/me 验证 token 有效性
+const response = await fetch(`${API_BASE_URL}/auth/siwe/me`, {
+  headers: { 'Authorization': `Bearer ${storedToken}` }
+})
+
+if (!response.ok) {
+  // Token 无效，清理存储
+  storage.removeItem(JWT_STORAGE_KEY)
+  storage.removeItem(USER_STORAGE_KEY)
+  set({ isAuthenticated: false })
+} else {
+  // Token 有效，更新用户数据
+  const { userId, address } = await response.json()
+  set({ token: storedToken, user: { id: userId, address }, isAuthenticated: true })
+}
+```
+
+### 2. **AppProviders.tsx - 全局初始化认证**
+
+```typescript
+// 在 AppProviders 中一次性初始化认证，避免重复调用
+export function AppProviders({ children }) {
+  const loadStoredAuth = useAuthStore(state => state.loadStoredAuth)
+
+  useEffect(() => {
+    console.log('[AppProviders] Initializing auth on app startup...')
+    loadStoredAuth()
+  }, [loadStoredAuth])
+
+  return <QueryClientProvider>{children}</QueryClientProvider>
+}
+```
+
+### 3. **page.tsx - 移除延迟和重复逻辑**
+
+```typescript
+// 修改前：手动读取 localStorage + 100ms 延迟
+const timer = setTimeout(() => {
+  const token = localStorage.getItem('auth_jwt_token')
+  if (token) router.push('/dashboard')
+}, 100)
+
+// 修改后：直接使用 authStore，无延迟
+const { isAuthenticated, isLoading } = useAuthStore()
+
+useEffect(() => {
+  if (isLoading) return
+  if (isAuthenticated) router.replace('/dashboard')
+  else router.replace('/auth/connect')
+}, [isAuthenticated, isLoading, router])
+```
+
+### 4. **useRequireAuth.ts - 移除重复调用**
+
+```typescript
+// 修改前：每次调用都 loadStoredAuth()
+useEffect(() => {
+  loadStoredAuth()
+  const timer = setTimeout(() => { /* check auth */ }, 0)
+}, [loadStoredAuth])
+
+// 修改后：直接使用全局初始化的 authStore
+const { isAuthenticated, user, isLoading } = useAuthStore()
+
+useEffect(() => {
+  if (isLoading) return
+  if (!isAuthenticated) router.replace('/auth/connect')
+}, [isAuthenticated, isLoading, router])
+```
+
+### 5. **auth/connect/page.tsx - 重构为二元状态逻辑**
+
+```typescript
+// 新设计原则：
+// 1. 只有两个状态：未认证（显示按钮）或已认证（跳转）
+// 2. 钱包连接后自动触发 SIWE 登录
+// 3. 如果连接了钱包但未认证，自动断开钱包
+// 4. 失败后断开钱包，回到初始状态
+
+// Effect 1: 已认证 -> 跳转 dashboard
+useEffect(() => {
+  if (!authStoreLoading && isAuthenticated && user) {
+    router.replace('/dashboard')
+  }
+}, [authStoreLoading, isAuthenticated, user, router])
+
+// Effect 2: 钱包连接但未认证 -> 自动触发 SIWE 登录
+useEffect(() => {
+  if (authStoreLoading || isAuthenticated || !isConnected) return
+
+  const autoLogin = async () => {
+    // 检查网络
+    if (chainId !== targetChainId) {
+      setLocalError(`Please switch to ${targetNetworkName}`)
+      await close() // 断开钱包
+      return
+    }
+
+    // 自动登录
+    const success = await login()
+    if (!success) {
+      await close() // 登录失败，断开钱包
+    }
+  }
+
+  autoLogin()
+}, [authStoreLoading, isAuthenticated, isConnected, login, close])
+```
+
+### 6. **handleLogout - 完整清理所有状态**
+
+```typescript
+// 修改前：只调用 close()，未清理 localStorage
+const handleLogout = async () => {
+  await close()
+  alert('Successfully logged out') // 误导性提示
+  loadStoredAuth() // 重新加载未清理的数据！
+}
+
+// 修改后：使用 resetAuth 完整清理
+const handleLogout = async () => {
+  setIsLoggingOut(true)
+
+  // 调用 resetAuth 清理所有存储和 WalletConnect 缓存
+  const result = await resetAuth({ close })
+
+  console.log(`Removed ${result.removedKeys.length} storage keys`)
+
+  if (result.success) {
+    console.log('Successfully logged out')
+  } else {
+    console.warn('Logout with warnings:', result.errors)
+  }
+
+  setIsLoggingOut(false)
+}
+```
+
+**相关文件**:
+```
+apps/web/src/store/authStore.ts              # 添加 JWT 后端验证逻辑
+apps/web/src/components/AppProviders.tsx     # 全局初始化 loadStoredAuth
+apps/web/src/app/page.tsx                    # 移除延迟和重复逻辑
+apps/web/src/hooks/useRequireAuth.ts         # 移除重复的 loadStoredAuth 调用
+apps/web/src/app/auth/connect/page.tsx       # 重构为二元状态逻辑
+```
+
+**安全性提升**:
+- ✅ JWT Token 每次启动时与后端验证，防止伪造
+- ✅ 过期或无效的 token 自动清理
+- ✅ 无法通过修改 localStorage 绕过认证
+
+**性能优化**:
+- ✅ 移除所有不必要的 setTimeout 延迟
+- ✅ loadStoredAuth 只在全局初始化时调用一次
+- ✅ 避免重复的网络请求和 localStorage 读取
+
+**用户体验改进**:
+- ✅ 二元状态设计：只有"未连接"或"已认证"两个状态
+- ✅ 钱包连接后自动 SIWE 登录，无需手动点击
+- ✅ 失败自动断开，回到初始状态
+- ✅ Logout 完整清理所有数据，无残留
+
+**测试方法**:
+```bash
+# 1. 启动开发服务器
+cd apps/web && pnpm dev
+
+# 2. 测试登录流程
+- 访问 http://localhost:3000
+- 点击 "Connect Wallet" 连接钱包
+- 自动弹出签名请求
+- 签名成功后自动跳转 /dashboard
+
+# 3. 测试 Token 验证
+- 打开浏览器 DevTools -> Application -> Local Storage
+- 手动修改 auth_jwt_token 为无效值
+- 刷新页面，应自动清理并跳转到 /auth/connect
+
+# 4. 测试 Logout
+- 在 /auth/connect 页面点击 Logout
+- 检查 Console 输出的 "Removed X storage keys"
+- 确认 localStorage 已清空
+
+# 5. 测试失败场景
+- 连接钱包后，拒绝签名
+- 应自动断开钱包，显示错误信息
+- 可以重新点击 Connect Wallet
+```
+
+**注意事项**:
+- ⚠️ 后端必须有 `/auth/siwe/me` 接口并验证 JWT
+- ⚠️ 如果后端 token 过期时间很短，用户可能频繁需要重新登录
+- ⚠️ 建议后端实现 token 刷新机制（refresh token）
+- ⚠️ 现有用户需要重新登录一次以触发新的验证流程
+
+**破坏性变更**:
+- `loadStoredAuth` 现在是异步函数，但调用方式保持不变
+- 移除了所有 setTimeout 延迟，页面加载速度更快
+- auth/connect 页面不再显示 "Sign In" 按钮（自动触发）
+
+---
+
+## [2025-11-14] - Web SIWE 登录体验修复（移除自动登录 + 超时保护 + 二元状态）✅ 完成
+
+### ✅ Fixed - 取消页面加载即自动登录；只在用户点击时进入签名流程，并为关键步骤添加超时保护，避免停留在“Signing in with wallet...”中间态。
+
+**问题表现**:
+- 打开 `/auth/connect` 即显示“Signing in with wallet...”，用户无操作也进入中间态。
+- 钱包签名或会话异常时 `signMessage` 可能挂起，页面无限 Loading。
+
+**修复要点**:
+- UI 状态收敛：不再在页面加载时触发 SIWE；仅在用户点击 “Sign In” 后显示 Loading。
+- 加入超时保护：为 `nonce` 获取、`signMessage`、`verify`、`me` 请求分别设置 8s/30s/10s/10s 超时，失败后回退到可点击状态并显示可读错误。
+- 首屏水合：等待 authStore 水合完成后再决定跳转或展示按钮，避免逻辑竞态。
+- 二元状态强制：进入 `/auth/connect` 时只允许两种状态——
+  1) 未连接钱包（显示 Connect Wallet）
+  2) 已完成后端 Sign-In（直接跳转 /dashboard）
+  若检测到“已连接但未完成 Sign-In”，将直接 `disconnect()` 以清除中间态；用户重新点击 Connect 后将触发签名流程，失败则自动断开。
+
+**涉及文件**:
+```
+apps/web/src/app/auth/connect/page.tsx     # 连接页：移除首屏自动登录；强制二元状态；连接后自动 SIWE，失败自动 disconnect
+apps/web/src/hooks/useSiweAuth.ts          # 登录流程：添加 withTimeout 包装，超时错误提示
+```
+
+**注意事项**:
+- 如在浏览器中已存在旧的 WalletConnect 缓存，建议使用页面中的 Logout（包含缓存清理）后重新登录。
+- 后端 SIWE 域和 URI 需与前端环境变量一致（NEXT_PUBLIC_SIWE_DOMAIN / NEXT_PUBLIC_SIWE_URI）。
+
+**测试建议**:
+1. 首次进入 `/auth/connect`：应看到 Connect Wallet 或（钱包已连接时）Sign In 按钮，不应出现 Loading。
+2. 点击 Sign In 后：若钱包弹窗未确认 30s，应出现“Timed out waiting for wallet signature”错误并可重试。
+3. 登录成功后：应自动跳转 `/dashboard`。
+
+---
+
+## [2025-01-15] - 彻底重构认证流程 🔧 Major Refactor
+
+### 🎯 核心问题解决 - 消除"中间态卡死"的根本原因
+
+**问题诊断** (感谢用户详细分析):
+用户报告了"打开页面即卡在 Signing in with wallet 中间态"的问题，并进行了深度诊断，发现了以下根本性设计缺陷：
+
+1. **自动触发登录导致中间态卡住** - 页面加载时只要检测到"已连接但未认证"就自动发起 SIWE 登录
+2. **签名 Promise 无超时/可取消** - `signer.signMessage()` 可能永久挂起
+3. **AppKit UI 未正确挂载** - 缺少对 AppKit 会话管理的支持
+4. **Store 水合与自动登录有竞态** - 未等待 authStore 水合完成
+5. **UI 状态条件耦合不当** - Loading 状态在用户无操作时出现
+6. **单纯依赖 `isConnected`** - 未检查会话健康状态
+
+**设计目标**:
+> 用户应该要么没有登录完成，要么已经链接钱包跳转至 dashboard，**永远不可能出现打开就卡在中间的状态**。
+
+### ✅ 完整重构方案
+
+#### 1. **移除所有自动登录逻辑** (最关键修复)
+
+**之前**: 页面加载时自动检测钱包连接状态并触发 SIWE 登录
+**现在**: **仅在用户点击 "Sign In" 按钮时才触发 SIWE 登录**
+
+```typescript
+// ❌ 删除了所有自动登录的 useEffect
+// ✅ 仅通过用户点击按钮触发
+const handleSignIn = async () => {
+  // 健康检查 → 网络检查 → SIWE 登录
+  const success = await login()
+}
+```
+
+#### 2. **等待 authStore 水合完成后再渲染 UI**
+
+添加 `authHydrated` 状态，确保在 authStore 水合完成前显示 Loading：
+
+```typescript
+const [authHydrated, setAuthHydrated] = useState(false)
+
+useEffect(() => {
+  loadStoredAuth()
+  setTimeout(() => setAuthHydrated(true), 100)
+}, [])
+
+// 水合前显示 Loading
+if (!authHydrated || authStoreLoading) {
+  return <LoadingScreen />
+}
+```
+
+#### 3. **会话健康检查替代单纯 `isConnected`**
+
+```typescript
+const isWalletSessionHealthy = (): boolean => {
+  return !!(isConnected && address && walletProvider)
+}
+
+// 使用会话健康状态替代 isConnected
+{isWalletSessionHealthy() ? <SignInButton /> : <ConnectButton />}
+```
+
+#### 4. **优化 UI 状态机 - 严格仅两种最终状态**
+
+```typescript
+// State Machine:
+// 1. 水合中 → Loading Screen
+// 2. 已认证 → Redirect to Dashboard (很少看到这个状态)
+// 3. 未认证 + SIWE Loading → "Signing in..." (仅用户点击后)
+// 4. 未认证 + 会话健康 → "Sign In" 按钮
+// 5. 未认证 + 未连接 → "Connect Wallet" 按钮
+
+{isSiweLoading ? (
+  <LoadingSigningIn />  // 仅用户点击后出现
+) : isWalletSessionHealthy() ? (
+  <SignInButton />       // 钱包已连接，等待用户点击
+) : (
+  <ConnectButton />      // 未连接钱包
+)}
+```
+
+#### 5. **AppKit 初始化说明**
+
+Reown AppKit v5 通过全局初始化工作（`createAppKit()` 返回单例），无需额外的 Provider 组件。已在 `apps/web/src/config/appkit.ts` 中正确配置，并在 `AppProviders` 中导入以确保初始化。
+
+**相关文件**:
+```
+apps/web/src/app/auth/connect/page.tsx    # 完全重写 - 移除自动登录
+apps/web/src/components/AppProviders.tsx  # 添加注释说明 AppKit 初始化
+```
+
+### 🎯 新行为流程图
+
+```
+用户访问 /auth/connect
+    ↓
+等待 authStore 水合 (100ms)
+    ↓
+已认证? → YES → 立即跳转 /dashboard
+    ↓ NO
+钱包已连接且会话健康?
+    ↓ YES → 显示 "Sign In" 按钮（等待用户点击）
+    ↓ NO  → 显示 "Connect Wallet" 按钮
+         ↓
+    用户点击 "Connect Wallet"
+         ↓
+    AppKit Modal 打开 → 连接成功 → 显示 "Sign In" 按钮
+         ↓
+    用户点击 "Sign In"
+         ↓
+    网络检查 → SIWE 签名 → 验证 → 存储 token → 跳转 /dashboard
+         ↓
+    任何步骤失败 → 回到 "Sign In" 按钮状态 + 错误提示
+```
+
+### 🔥 关键改进点对比
+
+| 问题 | 之前 | 现在 |
+|------|------|------|
+| 自动登录 | ❌ 页面加载即触发 | ✅ 仅用户点击触发 |
+| UI 中间态 | ❌ 可能卡住无限 Loading | ✅ Loading 仅在用户操作时出现 |
+| Store 水合 | ❌ 与自动登录有竞态 | ✅ 水合完成前显示 Loading |
+| 会话检查 | ❌ 仅依赖 `isConnected` | ✅ 检查 address + walletProvider |
+| 状态机逻辑 | ❌ 复杂的多状态条件 | ✅ 清晰的两种最终状态 |
+| 错误处理 | ❌ 可能永久卡住 | ✅ 任何错误回到可操作状态 |
+
+### 📋 测试场景
+
+1. ✅ 首次访问 → 显示 "Connect Wallet" → 点击连接 → 显示 "Sign In" → 点击签名 → 成功登录
+2. ✅ 已登录用户访问 /auth/connect → 瞬间跳转 /dashboard（不显示页面）
+3. ✅ 钱包已连接但未登录 → **显示 "Sign In" 按钮**（不自动弹签名窗）
+4. ✅ 用户点击 Sign In 后取消签名 → 回到 "Sign In" 按钮 + 错误提示
+5. ✅ 用户点击 Sign In 但网络不对 → 显示网络错误 + 保持 "Sign In" 按钮
+6. ✅ 用户 Logout → 清除所有缓存 → 重新水合 → 显示 "Connect Wallet"
+
+### 💡 设计原则总结
+
+1. **No Auto-Login** - 用户必须主动点击才登录
+2. **Two Final States** - 未认证（显示 UI）或已认证（跳转）
+3. **Loading Only on Action** - Loading 仅在用户操作时出现
+4. **Wait for Hydration** - UI 等待 authStore 水合完成
+5. **Session Health Check** - 不仅检查 `isConnected`，还检查 `address` 和 `walletProvider`
+
+---
+
+## [2025-01-15] - ~~修复自动登录卡死问题~~ 🔴 已废弃（被上方重构替代）
+
+### 🔧 问题修复 - 防止 SIWE 自动登录无限加载
+
+**问题描述**:
+用户报告打开 `/auth/connect` 页面时卡在 "Signing in with wallet..." 状态无法继续：
+1. AppKit 从缓存恢复了钱包连接状态（`isConnected = true`）
+2. 但 Auth Store 没有认证缓存（JWT 已过期或被清除）
+3. 自动登录触发后，在 `signer.signMessage()` 步骤卡住
+4. 如果用户未响应 MetaMask 签名弹窗，Promise 会永久挂起
+5. UI 永久显示 Loading 状态，用户无法继续操作
+
+**根本原因**:
+- `useSiweAuth.ts` 的 `login()` 函数在等待用户签名时没有超时机制
+- 如果用户不响应钱包弹窗，`await signer.signMessage()` 会永久等待
+- `isSiweLoading` 状态无法重置，导致 UI 卡在 Loading 状态
+
+**修复方案**:
+
+### 1. ✅ 为自动登录添加 30 秒超时机制
+
+在 `apps/web/src/app/auth/connect/page.tsx` 的自动登录逻辑中添加超时保护：
+
+```typescript
+// 添加 30 秒超时，防止无限等待
+const loginPromise = login()
+const timeoutPromise = new Promise<boolean>((resolve) => {
+  setTimeout(() => {
+    console.warn('[ConnectPage] Auto SIWE login timeout after 30s')
+    resolve(false)
+  }, 30000)
+})
+
+const success = await Promise.race([loginPromise, timeoutPromise])
+```
+
+### 2. ✅ 改进日志输出
+
+在 `useSiweAuth.ts` 中添加更详细的日志，帮助诊断用户在哪个步骤卡住：
+
+```typescript
+console.log('[useSiweAuth] Requesting signature from wallet...')
+// Sign message (this may hang if user doesn't respond to wallet popup)
+const signature = await signer.signMessage(siweMessage)
+```
+
+**用户体验改善**:
+- ✅ 自动登录最多等待 30 秒，超时后显示手动 "Sign In" 按钮
+- ✅ 用户可以选择手动重试，不会永久卡死
+- ✅ 更清晰的日志帮助调试问题
+
+**相关文件**:
+```
+apps/web/src/app/auth/connect/page.tsx   # 添加 Promise.race 超时机制
+apps/web/src/hooks/useSiweAuth.ts         # 改进日志输出
+```
+
+**测试场景**:
+1. ✅ 钱包已连接 + 无认证缓存 → 自动登录弹窗 → 用户确认签名 → 成功登录
+2. ✅ 钱包已连接 + 无认证缓存 → 自动登录弹窗 → 用户忽略/关闭弹窗 → 30秒后显示手动按钮
+3. ✅ 钱包已连接 + 无认证缓存 → 自动登录弹窗 → 用户取消签名 → 立即显示手动按钮
+
+**下一步优化建议**:
+- 考虑缩短超时时间为 15-20 秒（用户体验更好）
+- 添加取消按钮让用户主动停止等待
+- 同步清除 AppKit 和 Auth Store 的缓存，避免状态不一致
+
+---
+
+## [2025-01-15] - 认证与路由保护优化 ✅ 完成
+
+### 🔐 Security & UX - 客户端受保护路由 + 自动登录流程优化
+
+**背景**: 原有认证流程存在安全隐患和用户体验问题：
+1. Dashboard 等页面没有真正的路由保护，未登录用户可直接访问
+2. /auth/connect 页面在已连接钱包时体验不佳，未自动尝试登录
+3. 已登录用户访问 /auth/connect 时未立即重定向
+
+**完成内容**:
+
+### 1. ✅ 新增 `useRequireAuth` Hook - 统一路由保护
+
+创建了通用的客户端路由守卫 Hook：
+
+**功能**:
+- 自动从 localStorage 加载认证状态
+- 未登录时自动重定向到 `/auth/connect`
+- 返回 `isChecking` 状态用于显示 Loading
+
+**使用方式**:
+```tsx
+'use client'
+import { useRequireAuth } from '@/hooks/useRequireAuth'
+
+export default function ProtectedPage() {
+  const { isChecking } = useRequireAuth()
+
+  if (isChecking) {
+    return <LoadingScreen />
+  }
+
+  return <YourContent />
+}
+```
+
+### 2. ✅ Dashboard 页面添加路由保护
+
+**变更**:
+- 使用 `useRequireAuth()` 保护 Dashboard 页面
+- 未登录用户访问时自动重定向到 `/auth/connect`
+- 添加 Loading 状态避免闪烁
+- 显示真实的用户钱包地址（从 useCurrentUser 获取）
+
+**用户体验**:
+- 未登录访问 `/dashboard` → 自动跳转到 `/auth/connect`
+- 已登录访问 `/dashboard` → 正常显示内容
+
+### 3. ✅ /auth/connect 页面自动登录优化
+
+**新增逻辑**:
+- 添加 `hasTriedAutoLogin` 状态标志，确保只尝试一次自动登录
+- 进入页面时，如果钱包已连接但未认证，自动尝试 SIWE 登录
+- 自动登录流程：检测网络 → SIWE 签名 → 成功跳转 Dashboard / 失败显示手动按钮
+
+**UI 状态优化**:
+```tsx
+{isAuthenticated && user ? (
+  // ✅ 已认证：几乎瞬间跳转 Dashboard（很少看到）
+  <SignedInBlock />
+) : isSiweLoading || (isConnected && !isAuthenticated && !hasTriedAutoLogin) ? (
+  // ✅ 自动登录或手动登录进行中：显示 Loading
+  <LoadingSigningInBlock />
+) : isConnected && !isAuthenticated && hasTriedAutoLogin ? (
+  // ✅ 连接钱包但自动登录失败：显示手动 Sign In 按钮
+  <ConnectedButNotSignedInBlock />
+) : (
+  // ✅ 未连接：显示 Connect Wallet 按钮
+  <ConnectWalletButton />
+)}
+```
+
+**用户体验流程**:
+1. **已登录 + 访问 /auth/connect**: 瞬间跳转 Dashboard，不显示连接页面
+2. **未登录 + 钱包已连接**: 自动尝试 SIWE 登录 → 显示 Loading → 成功跳转 / 失败显示按钮
+3. **未登录 + 未连接**: 显示 Connect Wallet 按钮
+4. **点击 Connect Wallet**: 连接成功后自动检查网络并触发 SIWE 登录
+
+**相关文件**:
+```
+apps/web/src/hooks/useRequireAuth.ts          # 新建 - 路由保护 Hook
+apps/web/src/app/dashboard/page.tsx           # 添加路由保护
+apps/web/src/app/auth/connect/page.tsx        # 自动登录逻辑优化
+```
+
+**技术细节**:
+- 使用两个独立的 useEffect 处理自动登录逻辑：
+  1. 页面加载时的自动登录（hasTriedAutoLogin 控制）
+  2. 用户点击 Connect Wallet 后的自动登录（userInitiatedConnect 控制）
+- Loading 状态统一处理：`isSiweLoading || (isConnected && !isAuthenticated && !hasTriedAutoLogin)`
+- 网络检测：自动登录前先调用 `checkNetworkSupported()` 避免不必要的钱包弹窗
+
+**安全性提升**:
+- ✅ Dashboard 及所有需要登录的页面现在都有客户端路由保护
+- ✅ 未登录用户无法访问受保护页面的真实内容
+- ✅ 认证状态统一从 useAuthStore 管理，避免不一致
+
+**注意事项**:
+- 后续添加新的受保护页面（如 `/products`, `/my-policies`）时，需要添加 `useRequireAuth()` Hook
+- 自动登录仅在页面首次加载时尝试一次，避免死循环
+- 如果用户拒绝签名，会回退到手动 Sign In 按钮状态
+
+**下一步建议**:
+- 为其他页面（Products, My Policies 等）添加路由保护
+- 考虑添加 Server-Side 路由保护（Next.js middleware）
+- 实现 Token 过期自动刷新机制
+
+---
+
+## [2025-01-15] - 项目架构转型：Mobile → Web 文档更新 ✅ 完成
+
+### 📚 Documentation - 项目架构变更文档同步
+
+**背景**: 项目从 Mobile (React Native) 转向 Web (Next.js 14)，需要在所有重要文档中体现这一变化。
+
+**完成内容**:
+1. ✅ 更新 `docs/project_state.md`:
+   - 版本升级至 v0.2.0
+   - Epic 3 (Mobile DApp) 标记为 🔴 废弃
+   - 创建 Epic 4 (Web DApp)，包含 5 个 Issues
+   - 更新项目总览表格与进度统计
+   - 添加架构变更警告
+
+2. ✅ 更新 `README.md`:
+   - 在顶部添加架构变更警告框
+   - 系统架构图：Mobile DApp → Web DApp (Next.js 14)
+   - 技术栈表：更新前端技术从 React Native 到 Next.js 14 + Reown AppKit
+   - Monorepo 结构：标记 `apps/mobile/` 为已废弃
+   - 开发指南：移除 Mobile 启动命令，添加 Web 启动命令
+
+3. ✅ 创建 `apps/web/README.md`:
+   - 完整的 Web DApp 文档
+   - 环境变量配置说明
+   - 项目结构说明
+   - 开发指南与调试技巧
+   - 安全最佳实践
+   - API 集成示例
+   - 常见问题解答
+
+4. ✅ 更新 `apps/mobile/README.md`:
+   - 添加醒目的 DEPRECATED 警告
+   - 说明废弃原因与替代方案
+   - 指向 `apps/web/` 的链接
+
+5. ✅ 更新 `CLAUDE.md`:
+   - 修改示例从 Mobile (React Native) 到 Web (Next.js)
+
+**相关文件**:
+```
+docs/project_state.md          # 项目状态追踪 - 添加 Epic 4 Web DApp
+README.md                      # 主 README - 架构图、技术栈更新
+apps/web/README.md             # 新建 - Web DApp 完整文档
+apps/mobile/README.md          # 添加废弃警告
+CLAUDE.md                      # 更新示例代码
+```
+
+**架构变更概要**:
+- **原架构**: Mobile (React Native + Expo) + Admin (Next.js) + API (NestJS)
+- **新架构**: Web (Next.js 14) + Admin (Next.js) + API (NestJS)
+- **变更原因**:
+  1. Web 端更易于开发和部署
+  2. 用户可直接通过浏览器访问，无需下载 APP
+  3. 钱包集成在 Web 端更成熟（Reown AppKit React）
+
+**Web DApp 已完成功能** (详见 apps/web/README.md):
+- ✅ Next.js 14 (App Router) + TypeScript 项目结构
+- ✅ Reown AppKit React 钱包连接集成
+- ✅ SIWE 完整登录流程
+- ✅ 智能路由与认证守卫
+- ✅ Logout 功能（清除 localStorage + WalletConnect 缓存）
+- ✅ 响应式 UI 设计
+
+**下一步** (Epic 4 剩余任务):
+- ⚪ Issue #34: 实现产品列表页 (`/products`)
+- ⚪ Issue #35: 实现保单购买流程 (`/policy/create`)
+- ⚪ Issue #36: 实现保单详情页与倒计时 (`/policy/:id`)
+
+**注意事项**:
+- Mobile 端代码保留在 `apps/mobile/` 作为参考，但不再维护
+- Web 端已成功迁移 SIWE 登录、钱包连接、登出等核心功能
+- 后续功能开发全部基于 Web 端（Next.js 14）
+
+---
+
 ## [2025-01-15] - Mobile SIWE 登录流程修复 - 适配后端契约 ✅ 完成
 
 ### ✅ Fixed - 移动端 SIWE 接口适配后端契约

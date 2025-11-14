@@ -79,14 +79,15 @@ Security: validate address format, ensure JWT.address === payload.address.
 
 ---
 
-## 9. Example “Good” Prompt
+## 9. Example "Good" Prompt
 ```
-Create React Native screen at apps/mobile/src/screens/BuyPolicy.tsx
+Create Next.js page at apps/web/src/app/policy/create/page.tsx
 - Form: react-hook-form + zod
 - Fields: amount(USDT), sku select, accept terms
 - Submit -> POST /policy with JWT & address
-- Show toast, navigate to PolicyDetail
-- Include unit test
+- Show success toast, navigate to /policy/[id]
+- Include client-side validation
+- Use TanStack Query for API calls
 ```
 
 ---

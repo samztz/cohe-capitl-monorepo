@@ -1,4 +1,14 @@
-# Cohe Capital Mobile App
+# ⚠️ DEPRECATED - Cohe Capital Mobile App
+
+> **项目已废弃**: 本 Mobile 端（React Native）已暂停开发，项目已转向 **Web 端**（Next.js 14）。
+>
+> **请使用**: [apps/web/](../web/) - Next.js 14 Web DApp
+>
+> **原因**: Web 端更易于开发和部署，用户可直接通过浏览器访问，无需下载 APP。
+>
+> **代码保留**: 此目录仅作为参考保留，不再维护。部分功能（如 SIWE 登录、钱包连接）已成功迁移至 Web 端。
+
+---
 
 React Native mobile application for Cohe Capital Web3 Insurance platform built with Expo.
 

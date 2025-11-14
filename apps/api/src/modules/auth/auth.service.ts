@@ -32,7 +32,9 @@ export class AuthService {
    */
   async requestNonce(walletAddress: Address): Promise<{ nonce: string }> {
     const normalizedAddress = this.normalizeAddress(walletAddress);
-    const nonce = randomUUID();
+    // Generate nonce without hyphens for SIWE v3.0.0 compatibility
+    // SIWE nonce must be alphanumeric only (no special characters like hyphens)
+    const nonce = randomUUID().replace(/-/g, '');
 
     // Upsert user: create if new, update nonce if existing
     await this.prisma.user.upsert({
@@ -68,10 +70,34 @@ export class AuthService {
   ): Promise<{ token: string; address: string }> {
     let siweMessage: SiweMessage;
 
+    // Debug: Log the received message
+    console.log('[AuthService] === Received SIWE Message ===');
+    console.log(message);
+    console.log('[AuthService] === End Message ===');
+    console.log('[AuthService] Message length:', message.length);
+    console.log('[AuthService] Lines:', message.split('\n').length);
+    message.split('\n').forEach((line, i) => {
+      console.log(`  Line ${i}: "${line}" (len: ${line.length})`);
+    });
+
     // Parse SIWE message (validates format according to EIP-4361)
     try {
       siweMessage = new SiweMessage(message);
-    } catch {
+      console.log('[AuthService] SiweMessage parsed successfully');
+      console.log('[AuthService] Parsed fields:', {
+        domain: siweMessage.domain,
+        address: siweMessage.address,
+        uri: siweMessage.uri,
+        version: siweMessage.version,
+        chainId: siweMessage.chainId,
+        nonce: siweMessage.nonce,
+      });
+    } catch (error) {
+      console.error('[AuthService] SiweMessage parsing failed:', error);
+      if (error instanceof Error) {
+        console.error('[AuthService] Error message:', error.message);
+        console.error('[AuthService] Error stack:', error.stack);
+      }
       throw new BadRequestException({ message: 'Invalid SIWE message format' });
     }
 
@@ -104,7 +130,8 @@ export class AuthService {
 
     // Refresh nonce and update last login timestamp
     // This invalidates the old nonce, preventing signature reuse
-    const newNonce = randomUUID();
+    // Generate nonce without hyphens for SIWE v3.0.0 compatibility
+    const newNonce = randomUUID().replace(/-/g, '');
     await this.prisma.user.update({
       where: { walletAddress: normalizedAddress },
       data: {

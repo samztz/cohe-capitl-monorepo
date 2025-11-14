@@ -1,72 +1,74 @@
-import Link from 'next/link'
+'use client'
+
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Image from 'next/image'
+import { useAuthStore } from '@/store/authStore'
 
+/**
+ * Home Page - Smart Router Entry Point
+ * Automatically redirects based on authentication status:
+ * - Authenticated users -> /dashboard
+ * - Unauthenticated users -> /auth/connect
+ *
+ * Note: Auth is initialized globally in AppProviders
+ */
 export default function Home() {
+  const router = useRouter()
+  const { isAuthenticated, isLoading } = useAuthStore()
+
+  useEffect(() => {
+    // Wait for auth store to finish loading
+    if (isLoading) {
+      return
+    }
+
+    // Route based on authentication status
+    if (isAuthenticated) {
+      console.log('[HomePage] User authenticated, redirecting to dashboard...')
+      router.replace('/dashboard')
+    } else {
+      console.log('[HomePage] User not authenticated, redirecting to connect page...')
+      router.replace('/auth/connect')
+    }
+  }, [isAuthenticated, isLoading, router])
+
+  // Show loading splash screen while checking authentication
   return (
-    <div className="min-h-screen bg-[#0F111A] flex flex-col">
-      {/* Header */}
-      <header className="px-5 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Image
-            src="/assets/cohe-capitl-app-logo.png"
-            alt="Cohe Capital Logo"
-            width={32}
-            height={32}
-            className="w-8 h-8"
-          />
-          <span className="text-white text-base font-semibold tracking-wide">
-            COHE.CAPITL
-          </span>
-        </div>
-        <Link
-          href="/auth/connect"
-          className="bg-[#FFD54F] text-[#0F111A] px-4 py-1.5 rounded-lg text-sm font-semibold hover:brightness-110 transition-all h-8 flex items-center"
-        >
-          Contact us
-        </Link>
-      </header>
+    <div className="min-h-screen bg-[#0F111A] flex flex-col items-center justify-center">
+      {/* Logo */}
+      <div className="mb-8 flex items-center gap-2">
+        <Image
+          src="/assets/cohe-capitl-app-logo.png"
+          alt="Cohe Capital Logo"
+          width={48}
+          height={48}
+          className="w-12 h-12"
+          priority
+        />
+        <span className="text-white text-2xl font-bold tracking-wide">
+          COHE.CAPITL
+        </span>
+      </div>
 
-      {/* Hero Section */}
-      <main className="flex-1 flex flex-col items-center justify-center px-5 pb-12">
-        {/* Shield Logo */}
-        <div className="mb-12 flex items-center justify-center">
-          <Image
-            src="/assets/welcome-logo.png"
-            alt="Shield Logo"
-            width={280}
-            height={280}
-            className="w-[65vw] h-[65vw] max-w-[280px] max-h-[280px]"
-            priority
-          />
-        </div>
+      {/* Shield Logo */}
+      <div className="mb-8">
+        <Image
+          src="/assets/welcome-logo.png"
+          alt="Shield Logo"
+          width={200}
+          height={200}
+          className="w-[200px] h-[200px] animate-pulse"
+          priority
+        />
+      </div>
 
-        {/* Title */}
-        <div className="text-center mb-6">
-          <h1 className="text-white text-[28px] md:text-[36px] lg:text-[42px] font-bold leading-tight tracking-wide">
-            THE <span className="text-[#FFD54F]">FIRST</span> CRYPTO
-          </h1>
-          <h1 className="text-white text-[28px] md:text-[36px] lg:text-[42px] font-bold leading-tight tracking-wide">
-            INSURANCE
-          </h1>
-          <h1 className="text-white text-[28px] md:text-[36px] lg:text-[42px] font-bold leading-tight tracking-wide">
-            ALTERNATIVE
-          </h1>
-        </div>
-
-        {/* Subtitle */}
-        <p className="text-[#9CA3AF] text-xs font-medium tracking-[2px] text-center">
-          COVERING CRYPTO SINCE 2025
+      {/* Loading indicator */}
+      <div className="flex flex-col items-center gap-3">
+        <div className="w-8 h-8 border-4 border-[#FFD54F] border-t-transparent rounded-full animate-spin" />
+        <p className="text-[#9CA3AF] text-sm font-medium">
+          Loading...
         </p>
-      </main>
-
-      {/* Bottom Section */}
-      <div className="px-5 pb-12 flex flex-col items-center">
-        <Link
-          href="/auth/email-verify"
-          className="bg-[#FFD54F] text-[#0F111A] w-[70%] min-w-[200px] max-w-[280px] h-12 rounded-lg flex items-center justify-center text-base font-semibold tracking-wide hover:brightness-110 transition-all shadow-[0_4px_16px_rgba(255,213,79,0.3)]"
-        >
-          Connect Wallet
-        </Link>
       </div>
     </div>
   )

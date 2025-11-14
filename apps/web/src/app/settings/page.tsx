@@ -1,16 +1,56 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Image from 'next/image'
+import { useAppKit, useAppKitAccount } from '@reown/appkit/react'
+import { useAuthStore } from '@/store/authStore'
+import { resetAuth } from '@/lib/resetAuth'
 import BottomNav from '@/components/BottomNav'
 
 export default function SettingsPage() {
+  const router = useRouter()
+  const { close } = useAppKit()
+  const { address } = useAppKitAccount()
+  const { user, logout: logoutStore } = useAuthStore()
+
   const [notifications, setNotifications] = useState(true)
   const [language, setLanguage] = useState('en')
+  const [isDisconnecting, setIsDisconnecting] = useState(false)
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false)
+
+  // Format wallet address for display (0xABCD...1234)
+  const formatAddress = (addr: string | undefined) => {
+    if (!addr) return 'Not Connected'
+    return `${addr.slice(0, 6)}...${addr.slice(-4)}`
+  }
+
+  const confirmDisconnect = async () => {
+    try {
+      setIsDisconnecting(true)
+      setShowConfirmDialog(false)
+      console.log('[SettingsPage] Starting disconnect process...')
+
+      // Call resetAuth to clear all storage and disconnect wallet
+      const result = await resetAuth({ close })
+
+      // Clear auth store
+      logoutStore()
+
+      console.log('[SettingsPage] Disconnect successful:', result)
+
+      // Redirect to connect page
+      router.push('/auth/connect')
+    } catch (error) {
+      console.error('[SettingsPage] Disconnect error:', error)
+      alert('Failed to disconnect. Please try again.')
+    } finally {
+      setIsDisconnecting(false)
+    }
+  }
 
   const handleDisconnect = () => {
-    // Mock disconnect - will be implemented with actual wallet logic later
-    alert('Wallet disconnected')
+    setShowConfirmDialog(true)
   }
 
   const settingsSections = [
@@ -23,8 +63,8 @@ export default function SettingsPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
             </svg>
           ),
-          label: 'Profile',
-          value: '0xAB...B064',
+          label: 'Wallet Address',
+          value: formatAddress(address || user?.address),
           action: () => {},
         },
         {
@@ -134,7 +174,7 @@ export default function SettingsPage() {
           </span>
         </div>
         <div className="bg-[#FFD54F] text-[#0F111A] px-4 py-1.5 rounded-lg text-sm font-semibold h-8 flex items-center">
-          0xAB...B064
+          {formatAddress(address || user?.address)}
         </div>
       </header>
 
@@ -222,17 +262,76 @@ export default function SettingsPage() {
         {/* Disconnect Button */}
         <button
           onClick={handleDisconnect}
-          className="w-full bg-red-500/10 text-red-500 px-6 py-4 rounded-lg font-semibold text-sm border border-red-500/50 hover:bg-red-500/20 transition-all flex items-center justify-center gap-2"
+          disabled={isDisconnecting}
+          className="w-full bg-red-500/10 text-red-500 px-6 py-4 rounded-lg font-semibold text-sm border border-red-500/50 hover:bg-red-500/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-          </svg>
-          Disconnect Wallet
+          {isDisconnecting ? (
+            <>
+              <div className="w-5 h-5 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
+              Disconnecting...
+            </>
+          ) : (
+            <>
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+              Disconnect Wallet
+            </>
+          )}
         </button>
       </div>
 
       {/* Bottom Navigation */}
       <BottomNav />
+
+      {/* Confirmation Dialog */}
+      {showConfirmDialog && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 px-5">
+          <div className="bg-[#1A1D2E] rounded-2xl p-6 max-w-sm w-full border border-[#374151] shadow-xl">
+            {/* Icon */}
+            <div className="w-12 h-12 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-6 h-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+
+            {/* Title */}
+            <h3 className="text-white text-xl font-bold text-center mb-2">
+              Disconnect Wallet?
+            </h3>
+
+            {/* Description */}
+            <p className="text-[#9CA3AF] text-sm text-center mb-6">
+              You will be logged out and need to reconnect your wallet to access your account.
+            </p>
+
+            {/* Buttons */}
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowConfirmDialog(false)}
+                disabled={isDisconnecting}
+                className="flex-1 bg-[#374151] text-white px-4 py-3 rounded-lg font-semibold text-sm hover:bg-[#4B5563] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDisconnect}
+                disabled={isDisconnecting}
+                className="flex-1 bg-red-500 text-white px-4 py-3 rounded-lg font-semibold text-sm hover:bg-red-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {isDisconnecting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>Disconnecting...</span>
+                  </>
+                ) : (
+                  'Disconnect'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

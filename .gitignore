@@ -18,3 +18,4 @@ apps/mobile/ios/*
 
 apps/admin/.turbo/turbo-build.log
 apps/api/.turbo/turbo-build.log
+apps/web/.turbo/turbo-build.log

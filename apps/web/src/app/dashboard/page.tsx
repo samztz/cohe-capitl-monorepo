@@ -3,6 +3,8 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import BottomNav from '@/components/BottomNav'
+import { useRequireAuth } from '@/hooks/useRequireAuth'
+import { useCurrentUser } from '@/store/authStore'
 
 // Mock data - 后续会从API获取
 const mockPolicies = [
@@ -33,6 +35,27 @@ const stats = {
 }
 
 export default function DashboardPage() {
+  // Protected route - require authentication
+  const { isChecking } = useRequireAuth()
+  const user = useCurrentUser()
+
+  // Show loading screen while checking authentication
+  if (isChecking) {
+    return (
+      <div className="min-h-screen bg-[#0F111A] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-4 border-[#FFD54F] border-t-transparent rounded-full animate-spin" />
+          <p className="text-[#9CA3AF] text-sm font-medium">Checking auth...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Format user address for display
+  const displayAddress = user?.address
+    ? `${user.address.slice(0, 4)}...${user.address.slice(-4)}`
+    : '0xAB...B064'
+
   return (
     <div className="min-h-screen bg-[#0F111A] flex flex-col pb-20">
       {/* Header */}
@@ -50,7 +73,7 @@ export default function DashboardPage() {
           </span>
         </div>
         <div className="bg-[#FFD54F] text-[#0F111A] px-4 py-1.5 rounded-lg text-sm font-semibold h-8 flex items-center">
-          0xAB...B064
+          {displayAddress}
         </div>
       </header>
 

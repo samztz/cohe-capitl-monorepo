@@ -1,9 +1,13 @@
 
 # 🛡️ Web3 Insurance MVP
 
-一个面向 Web3 用户的 **去中心化登录 + 中心化管理** 的保险 DApp MVP。  
-支持 **BSC 链钱包登录、电子合同签署、保费支付、后台审核与倒计时承保状态**。  
-由单人全栈完成（React Native + Next.js + NestJS + PostgreSQL）。
+一个面向 Web3 用户的 **去中心化登录 + 中心化管理** 的保险 DApp MVP。
+支持 **BSC 链钱包登录、电子合同签署、保费支付、后台审核与倒计时承保状态**。
+由单人全栈完成（**Next.js Web App** + Next.js Admin + NestJS API + PostgreSQL）。
+
+> ⚠️ **架构变更**：项目已从 Mobile (React Native) 转向 **Web (Next.js)**
+> - Mobile 端代码保留在 `apps/mobile/` 作为参考，但不再维护
+> - 主要开发重心转移到 `apps/web/`（Next.js 14 Web DApp）
 
 ---
 
@@ -22,8 +26,8 @@
 
 ```mermaid
 flowchart LR
-  subgraph UserApp["Mobile DApp (React Native)"]
-    A1[Connect Wallet WalletConnect]
+  subgraph UserApp["Web DApp (Next.js 14)"]
+    A1[Connect Wallet Reown AppKit]
     A2[SIWE Login Signature]
     A3[Fill Insurance Form]
     A4[Sign Contract]
@@ -65,8 +69,8 @@ flowchart LR
 
 | 模块          | 技术                                                                            | 说明             |
 | ----------- | ----------------------------------------------------------------------------- | -------------- |
-| 前端 (Mobile) | React Native + Expo + WalletConnect v2 + ethers v6 + Zustand + TanStack Query | BSC 钱包连接、签名与支付 |
-| 后台 (Web)    | Next.js 14 + Tailwind CSS + shadcn/ui                                         | 审核操作、配置、报表     |
+| 前端 (Web)    | Next.js 14 + Reown AppKit + ethers v6 + Zustand + TanStack Query + Tailwind CSS | BSC 钱包连接、签名与支付 |
+| 后台 (Admin)  | Next.js 14 + Tailwind CSS + shadcn/ui                                         | 审核操作、配置、报表     |
 | 后端 API      | NestJS (Fastify) + Prisma + PostgreSQL                                        | 核心业务 API、鉴权、存储 |
 | 数据层         | PostgreSQL (Neon/Supabase/Railway)                                            | 结构化数据          |
 | 存储层         | Cloudflare R2 / S3 兼容                                                         | 合同、附件、KYC 资料   |
@@ -82,9 +86,10 @@ flowchart LR
 ```
 .
 ├── apps/
-│   ├── mobile/                # React Native (Expo)
-│   ├── admin/                 # Next.js 审计后台
-│   └── api/                   # NestJS 服务端
+│   ├── web/                   # Next.js 14 Web DApp (主要前端)
+│   ├── admin/                 # Next.js 14 审计后台
+│   ├── api/                   # NestJS 服务端
+│   └── mobile/                # ⚠️ 已废弃 - React Native (保留作为参考)
 │
 ├── packages/
 │   ├── ui/                    # 共享 UI 组件
@@ -178,8 +183,8 @@ model Payment {
 
 详细的开发指南请查看：
 - **API 后端**: [apps/api/README.md](apps/api/README.md)
+- **Web 前端**: [apps/web/README.md](apps/web/README.md)
 - **管理后台**: apps/admin/README.md (待完成)
-- **移动端**: apps/mobile/README.md (待完成)
 
 ### 先决条件
 
@@ -210,9 +215,11 @@ pnpm --filter api prisma:migrate
 # 5) 启动 API 服务器
 pnpm --filter api dev
 
-# 6) (可选) 启动其他服务
+# 6) 启动 Web 前端
+pnpm --filter web dev
+
+# 7) (可选) 启动 Admin 后台
 pnpm --filter admin dev
-pnpm --filter mobile start
 ```
 
 ### 验证安装

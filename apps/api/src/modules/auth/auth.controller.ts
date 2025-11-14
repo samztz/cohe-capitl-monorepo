@@ -137,6 +137,7 @@ export class AuthController {
     @Body() body: unknown,
   ): Promise<{ token: string; address: string }> {
     // Validate request body using Zod schema
+    console.log(body)
     const parsed = SiweVerifyRequestSchema.safeParse(body);
 
     if (!parsed.success) {
