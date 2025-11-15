@@ -32,21 +32,18 @@ export default function PolicyDetailPage() {
   const reviewMutation = useReviewPolicy()
   const { toast } = useToast()
 
-  const handleSubmitReview = async (action: 'approved' | 'rejected', note?: string) => {
+  const handleSubmitReview = async (data: { action: 'approve' | 'reject'; paymentDeadline?: string; reviewerNote?: string }) => {
     if (!policy) return
 
     try {
       await reviewMutation.mutateAsync({
         id: policy.id,
-        data: {
-          status: action,
-          reviewerNote: note,
-        },
+        data,
       })
 
       toast({
-        title: `Policy ${action}`,
-        description: `Policy ${policy.id} has been ${action}.`,
+        title: `Policy ${data.action}d`,
+        description: `Policy ${policy.id} has been ${data.action}d.`,
       })
 
       setReviewDialogOpen(false)
@@ -101,7 +98,7 @@ export default function PolicyDetailPage() {
         </div>
         <div className="flex items-center gap-3">
           <PolicyStatusBadge status={policy.status} />
-          {policy.status === 'under_review' && (
+          {policy.status === 'PENDING_UNDERWRITING' && (
             <Button onClick={() => setReviewDialogOpen(true)}>Review Policy</Button>
           )}
         </div>
@@ -134,10 +131,12 @@ export default function PolicyDetailPage() {
               <div className="text-xs text-muted-foreground mb-1">Premium</div>
               <div className="text-sm font-medium">${formatAmount(policy.premiumAmt)}</div>
             </div>
-            <div>
-              <div className="text-xs text-muted-foreground mb-1">Coverage Amount</div>
-              <div className="text-sm font-medium">${formatAmount(policy.coverageAmt)}</div>
-            </div>
+            {policy.coverageAmt !== undefined && (
+              <div>
+                <div className="text-xs text-muted-foreground mb-1">Coverage Amount</div>
+                <div className="text-sm font-medium">${formatAmount(policy.coverageAmt)}</div>
+              </div>
+            )}
             <div>
               <div className="text-xs text-muted-foreground mb-1">Term</div>
               <div className="text-sm">{policy.termDays} days</div>

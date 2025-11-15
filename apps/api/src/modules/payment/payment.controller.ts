@@ -42,13 +42,21 @@ export class PaymentController {
    *
    * POST /payment/confirm
    *
+   * Supports "Review then Pay" workflow.
    * Verifies ERC20 transfer transaction on-chain and confirms payment.
-   * Validates token address, sender, recipient, and amount match policy.
-   * Updates policy status to "under_review" on successful verification.
+   * Only allows payment for policies in APPROVED_AWAITING_PAYMENT status within paymentDeadline.
+   * Activates policy on successful payment (status → ACTIVE, sets startAt/endAt).
+   *
+   * Business rules:
+   * - Policy must be in APPROVED_AWAITING_PAYMENT status
+   * - Payment must be made before paymentDeadline
+   * - Validates token address, sender, recipient, and amount match policy
+   * - Idempotent: duplicate txHash returns existing payment without error
+   * - On success: activates policy (status=ACTIVE, startAt=now, endAt=now+termDays)
    *
    * @param body - Request body containing policyId and txHash
    * @returns Confirmed payment record
-   * @throws BadRequestException if validation or verification fails
+   * @throws BadRequestException if policy not approved, payment expired, or verification fails
    * @throws NotFoundException if policy not found
    *
    * @example
@@ -59,7 +67,7 @@ export class PaymentController {
    *   "txHash": "0x1234...abcdef"
    * }
    *
-   * Response:
+   * Response (Success):
    * {
    *   "id": "payment-uuid",
    *   "policyId": "policy-uuid",
@@ -73,15 +81,32 @@ export class PaymentController {
    *   "createdAt": "2024-01-01T00:00:00Z",
    *   "updatedAt": "2024-01-01T00:00:00Z"
    * }
+   *
+   * @example
+   * Error (Policy not approved):
+   * 400 {
+   *   "code": "INVALID_STATUS",
+   *   "message": "Policy status is \"PENDING_UNDERWRITING\" - only policies with status \"APPROVED_AWAITING_PAYMENT\" can confirm payment"
+   * }
+   *
+   * @example
+   * Error (Payment expired):
+   * 400 {
+   *   "code": "PAYMENT_EXPIRED",
+   *   "message": "Payment deadline has passed (deadline: 2025-01-01T00:00:00.000Z, now: 2025-01-02T00:00:00.000Z)"
+   * }
    */
   @Post('confirm')
   @ApiOperation({
-    summary: 'Confirm payment with on-chain verification',
+    summary: 'Confirm payment - Review then Pay workflow',
     description:
       'Verifies ERC20 transfer transaction on BSC and confirms payment. ' +
-      'Validates token address, from address (policy wallet), to address (treasury), ' +
-      'and amount (premium) match expected values. ' +
-      'Creates/updates payment record with confirmed=true and sets policy status to "under_review".',
+      'Supports "Review then Pay" workflow:\n' +
+      '- Only allows payment for APPROVED_AWAITING_PAYMENT policies\n' +
+      '- Payment must be made before paymentDeadline\n' +
+      '- Validates token address, from/to addresses, and amount\n' +
+      '- Idempotent: duplicate txHash returns existing payment\n' +
+      '- On success: activates policy (status=ACTIVE, sets startAt/endAt)',
   })
   @ApiBody({ type: ConfirmPaymentDto })
   @ApiResponse({
@@ -92,11 +117,31 @@ export class PaymentController {
   @ApiResponse({
     status: 400,
     description:
-      'Invalid request - validation failed, transaction not found, or verification mismatch',
+      'Invalid request - validation failed, policy not approved, payment expired, transaction not found, or verification mismatch',
+    schema: {
+      properties: {
+        code: {
+          type: 'string',
+          enum: ['INVALID_STATUS', 'PAYMENT_EXPIRED', 'MISSING_DEADLINE'],
+          example: 'INVALID_STATUS',
+        },
+        message: {
+          type: 'string',
+          example:
+            'Policy status is "PENDING_UNDERWRITING" - only policies with status "APPROVED_AWAITING_PAYMENT" can confirm payment',
+        },
+      },
+    },
   })
   @ApiResponse({
     status: 404,
     description: 'Policy not found',
+    schema: {
+      properties: {
+        code: { type: 'string', example: 'NOT_FOUND' },
+        message: { type: 'string', example: 'Policy with ID xxx not found' },
+      },
+    },
   })
   async confirmPayment(@Body() body: unknown): Promise<Payment> {
     // Validate request body using Zod schema

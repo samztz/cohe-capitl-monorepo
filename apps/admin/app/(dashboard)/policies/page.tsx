@@ -5,30 +5,32 @@ import { Button } from '@/components/ui/button'
 import { usePolicies } from '@/features/policies/hooks/usePolicies'
 import { PolicyTable } from '@/features/policies/components/PolicyTable'
 import { PolicyFilters } from '@/features/policies/components/PolicyFilters'
+import { useLocaleStore } from '@/src/store/localeStore'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 export default function PoliciesPage() {
+  const { t } = useLocaleStore()
   const [status, setStatus] = useState('all')
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
-  const limit = 20
+  const pageSize = 20
 
   const { data, isLoading } = usePolicies({
     status: status === 'all' ? undefined : status,
     q: search || undefined,
     page,
-    limit,
+    pageSize,
   })
 
-  const totalPages = data ? Math.ceil(data.total / limit) : 0
+  const totalPages = data ? Math.ceil(data.total / pageSize) : 0
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">All Policies</h1>
+          <h1 className="text-3xl font-bold">{t.policiesPage.title}</h1>
           <p className="text-muted-foreground">
-            {data ? `${data.total} total policies` : 'Loading...'}
+            {data ? `${data.total} ${t.dashboard.totalPolicies}` : t.common.loading}
           </p>
         </div>
       </div>
@@ -48,7 +50,7 @@ export default function PoliciesPage() {
 
       {isLoading ? (
         <div className="flex items-center justify-center py-12">
-          <div className="text-muted-foreground">Loading policies...</div>
+          <div className="text-muted-foreground">{t.common.loading}</div>
         </div>
       ) : (
         <>
@@ -56,10 +58,7 @@ export default function PoliciesPage() {
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="flex items-center justify-between">
-              <div className="text-sm text-muted-foreground">
-                Page {page} of {totalPages}
-              </div>
+            <div className="flex items-center justify-center py-4">
               <div className="flex space-x-2">
                 <Button
                   variant="outline"
@@ -67,17 +66,18 @@ export default function PoliciesPage() {
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                   disabled={page === 1}
                 >
-                  <ChevronLeft className="h-4 w-4 mr-1" />
-                  Previous
+                  <ChevronLeft className="h-4 w-4" />
                 </Button>
+                <span className="flex items-center px-4 text-sm">
+                  {page} / {totalPages}
+                </span>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                   disabled={page === totalPages}
                 >
-                  Next
-                  <ChevronRight className="h-4 w-4 ml-1" />
+                  <ChevronRight className="h-4 w-4" />
                 </Button>
               </div>
             </div>

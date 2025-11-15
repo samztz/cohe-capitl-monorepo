@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button'
 import { Policy } from '../schemas'
 import { PolicyStatusBadge } from './PolicyStatusBadge'
 import { formatAddress, formatAmount } from '@/lib/utils'
+import { useLocaleStore } from '@/src/store/localeStore'
 import { Eye } from 'lucide-react'
 import dayjs from 'dayjs'
 
@@ -23,12 +24,13 @@ interface PolicyTableProps {
 }
 
 export function PolicyTable({ policies, showReviewButton, onReview }: PolicyTableProps) {
+  const { t } = useLocaleStore()
   const router = useRouter()
 
   if (policies.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
-        <p className="text-muted-foreground">No policies found</p>
+        <p className="text-muted-foreground">{t.table.noPoliciesFound}</p>
       </div>
     )
   }
@@ -38,14 +40,14 @@ export function PolicyTable({ policies, showReviewButton, onReview }: PolicyTabl
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Policy ID</TableHead>
-            <TableHead>User</TableHead>
-            <TableHead>SKU / Coverage</TableHead>
-            <TableHead>Premium</TableHead>
-            <TableHead>Term</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Created</TableHead>
-            <TableHead>Actions</TableHead>
+            <TableHead>{t.table.policyId}</TableHead>
+            <TableHead>{t.table.user}</TableHead>
+            <TableHead>{t.table.skuCoverage}</TableHead>
+            <TableHead>{t.table.premium}</TableHead>
+            <TableHead>{t.table.term}</TableHead>
+            <TableHead>{t.table.status}</TableHead>
+            <TableHead>{t.table.created}</TableHead>
+            <TableHead>{t.table.actions}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -64,14 +66,16 @@ export function PolicyTable({ policies, showReviewButton, onReview }: PolicyTabl
               </TableCell>
               <TableCell>
                 <div className="space-y-1">
-                  <div className="text-sm font-medium">{policy.skuName}</div>
-                  <div className="text-xs text-muted-foreground">
-                    ${formatAmount(policy.coverageAmt)}
-                  </div>
+                  <div className="text-sm font-medium">{policy.skuName || policy.skuId}</div>
+                  {policy.coverageAmt !== undefined && (
+                    <div className="text-xs text-muted-foreground">
+                      ${formatAmount(policy.coverageAmt)}
+                    </div>
+                  )}
                 </div>
               </TableCell>
               <TableCell>${formatAmount(policy.premiumAmt)}</TableCell>
-              <TableCell>{policy.termDays} days</TableCell>
+              <TableCell>{policy.termDays !== undefined ? `${policy.termDays} ${t.table.days}` : 'N/A'}</TableCell>
               <TableCell>
                 <PolicyStatusBadge status={policy.status} />
               </TableCell>
@@ -89,9 +93,9 @@ export function PolicyTable({ policies, showReviewButton, onReview }: PolicyTabl
                     onClick={() => router.push(`/policies/${policy.id}`)}
                   >
                     <Eye className="h-4 w-4 mr-1" />
-                    View
+                    {t.common.view}
                   </Button>
-                  {showReviewButton && policy.status === 'under_review' && onReview && (
+                  {showReviewButton && policy.status === 'PENDING_UNDERWRITING' && onReview && (
                     <Button
                       variant="outline"
                       size="sm"
@@ -100,7 +104,7 @@ export function PolicyTable({ policies, showReviewButton, onReview }: PolicyTabl
                         onReview(policy)
                       }}
                     >
-                      Review
+                      {t.table.review}
                     </Button>
                   )}
                 </div>

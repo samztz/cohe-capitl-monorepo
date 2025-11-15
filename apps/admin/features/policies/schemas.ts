@@ -1,11 +1,13 @@
 import { z } from 'zod'
 
 export const PolicyStatus = z.enum([
-  'pending',
-  'under_review',
-  'approved',
-  'rejected',
-  'expired',
+  'DRAFT',
+  'PENDING_UNDERWRITING',
+  'APPROVED_AWAITING_PAYMENT',
+  'ACTIVE',
+  'REJECTED',
+  'EXPIRED_UNPAID',
+  'EXPIRED',
 ])
 
 export type PolicyStatusType = z.infer<typeof PolicyStatus>
@@ -24,19 +26,22 @@ export type Payment = z.infer<typeof Payment>
 export const Policy = z.object({
   id: z.string(),
   skuId: z.string(),
-  skuName: z.string(),
+  skuName: z.string().optional(),
   walletAddress: z.string(),
-  premiumAmt: z.number(),
-  coverageAmt: z.number(),
-  termDays: z.number().default(90),
-  startAt: z.string().nullable(),
-  endAt: z.string().nullable(),
+  premiumAmt: z.union([z.number(), z.string()]).transform(val => typeof val === 'string' ? parseFloat(val) : val),
+  coverageAmt: z.union([z.number(), z.string()]).transform(val => typeof val === 'string' ? parseFloat(val) : val).optional(),
+  termDays: z.number().default(90).optional(),
+  startAt: z.string().nullable().optional(),
+  endAt: z.string().nullable().optional(),
+  paymentDeadline: z.string().nullable().optional(),
   createdAt: z.string(),
+  updatedAt: z.string().optional(),
   status: PolicyStatus,
   email: z.string().email().optional(),
   phone: z.string().optional(),
   attachments: z.array(z.string()).optional(),
   contractUrl: z.string().optional(),
+  contractHash: z.string().optional(),
   payments: z.array(Payment).default([]),
   reviewerNote: z.string().optional(),
 })
@@ -62,7 +67,8 @@ export const StatsResponse = z.object({
 export type StatsResponse = z.infer<typeof StatsResponse>
 
 export const ReviewRequest = z.object({
-  status: z.enum(['approved', 'rejected']),
+  action: z.enum(['approve', 'reject']),
+  paymentDeadline: z.string().optional(),
   reviewerNote: z.string().optional(),
 })
 

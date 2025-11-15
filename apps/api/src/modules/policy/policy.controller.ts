@@ -239,6 +239,76 @@ export class PolicyController {
   }
 
   /**
+   * Get policy by ID
+   *
+   * GET /policy/:id
+   *
+   * Retrieves a single policy by its UUID.
+   * Returns safe fields only (excludes userSig for security).
+   *
+   * @param id - Policy UUID
+   * @returns Policy details
+   * @throws BadRequestException if ID format is invalid
+   * @throws NotFoundException if policy not found
+   *
+   * @example
+   * Request:
+   * GET /policy/550e8400-e29b-41d4-a716-446655440000
+   *
+   * Response:
+   * {
+   *   "id": "550e8400-e29b-41d4-a716-446655440000",
+   *   "userId": "650e8400-e29b-41d4-a716-446655440000",
+   *   "skuId": "bsc-usdt-plan-seed",
+   *   "walletAddress": "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
+   *   "premiumAmt": "100.0",
+   *   "status": "DRAFT",
+   *   "createdAt": "2025-01-01T00:00:00.000Z",
+   *   "updatedAt": "2025-01-01T00:00:00.000Z"
+   * }
+   */
+  @Get(':id')
+  @ApiOperation({
+    summary: 'Get policy by ID',
+    description:
+      'Retrieves a single policy by its UUID. ' +
+      'Returns safe fields only (excludes userSig). ' +
+      'Supports "Review then Pay" workflow with PolicyStatus enum.',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Policy UUID',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Policy retrieved successfully',
+    type: PolicyResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid policy ID format',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Policy not found',
+  })
+  async getPolicyById(@Param('id') id: string): Promise<Policy> {
+    // Validate UUID format
+    const uuidSchema = z.string().uuid();
+    const parsed = uuidSchema.safeParse(id);
+
+    if (!parsed.success) {
+      throw new BadRequestException({
+        message: 'Invalid policy ID format',
+        errors: parsed.error.issues,
+      });
+    }
+
+    return this.policyService.getPolicyById(parsed.data);
+  }
+
+  /**
    * Get policy countdown
    *
    * GET /policy/:id/countdown

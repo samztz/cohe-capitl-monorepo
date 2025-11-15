@@ -11,6 +11,7 @@ import {
   BadRequestException,
   Logger,
 } from '@nestjs/common';
+import { PolicyStatus } from 'generated/prisma/enums';
 import { PrismaService } from '../prisma/prisma.service';
 import { BlockchainService } from './blockchain.service';
 
@@ -51,17 +52,22 @@ export class PaymentService {
   /**
    * Confirm payment with on-chain verification
    *
+   * Supports "Review then Pay" workflow.
+   * Only allows payment for policies in APPROVED_AWAITING_PAYMENT status within paymentDeadline.
+   *
    * Process:
    * 1. Load policy and SKU
-   * 2. Verify transaction on-chain
-   * 3. Validate token, from, to, amount
-   * 4. Upsert payment record
-   * 5. Update policy status to "under_review"
+   * 2. Validate policy status is APPROVED_AWAITING_PAYMENT
+   * 3. Validate payment deadline (now <= paymentDeadline)
+   * 4. Verify transaction on-chain
+   * 5. Validate token, from, to, amount
+   * 6. Upsert payment record (idempotent with txHash unique constraint)
+   * 7. Activate policy: status=ACTIVE, set startAt=now, endAt=now+termDays
    *
    * @param input - Confirmation data (policyId, txHash)
    * @returns Confirmed payment record
    * @throws NotFoundException if policy/SKU not found
-   * @throws BadRequestException if verification fails
+   * @throws BadRequestException if policy not approved, payment expired, or verification fails
    */
   async confirmPayment(input: ConfirmPaymentInput): Promise<Payment> {
     const { policyId, txHash } = input;
@@ -73,10 +79,52 @@ export class PaymentService {
     });
 
     if (!policy) {
-      throw new NotFoundException(`Policy with ID ${policyId} not found`);
+      throw new NotFoundException({
+        code: 'NOT_FOUND',
+        message: `Policy with ID ${policyId} not found`,
+      });
+    }
+
+    // Validate policy status: must be APPROVED_AWAITING_PAYMENT
+    if (policy.status !== PolicyStatus.APPROVED_AWAITING_PAYMENT) {
+      throw new BadRequestException({
+        code: 'INVALID_STATUS',
+        message: `Policy status is "${policy.status}" - only policies with status "APPROVED_AWAITING_PAYMENT" can confirm payment`,
+      });
+    }
+
+    // Validate payment deadline
+    if (!policy.paymentDeadline) {
+      throw new BadRequestException({
+        code: 'MISSING_DEADLINE',
+        message: 'Policy has no payment deadline set',
+      });
+    }
+
+    const now = new Date();
+    if (now > policy.paymentDeadline) {
+      throw new BadRequestException({
+        code: 'PAYMENT_EXPIRED',
+        message: `Payment deadline has passed (deadline: ${policy.paymentDeadline.toISOString()}, now: ${now.toISOString()})`,
+      });
     }
 
     const { sku } = policy;
+
+    // Check if payment already exists (idempotency)
+    const existingPayment = await this.prisma.payment.findUnique({
+      where: { txHash },
+    });
+
+    if (existingPayment && existingPayment.confirmed) {
+      this.logger.log(
+        `Payment already confirmed for txHash ${txHash}, returning existing record`,
+      );
+      return {
+        ...existingPayment,
+        amount: existingPayment.amount.toString(),
+      };
+    }
 
     // Verify transaction on-chain
     this.logger.log(
@@ -113,14 +161,23 @@ export class PaymentService {
       },
     });
 
-    // Update policy status to under_review
+    // Activate policy: set status=ACTIVE, startAt=now, endAt=now+termDays
+    const termDays = sku.termDays || 90;
+    const startAt = new Date();
+    const endAt = new Date(startAt);
+    endAt.setDate(endAt.getDate() + termDays);
+
     await this.prisma.policy.update({
       where: { id: policyId },
-      data: { status: 'under_review' },
+      data: {
+        status: PolicyStatus.ACTIVE,
+        startAt,
+        endAt,
+      },
     });
 
     this.logger.log(
-      `Payment confirmed for policy ${policyId}, status updated to under_review`,
+      `Payment confirmed for policy ${policyId}, status updated to ACTIVE (startAt: ${startAt.toISOString()}, endAt: ${endAt.toISOString()})`,
     );
 
     return {

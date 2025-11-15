@@ -11,6 +11,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { PolicyStatus } from 'generated/prisma/enums';
 import { PrismaService } from '../prisma/prisma.service';
 import { generateContractHash } from './utils/contract-hash.util';
 
@@ -19,7 +20,7 @@ type Address = `0x${string}`;
 
 /**
  * Policy entity
- * Represents an insurance policy with draft/pending status
+ * Represents an insurance policy with status machine support
  */
 export interface Policy {
   id: string;
@@ -28,6 +29,10 @@ export interface Policy {
   walletAddress: Address;
   premiumAmt: string; // Decimal as string for JSON serialization
   status: string;
+  contractHash?: string;
+  startAt?: Date;
+  endAt?: Date;
+  paymentDeadline?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -120,14 +125,23 @@ export class PolicyService {
           skuId,
           walletAddress: normalizedAddress,
           premiumAmt: sku.premiumAmt,
-          status: 'pending',
+          status: PolicyStatus.DRAFT,
         },
       });
 
       return {
-        ...policy,
-        premiumAmt: policy.premiumAmt.toString(),
+        id: policy.id,
+        userId: policy.userId,
+        skuId: policy.skuId,
         walletAddress: policy.walletAddress as Address,
+        premiumAmt: policy.premiumAmt.toString(),
+        status: policy.status,
+        contractHash: policy.contractHash || undefined,
+        startAt: policy.startAt || undefined,
+        endAt: policy.endAt || undefined,
+        paymentDeadline: policy.paymentDeadline || undefined,
+        createdAt: policy.createdAt,
+        updatedAt: policy.updatedAt,
       };
     } catch (error: any) {
       // Handle Prisma unique constraint violation
@@ -178,10 +192,10 @@ export class PolicyService {
       );
     }
 
-    // Verify policy status - can only sign pending policies
-    if (policy.status !== 'pending') {
+    // Verify policy status - can only sign DRAFT policies
+    if (policy.status !== PolicyStatus.DRAFT) {
       throw new BadRequestException(
-        `Policy status is "${policy.status}" - can only sign policies in "pending" status`,
+        `Policy status is "${policy.status}" - can only sign policies in "DRAFT" status`,
       );
     }
 
@@ -199,11 +213,46 @@ export class PolicyService {
       data: {
         contractHash,
         userSig,
-        status: 'under_review',
+        status: PolicyStatus.PENDING_UNDERWRITING,
       },
     });
 
     return { contractHash };
+  }
+
+  /**
+   * Get policy by ID
+   *
+   * Retrieves a policy by its UUID, returning safe fields for API response.
+   * Does not include sensitive data like userSig.
+   *
+   * @param policyId - Policy UUID
+   * @returns Policy details with safe fields
+   * @throws NotFoundException if policy not found
+   */
+  async getPolicyById(policyId: string): Promise<Policy> {
+    const policy = await this.prisma.policy.findUnique({
+      where: { id: policyId },
+    });
+
+    if (!policy) {
+      throw new NotFoundException(`Policy with ID ${policyId} not found`);
+    }
+
+    return {
+      id: policy.id,
+      userId: policy.userId,
+      skuId: policy.skuId,
+      walletAddress: policy.walletAddress as Address,
+      premiumAmt: policy.premiumAmt.toString(),
+      status: policy.status,
+      contractHash: policy.contractHash || undefined,
+      startAt: policy.startAt || undefined,
+      endAt: policy.endAt || undefined,
+      paymentDeadline: policy.paymentDeadline || undefined,
+      createdAt: policy.createdAt,
+      updatedAt: policy.updatedAt,
+    };
   }
 
   /**
@@ -259,13 +308,13 @@ export class PolicyService {
     let daysRemaining = 0;
 
     // Only calculate countdown for active policies
-    if (policy.status === 'active' && policy.endAt) {
+    if (policy.status === PolicyStatus.ACTIVE && policy.endAt) {
       const endAtTime = policy.endAt.getTime();
       const nowTime = now.getTime();
 
       if (nowTime >= endAtTime) {
         // Policy has expired
-        status = 'expired';
+        status = PolicyStatus.EXPIRED;
         secondsRemaining = 0;
         daysRemaining = 0;
         // Note: We do NOT persist 'expired' status to DB here

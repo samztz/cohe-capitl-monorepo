@@ -14,6 +14,15 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum PolicyStatus {
+  DRAFT
+  PENDING_UNDERWRITING
+  APPROVED_AWAITING_PAYMENT
+  ACTIVE
+  REJECTED
+  EXPIRED_UNPAID
+  EXPIRED
+}
 
 model User {
   id            String    @id @default(uuid())
@@ -47,21 +56,22 @@ model Sku {
 }
 
 model Policy {
-  id            String    @id @default(uuid())
-  userId        String
-  user          User      @relation(fields: [userId], references: [id])
-  skuId         String
-  sku           Sku       @relation(fields: [skuId], references: [id])
-  walletAddress String
-  premiumAmt    Decimal   @db.Decimal(38, 18)
-  status        String    @default("pending")
-  contractHash  String?
-  userSig       String?
-  startAt       DateTime? // Coverage start time (set when approved)
-  endAt         DateTime? // Coverage end time (startAt + termDays)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  payments      Payment[]
+  id              String        @id @default(uuid())
+  userId          String
+  user            User          @relation(fields: [userId], references: [id])
+  skuId           String
+  sku             Sku           @relation(fields: [skuId], references: [id])
+  walletAddress   String
+  premiumAmt      Decimal       @db.Decimal(38, 18)
+  status          PolicyStatus  @default(DRAFT)
+  contractHash    String?
+  userSig         String?
+  paymentDeadline DateTime?     // Deadline for payment after approval (set when APPROVED_AWAITING_PAYMENT)
+  startAt         DateTime?     // Coverage start time (set when ACTIVE)
+  endAt           DateTime?     // Coverage end time (startAt + termDays)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  payments        Payment[]
 
   @@unique([walletAddress, skuId])
   @@index([userId])

@@ -1,8 +1,11 @@
 /**
  * DTO for policy response
+ *
+ * Supports "Review then Pay" workflow with strict PolicyStatus enum
  */
 
 import { ApiProperty } from '@nestjs/swagger';
+import { PolicyStatus } from 'generated/prisma/enums';
 
 export class PolicyResponseDto {
   @ApiProperty({
@@ -39,11 +42,54 @@ export class PolicyResponseDto {
   premiumAmt!: string;
 
   @ApiProperty({
-    description: 'Policy status',
-    example: 'pending',
-    enum: ['pending', 'under_review', 'active', 'rejected', 'expired'],
+    description:
+      'Policy status - supports "Review then Pay" workflow\n\n' +
+      '- DRAFT: Initial state after policy creation\n' +
+      '- PENDING_UNDERWRITING: User signed contract, awaiting admin review\n' +
+      '- APPROVED_AWAITING_PAYMENT: Admin approved, awaiting payment before paymentDeadline\n' +
+      '- ACTIVE: Payment received, policy active from startAt to endAt\n' +
+      '- REJECTED: Admin rejected during review\n' +
+      '- EXPIRED_UNPAID: Payment not received before paymentDeadline\n' +
+      '- EXPIRED: Policy expired after endAt',
+    example: PolicyStatus.DRAFT,
+    enum: PolicyStatus,
   })
-  status!: string;
+  status!: PolicyStatus;
+
+  @ApiProperty({
+    description: 'Contract hash (0x-prefixed, set after signing)',
+    example: '0xa1b2c3d4e5f6...',
+    required: false,
+  })
+  contractHash?: string;
+
+  @ApiProperty({
+    description: 'Coverage start time (set when policy becomes ACTIVE)',
+    example: '2025-01-01T00:00:00.000Z',
+    type: String,
+    format: 'date-time',
+    required: false,
+  })
+  startAt?: Date;
+
+  @ApiProperty({
+    description: 'Coverage end time (set when policy becomes ACTIVE)',
+    example: '2025-04-01T00:00:00.000Z',
+    type: String,
+    format: 'date-time',
+    required: false,
+  })
+  endAt?: Date;
+
+  @ApiProperty({
+    description:
+      'Payment deadline (set when admin approves, for APPROVED_AWAITING_PAYMENT status)',
+    example: '2025-01-15T23:59:59.000Z',
+    type: String,
+    format: 'date-time',
+    required: false,
+  })
+  paymentDeadline?: Date;
 
   @ApiProperty({
     description: 'Creation timestamp',

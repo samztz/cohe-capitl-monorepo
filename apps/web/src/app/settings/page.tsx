@@ -263,10 +263,9 @@ export default function SettingsPage() {
         <div className="bg-[#1A1D2E] rounded-lg p-4 border border-[#374151] mb-6">
           <div className="flex items-center justify-between mb-2">
             <span className="text-[#9CA3AF] text-sm">{t.settings.appVersion}</span>
-            <span className="text-white text-sm font-semibold">1.0.0</span>
+            <span className="text-white text-sm font-semibold">0.5.0</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-[#9CA3AF] text-sm">{t.settings.chain}</span>
             <span className="text-white text-sm font-semibold">
               {process.env.NEXT_PUBLIC_CHAIN_ID === '97' ? t.settings.chainTestnet : t.settings.chainMainnet}
             </span>

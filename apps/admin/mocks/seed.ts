@@ -20,7 +20,7 @@ const ADDRESSES = [
   '0x14dC79964da2C08b23698B3D3cc7Ca32193d9955',
 ]
 
-const STATUSES: PolicyStatusType[] = ['pending', 'under_review', 'approved', 'rejected', 'expired']
+const STATUSES: PolicyStatusType[] = ['DRAFT', 'PENDING_UNDERWRITING', 'APPROVED_AWAITING_PAYMENT', 'ACTIVE', 'REJECTED', 'EXPIRED']
 
 function randomChoice<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)]
@@ -41,15 +41,15 @@ function generatePolicy(index: number): Policy {
   let startAt: string | null = null
   let endAt: string | null = null
 
-  if (status === 'approved') {
+  if (status === 'ACTIVE') {
     startAt = dayjs(createdAt).add(randomInt(1, 3), 'day').toISOString()
     endAt = dayjs(startAt).add(termDays, 'day').toISOString()
-  } else if (status === 'expired') {
+  } else if (status === 'EXPIRED' || status === 'EXPIRED_UNPAID') {
     startAt = dayjs(createdAt).add(1, 'day').toISOString()
     endAt = dayjs(startAt).add(termDays, 'day').subtract(randomInt(1, 10), 'day').toISOString()
   }
 
-  const hasPayment = status !== 'pending'
+  const hasPayment = status !== 'PENDING_UNDERWRITING' && status !== 'DRAFT'
 
   return {
     id: `POL-${String(index).padStart(6, '0')}`,
@@ -66,7 +66,7 @@ function generatePolicy(index: number): Policy {
     email: `user${index}@example.com`,
     phone: `+1${randomInt(2000000000, 9999999999)}`,
     attachments: [],
-    contractUrl: status === 'approved' ? `https://contracts.example.com/${index}.pdf` : undefined,
+    contractUrl: status === 'ACTIVE' ? `https://contracts.example.com/${index}.pdf` : undefined,
     payments: hasPayment
       ? [
           {
@@ -80,7 +80,7 @@ function generatePolicy(index: number): Policy {
         ]
       : [],
     reviewerNote:
-      status === 'rejected' ? 'Insufficient documentation provided.' : undefined,
+      status === 'REJECTED' ? 'Insufficient documentation provided.' : undefined,
   }
 }
 

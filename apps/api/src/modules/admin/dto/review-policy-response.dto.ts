@@ -2,9 +2,11 @@
  * Review Policy Response DTO
  *
  * Response format for PATCH /admin/policies/:id after approval/rejection
+ * Supports "Review then Pay" workflow
  */
 
 import { ApiProperty } from '@nestjs/swagger';
+import { PolicyStatus } from 'generated/prisma/enums';
 
 /**
  * Response after approving or rejecting a policy
@@ -22,32 +24,54 @@ export class ReviewPolicyResponse {
 
   /**
    * Updated policy status
-   * @example 'active'
+   * @example 'APPROVED_AWAITING_PAYMENT'
    */
   @ApiProperty({
-    description: 'Policy status after review',
-    example: 'active',
-    enum: ['active', 'rejected'],
+    description:
+      'Policy status after review. ' +
+      'APPROVED_AWAITING_PAYMENT for approved policies (awaiting payment), ' +
+      'REJECTED for rejected policies.',
+    example: PolicyStatus.APPROVED_AWAITING_PAYMENT,
+    enum: PolicyStatus,
   })
-  status!: string;
+  status!: PolicyStatus;
 
   /**
-   * Coverage start time (only for approved policies)
+   * Payment deadline (only for approved policies)
+   * User must pay before this time for the policy to become ACTIVE
+   * @example '2025-12-31T23:59:59.000Z'
+   */
+  @ApiProperty({
+    description:
+      'Payment deadline (ISO 8601). ' +
+      'Only present when status is APPROVED_AWAITING_PAYMENT. ' +
+      'User must pay before this time.',
+    example: '2025-12-31T23:59:59.000Z',
+    required: false,
+  })
+  paymentDeadline?: string;
+
+  /**
+   * Coverage start time (set when payment is confirmed, not during approval)
    * @example '2024-01-01T00:00:00.000Z'
    */
   @ApiProperty({
-    description: 'Coverage start time (ISO 8601)',
+    description:
+      'Coverage start time (ISO 8601). ' +
+      'Set when payment is confirmed, not during approval phase.',
     example: '2024-01-01T00:00:00.000Z',
     required: false,
   })
   startAt?: string;
 
   /**
-   * Coverage end time (only for approved policies)
+   * Coverage end time (set when payment is confirmed, not during approval)
    * @example '2024-04-01T00:00:00.000Z'
    */
   @ApiProperty({
-    description: 'Coverage end time (ISO 8601)',
+    description:
+      'Coverage end time (ISO 8601). ' +
+      'Set when payment is confirmed, not during approval phase.',
     example: '2024-04-01T00:00:00.000Z',
     required: false,
   })

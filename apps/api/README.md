@@ -201,6 +201,124 @@ Swagger UI provides:
 
 ---
 
+## 📊 核心数据模型
+
+### Policy 表结构（最新版本）
+
+```prisma
+enum PolicyStatus {
+  DRAFT                      // 草稿状态（创建保单后）
+  PENDING_UNDERWRITING       // 待审核（签署合同后）
+  APPROVED_AWAITING_PAYMENT  // 审核通过，等待支付
+  ACTIVE                     // 生效中
+  REJECTED                   // 审核拒绝
+  EXPIRED_UNPAID             // 逾期未支付
+  EXPIRED                    // 保单已过期
+}
+
+model Policy {
+  id              String        @id @default(uuid())
+  userId          String
+  skuId           String
+  walletAddress   String
+  premiumAmt      Decimal       @db.Decimal(38, 18)
+  status          PolicyStatus  @default(DRAFT)
+  contractHash    String?
+  userSig         String?
+  paymentDeadline DateTime?     // 支付截止时间（审核通过时设置）
+  startAt         DateTime?     // 保障开始时间（支付后设置）
+  endAt           DateTime?     // 保障结束时间（startAt + termDays）
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+}
+```
+
+**重要字段说明**：
+- `status`: 严格枚举类型，不再接受任意字符串
+- `paymentDeadline`: 审核通过后设置，用户需在此时间前完成支付
+- `startAt/endAt`: 仅在保单 ACTIVE 后才有值
+
+---
+
+## 🔄 保单状态机（先审核再支付）
+
+### 状态转换流程
+
+```mermaid
+stateDiagram-v2
+    [*] --> DRAFT: 用户创建保单
+
+    DRAFT --> PENDING_UNDERWRITING: 签署合同
+
+    PENDING_UNDERWRITING --> APPROVED_AWAITING_PAYMENT: Admin 审核通过<br/>(设置 paymentDeadline)
+    PENDING_UNDERWRITING --> REJECTED: Admin 审核拒绝
+
+    APPROVED_AWAITING_PAYMENT --> ACTIVE: 用户完成支付<br/>(设置 startAt, endAt)
+    APPROVED_AWAITING_PAYMENT --> EXPIRED_UNPAID: 超过 paymentDeadline 未支付
+
+    ACTIVE --> EXPIRED: 保障期结束 (now > endAt)
+
+    REJECTED --> [*]
+    EXPIRED_UNPAID --> [*]
+    EXPIRED --> [*]
+```
+
+### 状态详细说明
+
+| 状态 | 触发条件 | 业务含义 | 可执行操作 |
+|------|---------|---------|-----------|
+| **DRAFT** | 用户调用 `POST /policy` | 保单草稿，未签署 | 用户可签署合同 |
+| **PENDING_UNDERWRITING** | 用户签署合同 | 等待 Admin 审核 | Admin 可审核（通过/拒绝） |
+| **APPROVED_AWAITING_PAYMENT** | Admin 审核通过 | 等待用户支付，设置 `paymentDeadline` | 用户需在截止时间前支付 |
+| **ACTIVE** | 用户完成支付 | 保单生效，设置 `startAt`、`endAt` | 可查看倒计时、提交理赔 |
+| **REJECTED** | Admin 审核拒绝 | 保单被拒绝 | 终态，无法再操作 |
+| **EXPIRED_UNPAID** | 超过 `paymentDeadline` 未支付 | 逾期未支付 | 终态，无法再操作 |
+| **EXPIRED** | `now > endAt` | 保障期结束 | 终态，可续保 |
+
+### 关键业务规则
+
+**1. Admin 审核通过时必须设置 `paymentDeadline`**
+```typescript
+// admin.service.ts - 审核通过示例
+await prisma.policy.update({
+  where: { id: policyId },
+  data: {
+    status: PolicyStatus.APPROVED_AWAITING_PAYMENT,
+    paymentDeadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7天后
+  },
+});
+```
+
+**2. 支付确认后设置保障期**
+```typescript
+// payment.service.ts - 支付确认后
+const termDays = policy.sku.termDays || 90;
+const startAt = new Date();
+const endAt = new Date(startAt);
+endAt.setDate(endAt.getDate() + termDays);
+
+await prisma.policy.update({
+  where: { id: policyId },
+  data: {
+    status: PolicyStatus.ACTIVE,
+    startAt,
+    endAt,
+  },
+});
+```
+
+**3. 状态字段为枚举，不接受任意字符串**
+```typescript
+// ❌ 错误：直接使用字符串
+policy.status = 'active';  // TypeScript 错误
+
+// ✅ 正确：使用枚举值
+import { PolicyStatus } from 'generated/prisma/enums';
+policy.status = PolicyStatus.ACTIVE;
+```
+
+---
+
 ## 📋 API 功能模块
 
 ### 1. 认证模块 (Auth Module)
@@ -478,11 +596,16 @@ sequenceDiagram
     Note over A: Payment 记录创建<br/>保单状态 -> "under_review"
 ```
 
-**状态流转**：
-1. **pending** - 保单刚创建，未签署合同
-2. **under_review** - 已签署合同且支付已确认，等待人工审核
-3. **active** - (未来) 审核通过，保单生效
-4. **rejected** - (未来) 审核拒绝
+**状态流转**（已更新为枚举）：
+1. **DRAFT** - 保单刚创建，未签署合同
+2. **PENDING_UNDERWRITING** - 已签署合同，等待人工审核
+3. **APPROVED_AWAITING_PAYMENT** - 审核通过，等待支付
+4. **ACTIVE** - 支付完成，保单生效
+5. **REJECTED** - 审核拒绝
+6. **EXPIRED_UNPAID** - 超过支付期限
+7. **EXPIRED** - 保障期结束
+
+详见上方 [🔄 保单状态机](#-保单状态机先审核再支付) 章节
 
 ---
 

@@ -4,6 +4,662 @@
 
 ---
 
+## [2025-11-15] - 🌐 Admin i18n 扩展覆盖 - Dashboard + Policies + Review 页面 ✅ 完成
+
+### ✅ Enhanced - i18n 繁体中文翻译扩展至所有核心页面
+
+**功能概述**:
+扩展 Admin 系统的繁体中文 i18n 支持，覆盖 Dashboard、Policies 列表页、Review 审核页、PolicyFilters 筛选器等核心组件，保证除专业术语外的全面翻译。
+
+**实现细节**:
+
+1. **翻译文件扩展**
+   - 路径: `apps/admin/src/locales/en.ts` + `apps/admin/src/locales/zh-TW.ts`
+   - 新增翻译域:
+     - `dashboard` - 仪表板相关（标题、概览、统计卡片、快速操作）
+     - `navigation` - 导航栏（Dashboard、All Policies、Review Queue、Logout）
+     - `policyDetail` - 保单详情页（基本信息、付款信息、时间轴、附件、合约）
+     - `timeline` - 保单时间轴事件（创建、提交、批准、拒绝、激活、过期）
+     - `filters` - 筛选器（按状态筛选、全部、搜索占位符）
+     - `reviewPage` - 审核页面（标题、描述）
+     - `policiesPage` - 保单列表页（标题、描述）
+
+2. **已翻译的页面与组件**
+   - `apps/admin/app/(dashboard)/layout.tsx` - 导航栏（Dashboard、All Policies、Review Queue、Logout）
+   - `apps/admin/app/(dashboard)/dashboard/page.tsx` - 仪表板（标题、统计卡片、欢迎信息）
+   - `apps/admin/app/(dashboard)/policies/page.tsx` - 保单列表页（标题、加载状态、分页）
+   - `apps/admin/app/(dashboard)/review/page.tsx` - 审核页面（标题、待审核数量）
+   - `apps/admin/features/policies/components/PolicyFilters.tsx` - 筛选器（搜索占位符、状态选择）
+
+3. **翻译覆盖范围**
+   - ✅ 通用UI：取消、确认、更改、提交、备注、选填、查看、搜尋、載入中
+   - ✅ 导航：儀表板、所有保單、審核隊列、登出
+   - ✅ Dashboard：總保單數、待審核、生效中保單、歡迎使用
+   - ✅ Filters：按狀態篩選、全部、搜尋保單編號或錢包地址
+   - ✅ 审核对话框：批准、拒绝、付款截止时间、确认批准/拒绝（前期已完成）
+   - ✅ 状态标签：草稿、待審核、等待付款、生效中、已拒絕、已過期（前期已完成）
+   - ✅ 表格：保單編號、用戶、SKU/保额、保費、保險期限、狀態、建立時間、操作（前期已完成）
+
+**相关文件**:
+```
+apps/admin/src/locales/en.ts (扩展)
+apps/admin/src/locales/zh-TW.ts (扩展)
+apps/admin/app/(dashboard)/layout.tsx
+apps/admin/app/(dashboard)/dashboard/page.tsx
+apps/admin/app/(dashboard)/policies/page.tsx
+apps/admin/app/(dashboard)/review/page.tsx
+apps/admin/features/policies/components/PolicyFilters.tsx
+```
+
+**构建验证**:
+```bash
+pnpm --filter admin build
+# ✅ 构建成功，所有 TypeScript 类型检查通过
+```
+
+**测试方法**:
+1. 启动 admin 前端: `pnpm --filter admin dev`
+2. 登录后点击右上角 Globe 图标切换到繁体中文
+3. 验证以下页面的翻译:
+   - Dashboard 页面：标题、统计卡片、欢迎信息
+   - All Policies 页面：标题、搜索框、状态筛选、分页
+   - Review Queue 页面：标题、待审核数量提示
+   - 导航栏：所有导航项和登出按钮
+
+**注意事项**:
+- ✅ 核心页面（Dashboard、Policies、Review）已全面覆盖翻译
+- ✅ 保单详情页（Policy Detail）翻译文件已准备，但组件尚未集成（待下一步）
+- ✅ PolicyTimeline 组件翻译文件已准备，但组件尚未集成（待下一步）
+- ✅ 专业术语（SKU、Policy ID、txHash 等）保持英文
+- ✅ 语言切换后立即生效，无需刷新页面
+
+---
+
+## [2025-11-15] - 🔧 Admin API 修补 + 审核 Deadline UI + 繁体中文 i18n ✅ 完成
+
+### ✅ Added - 任务 M2：后端 API 修补 + Admin 前端完整功能
+
+**功能概述**:
+完成 Admin 系统的后端 API 修补（添加 reviewerNote）、前端真实 API 对接、审核 Deadline UI、繁体中文 i18n 基础支持，并修复所有 TypeScript 类型错误。
+
+---
+
+#### A) 后端 API 修补
+
+**实现细节**:
+
+1. **Admin 审核 API - 添加 reviewerNote 字段**
+   - 路径: `apps/api/src/modules/admin/dto/review-policy.dto.ts:36`
+   - 新增 `reviewerNote` 可选字段（用于批准或拒绝时的备注）
+   - 示例: `"Approved after verification"` 或 `"Missing required documents"`
+
+2. **AdminService - 日志记录**
+   - 路径: `apps/api/src/modules/admin/admin.service.ts:15`
+   - 添加 Logger 支持
+   - 当 reviewerNote 存在时，记录日志: `"Policy {id} approved with note: ..."`
+
+3. **AdminController - Zod 校验**
+   - 路径: `apps/api/src/modules/admin/admin.controller.ts:74`
+   - 更新 zod schema 添加 `reviewerNote: z.string().optional()`
+   - 传递 reviewerNote 参数到 service 层
+
+**相关文件**:
+```
+apps/api/src/modules/admin/dto/review-policy.dto.ts
+apps/api/src/modules/admin/admin.service.ts
+apps/api/src/modules/admin/admin.controller.ts
+```
+
+---
+
+#### B) Admin 前端 - 真实 API 对接 + Deadline UI + i18n
+
+**实现细节**:
+
+1. **真实后端 API 对接**
+   - 路径: `apps/admin/lib/apiClient.ts:20`
+   - 添加 Authorization header: `Bearer ${getToken()}`
+   - 更新 API endpoints: `/api/admin/*` → `/admin/*`（直接对接后端）
+   - 更新参数名: `limit` → `pageSize`（匹配后端接口）
+   - 删除所有 mock API routes: `apps/admin/app/api/admin/` 目录
+
+2. **审核 Deadline UI**
+   - 路径: `apps/admin/features/policies/components/ApproveRejectDialog.tsx:167`
+   - 添加 `datetime-local` 输入框，允许 admin 设置支付截止时间
+   - 默认值: 当前时间 + 24 小时
+   - 转换为 ISO 8601 格式发送到后端
+   - 提示文字: "User must pay before this time for the policy to become active"
+
+3. **PolicyStatus 枚举迁移**
+   - 旧枚举: `'pending' | 'under_review' | 'approved' | 'rejected' | 'expired'`
+   - 新枚举: `'DRAFT' | 'PENDING_UNDERWRITING' | 'APPROVED_AWAITING_PAYMENT' | 'ACTIVE' | 'REJECTED' | 'EXPIRED_UNPAID' | 'EXPIRED'`
+   - 影响文件:
+     - `apps/admin/features/policies/schemas.ts:15`
+     - `apps/admin/lib/constants.ts:3`
+     - `apps/admin/mocks/seed.ts:10`
+     - 所有使用 status 的组件（PolicyTable, PolicyTimeline, PolicyFilters 等）
+
+4. **繁体中文 i18n 系统**
+   - 路径: `apps/admin/src/locales/`
+   - 新增文件:
+     - `en.ts` - 英文翻译（基础语言）
+     - `zh-TW.ts` - 繁体中文翻译
+     - `index.ts` - 导出 Locale 类型和 translations
+   - 状态管理: `apps/admin/src/store/localeStore.ts`
+     - 使用 Zustand + persist middleware
+     - localStorage 持久化 key: `locale-storage`
+   - UI 组件: `apps/admin/components/LanguageSwitcher.tsx`
+     - 语言切换下拉菜单（Globe 图标）
+     - 集成到 Dashboard 布局的 header
+
+5. **已翻译的组件**
+   - `ApproveRejectDialog.tsx` - 审核对话框（标题、按钮、占位符、提示文字）
+   - `PolicyStatusBadge.tsx` - 状态徽章（所有 7 个状态的中英文标签）
+   - `PolicyTable.tsx` - 保单列表表格（表头、操作按钮、空状态提示）
+
+**翻译覆盖范围**:
+- 通用: 取消、确认、更改、提交、备注、选填、查看、搜尋
+- 审核对话框: 批准、拒绝、付款截止时间、提交中、确认批准/拒绝
+- 状态标签: 草稿、待审核、等待付款、生效中、已拒绝、已过期（未付款）、已过期
+- 表格: 保单编號、用户、SKU/保额、保费、保险期限、状态、建立时间、操作
+
+**相关文件**:
+```
+apps/admin/lib/apiClient.ts
+apps/admin/lib/constants.ts
+apps/admin/features/policies/schemas.ts
+apps/admin/features/policies/components/ApproveRejectDialog.tsx
+apps/admin/features/policies/components/PolicyStatusBadge.tsx
+apps/admin/features/policies/components/PolicyTable.tsx
+apps/admin/features/policies/components/PolicyTimeline.tsx
+apps/admin/features/policies/components/PolicyFilters.tsx
+apps/admin/features/policies/hooks/usePolicies.ts
+apps/admin/mocks/seed.ts
+apps/admin/src/locales/en.ts
+apps/admin/src/locales/zh-TW.ts
+apps/admin/src/locales/index.ts
+apps/admin/src/store/localeStore.ts
+apps/admin/components/LanguageSwitcher.tsx
+apps/admin/components/ui/dropdown-menu.tsx
+apps/admin/app/(dashboard)/layout.tsx
+```
+
+**新增依赖**:
+```bash
+pnpm --filter admin add zustand
+```
+
+**环境变量**: 无新增
+
+**构建验证**:
+```bash
+pnpm --filter admin build
+# ✅ 构建成功，所有 TypeScript 类型检查通过
+```
+
+**测试方法**:
+1. 启动 admin 前端: `pnpm --filter admin dev`
+2. 登录后点击右上角 Globe 图标切换语言
+3. 访问 /review 页面，点击 "Review" 按钮
+4. 审核对话框应显示繁体中文界面（如选择 zh-TW）
+5. Approve 操作应显示 Payment Deadline 日期时间选择器
+6. 提交后应发送 reviewerNote（如填写）到后端
+
+**注意事项**:
+- ⚠️ i18n 仅覆盖核心组件，其他页面（dashboard, policies 详情页等）仍为英文
+- ⚠️ 测试配置尚未添加（下一步任务）
+- ⚠️ 语言切换后不影响 dayjs 日期格式（仍为 'MMM D, YYYY'）
+- ✅ 所有 API 请求已切换到真实后端，不再使用 mock routes
+- ✅ PolicyStatus enum 已全局统一为 7-state 枚举
+
+---
+
+## [2025-11-15] - 🔒 Payment 确认 API 限制 + 激活策略 ✅ 完成
+
+### ✅ Modified - Payment 确认接口重构（先审核再支付）
+
+**功能描述**:
+重构 Payment 确认 API，添加严格的状态和时间限制。仅允许在 `APPROVED_AWAITING_PAYMENT` 状态且 `paymentDeadline` 未过期时确认支付。支付成功后自动激活保单（设置 `startAt`/`endAt`，状态 → `ACTIVE`）。
+
+**实现细节**:
+
+1. **支付前置条件校验**
+   - 路径: `apps/api/src/modules/payment/payment.service.ts:72`
+   - **状态校验**: 只允许 `APPROVED_AWAITING_PAYMENT` 状态的保单确认支付
+     - 错误码: `INVALID_STATUS`
+     - 其他状态（DRAFT, PENDING_UNDERWRITING, ACTIVE, etc.）返回 400
+   - **截止时间校验**: `now <= paymentDeadline`
+     - 错误码: `PAYMENT_EXPIRED`
+     - 超时返回 400，附带 deadline 和 now 的时间戳
+   - **paymentDeadline 存在性**: 必须设置 paymentDeadline
+     - 错误码: `MISSING_DEADLINE`
+
+2. **幂等性处理**
+   - txHash 唯一性约束（数据库层面）
+   - 重复提交同一 txHash → 返回现有 Payment 记录（200 OK）
+   - 不会重复激活保单，不会抛出错误
+   - 日志记录: "Payment already confirmed for txHash xxx"
+
+3. **保单激活逻辑**
+   - **原逻辑**: 支付后 → `PENDING_UNDERWRITING`（等待审核）
+   - **新逻辑**: 支付后 → `ACTIVE`（立即激活）
+   - 设置保障期:
+     - `startAt = now`（当前时间）
+     - `endAt = now + termDays`（根据 SKU 的保障期限计算，默认 90 天）
+   - 数据库更新:
+     ```typescript
+     {
+       status: PolicyStatus.ACTIVE,
+       startAt,
+       endAt,
+     }
+     ```
+
+4. **Controller 文档更新**
+   - 路径: `apps/api/src/modules/payment/payment.controller.ts:40`
+   - Swagger 文档: 更新为"Review then Pay"工作流说明
+   - 错误响应示例:
+     - `INVALID_STATUS`: 保单状态不符
+     - `PAYMENT_EXPIRED`: 超过支付截止时间
+     - `MISSING_DEADLINE`: 缺少支付截止时间
+   - 成功响应: Payment 记录 + 保单激活（后台自动设置 startAt/endAt）
+
+5. **链上验证保留**
+   - 继续使用 `blockchain.verifyTransfer()` 验证 ERC20 交易
+   - 验证内容: token address, from address, to address, amount
+   - 验证失败 → 抛出 BadRequestException
+
+**业务流程完整链路**:
+
+```
+1. 用户创建保单 → DRAFT
+2. 用户签署合同 → PENDING_UNDERWRITING
+3. Admin 审核通过 → APPROVED_AWAITING_PAYMENT (设置 paymentDeadline)
+4. 用户支付（本接口）→ ACTIVE (设置 startAt, endAt) ✅ 新增
+5. 保障期结束 → EXPIRED
+```
+
+**修改文件**:
+```
+apps/api/src/modules/payment/payment.service.ts      # 状态校验 + 激活逻辑
+apps/api/src/modules/payment/payment.controller.ts   # Swagger 文档更新
+```
+
+**测试命令**:
+```bash
+# 构建验证
+pnpm --filter api build  # ✅ 0 errors
+
+# 支付确认（成功场景）
+curl -X POST http://localhost:3001/payment/confirm \
+  -H "Content-Type: application/json" \
+  -d '{
+    "policyId": "550e8400-e29b-41d4-a716-446655440000",
+    "txHash": "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+  }'
+
+# 预期响应
+{
+  "id": "payment-uuid",
+  "policyId": "policy-uuid",
+  "txHash": "0x1234...",
+  "confirmed": true,
+  ...
+}
+# 保单状态已更新为 ACTIVE，startAt 和 endAt 已设置
+
+# 错误场景 1: 保单状态不符
+# 响应 400: { "code": "INVALID_STATUS", "message": "..." }
+
+# 错误场景 2: 支付超时
+# 响应 400: { "code": "PAYMENT_EXPIRED", "message": "..." }
+
+# 错误场景 3: 重复支付（幂等）
+# 响应 200: 返回现有 Payment 记录，不重复激活
+```
+
+**注意事项**:
+- ✅ TypeScript 编译通过，无类型错误
+- ✅ 只允许 `APPROVED_AWAITING_PAYMENT` 状态支付
+- ✅ 必须在 `paymentDeadline` 之前支付
+- ✅ 支付成功后自动激活保单（`ACTIVE` + `startAt`/`endAt`）
+- ✅ 幂等性保证：重复 txHash 不会抛错，返回现有记录
+- ✅ 链上验证保留，继续使用 `blockchain.verifyTransfer()`
+- ⚠️ 需实现定时任务：超过 `paymentDeadline` 未支付的保单 → `EXPIRED_UNPAID`
+
+**状态机流程变更**:
+
+**旧流程**:
+```
+... → (User pays) → PENDING_UNDERWRITING → (Admin approves) → ACTIVE
+```
+
+**新流程**:
+```
+... → (Admin approves) → APPROVED_AWAITING_PAYMENT → (User pays) → ACTIVE ✅
+```
+
+---
+
+## [2025-11-15] - 🔄 Admin 审核 API 改为"先审核再支付" ✅ 完成
+
+### ✅ Modified - Admin 审核流程重构（Review then Pay）
+
+**功能描述**:
+重构 Admin 审核 API，改为"先审核再支付"工作流。审核通过后，保单状态变为 `APPROVED_AWAITING_PAYMENT` 并设置 `paymentDeadline`，用户需在截止时间前支付保费后保单才会激活。
+
+**实现细节**:
+
+1. **ReviewPolicyDto 新增字段**
+   - 路径: `apps/api/src/modules/admin/dto/review-policy.dto.ts`
+   - 新增可选字段 `paymentDeadline?: string`（ISO 8601 格式）
+   - 用于指定用户支付截止时间
+
+2. **Admin 审核逻辑重构**
+   - 路径: `apps/api/src/modules/admin/admin.service.ts:155`
+   - **审核通过（approve）**:
+     - 状态迁移: `PENDING_UNDERWRITING` → `APPROVED_AWAITING_PAYMENT`
+     - 设置 `paymentDeadline`（前端传入 或 默认 now+24h）
+     - **不再**设置 `startAt`/`endAt`（等待支付后设置）
+   - **审核拒绝（reject）**:
+     - 状态迁移: `PENDING_UNDERWRITING` → `REJECTED`
+   - 参数验证: `paymentDeadline` 必须为有效 ISO 8601 字符串
+   - 错误处理: 无效日期格式返回 `INVALID_DEADLINE` 错误
+
+3. **Controller 更新**
+   - 路径: `apps/api/src/modules/admin/admin.controller.ts:207`
+   - Zod 验证: 添加 `paymentDeadline: z.string().optional()`
+   - Swagger 文档: 更新为"Review then Pay"工作流说明
+   - 请求示例:
+     ```json
+     {
+       "action": "approve",
+       "paymentDeadline": "2025-12-31T23:59:59.000Z"
+     }
+     ```
+   - 响应示例:
+     ```json
+     {
+       "id": "uuid",
+       "status": "APPROVED_AWAITING_PAYMENT",
+       "paymentDeadline": "2025-12-31T23:59:59.000Z"
+     }
+     ```
+
+4. **ReviewPolicyResponse DTO 更新**
+   - 路径: `apps/api/src/modules/admin/dto/review-policy-response.dto.ts`
+   - 新增 `paymentDeadline?: string` 字段
+   - 更新 `status` 类型为 `PolicyStatus` 枚举
+   - 更新文档说明：`startAt`/`endAt` 在支付确认后设置，而非审核阶段
+
+5. **PolicyReviewResult 接口更新**
+   - 路径: `apps/api/src/modules/admin/admin.service.ts:46`
+   - 新增 `paymentDeadline?: Date` 字段
+
+**业务流程变更**:
+
+**旧流程（直接激活）**:
+```
+PENDING_UNDERWRITING → (Admin approve) → ACTIVE (with startAt, endAt)
+```
+
+**新流程（先审核再支付）**:
+```
+PENDING_UNDERWRITING
+  → (Admin approve) → APPROVED_AWAITING_PAYMENT (with paymentDeadline)
+  → (User pays) → ACTIVE (with startAt, endAt)
+```
+
+**修改文件**:
+```
+apps/api/src/modules/admin/dto/review-policy.dto.ts           # 新增 paymentDeadline 字段
+apps/api/src/modules/admin/dto/review-policy-response.dto.ts  # 新增 paymentDeadline 响应
+apps/api/src/modules/admin/admin.service.ts                   # 审核逻辑重构
+apps/api/src/modules/admin/admin.controller.ts                # Zod 验证 + Swagger 更新
+```
+
+**测试命令**:
+```bash
+# 构建验证
+pnpm --filter api build  # ✅ 0 errors
+
+# 审核通过（自定义截止时间）
+curl -X PATCH http://localhost:3001/admin/policies/<uuid> \
+  -H "Content-Type: application/json" \
+  -d '{"action":"approve","paymentDeadline":"2025-12-31T23:59:59.000Z"}'
+
+# 预期响应
+{
+  "id": "uuid",
+  "status": "APPROVED_AWAITING_PAYMENT",
+  "paymentDeadline": "2025-12-31T23:59:59.000Z"
+}
+
+# 审核通过（默认截止时间 now+24h）
+curl -X PATCH http://localhost:3001/admin/policies/<uuid> \
+  -H "Content-Type: application/json" \
+  -d '{"action":"approve"}'
+
+# 审核拒绝
+curl -X PATCH http://localhost:3001/admin/policies/<uuid> \
+  -H "Content-Type: application/json" \
+  -d '{"action":"reject"}'
+
+# 预期响应
+{
+  "id": "uuid",
+  "status": "REJECTED"
+}
+```
+
+**注意事项**:
+- ✅ TypeScript 编译通过，无类型错误
+- ✅ 只允许从 `PENDING_UNDERWRITING` 状态进行审核
+- ✅ `paymentDeadline` 为可选参数，服务端兜底 now+24h
+- ✅ 审核通过后**不再**立即设置 `startAt`/`endAt`（等待支付确认）
+- ⚠️ 需更新 Payment 确认接口，支付成功后设置 `startAt`/`endAt` 并激活保单（状态 → ACTIVE）
+- ⚠️ 需实现定时任务检查 `paymentDeadline`，超时未支付的保单状态 → `EXPIRED_UNPAID`
+
+**向后兼容性**:
+- ❌ 不兼容：旧行为是审核通过直接 `ACTIVE`，新行为是 `APPROVED_AWAITING_PAYMENT`
+- 建议：前端需适配新的状态机流程
+
+---
+
+## [2025-11-15] - 🆕 GET /policy/:id 接口 + PolicyResponseDto 枚举对齐 ✅ 完成
+
+### ✅ Added - Policy 查询接口与 DTO 枚举同步
+
+**功能描述**:
+新增 `GET /policy/:id` 接口，支持按 UUID 查询保单详情。同时将 `PolicyResponseDto` 的 `status` 字段从字符串枚举更新为严格的 `PolicyStatus` 枚举类型，确保 API 响应与数据库状态机完全一致。
+
+**实现细节**:
+
+1. **新增 GET /policy/:id 接口**
+   - 路径: `apps/api/src/modules/policy/policy.controller.ts:270`
+   - UUID 校验：使用 zod 验证 `id` 参数为有效 UUID
+   - 返回字段：
+     - 基础字段: `id`, `userId`, `skuId`, `walletAddress`, `premiumAmt`, `status`
+     - 可选字段: `contractHash`, `startAt`, `endAt`, `paymentDeadline`
+     - 时间戳: `createdAt`, `updatedAt`
+   - 安全性：不返回 `userSig` 敏感数据
+   - 异常处理：400 (UUID 格式错误) / 404 (保单不存在)
+
+2. **PolicyService.getPolicyById()**
+   - 路径: `apps/api/src/modules/policy/policy.service.ts:220`
+   - 处理 Prisma null 值 → undefined 转换
+   - 返回类型安全的 `Policy` 接口
+
+3. **PolicyResponseDto 枚举对齐**
+   - 路径: `apps/api/src/modules/policy/dto/policy-response.dto.ts`
+   - 更新 `status` 字段类型：`string` → `PolicyStatus` 枚举
+   - 新增字段：`contractHash?`, `startAt?`, `endAt?`, `paymentDeadline?`
+   - Swagger 文档：添加"先审核再支付"状态机说明
+   - 枚举值完整列表：
+     ```typescript
+     enum PolicyStatus {
+       DRAFT                      // 创建后
+       PENDING_UNDERWRITING       // 签署后
+       APPROVED_AWAITING_PAYMENT  // 审核通过
+       ACTIVE                     // 支付后
+       REJECTED                   // 审核拒绝
+       EXPIRED_UNPAID             // 逾期未支付
+       EXPIRED                    // 保单过期
+     }
+     ```
+
+4. **Policy 接口扩展**
+   - 更新 `Policy` 接口以包含所有状态机相关字段
+   - 修复 `createPolicy()` 返回值的 null → undefined 处理
+
+**修改文件**:
+```
+apps/api/src/modules/policy/policy.controller.ts       # GET /policy/:id 端点
+apps/api/src/modules/policy/policy.service.ts          # getPolicyById() + Policy 接口
+apps/api/src/modules/policy/dto/policy-response.dto.ts # PolicyStatus 枚举 + 新字段
+```
+
+**测试命令**:
+```bash
+# 构建验证
+pnpm --filter api build  # ✅ 0 errors
+
+# 本地测试示例
+curl http://localhost:3001/policy/<uuid>
+
+# 预期响应 (DRAFT 状态)
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "userId": "650e8400-e29b-41d4-a716-446655440000",
+  "skuId": "bsc-usdt-plan-seed",
+  "walletAddress": "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
+  "premiumAmt": "100.0",
+  "status": "DRAFT",
+  "createdAt": "2025-01-01T00:00:00.000Z",
+  "updatedAt": "2025-01-01T00:00:00.000Z"
+}
+```
+
+**注意事项**:
+- ✅ TypeScript 编译通过，无类型错误
+- ✅ 所有可选字段正确处理 null → undefined
+- ✅ Swagger 文档自动更新，展示完整枚举值
+- ⚠️ GET /policy/:id 无需 JWT 认证（如需添加认证，使用 `@UseGuards(JwtAuthGuard)`）
+
+**兼容性**:
+- 向后兼容：现有 API 消费者将看到新的枚举值（大写格式）
+- 数据库状态：已通过 M1-P1 迁移至枚举类型
+- 前端适配：需更新前端代码以使用新枚举值（DRAFT 而非 pending）
+
+---
+
+## [2025-11-15] - 🔄 Prisma 状态机枚举 + 支付截止时间字段 ✅ 完成
+
+### ✅ Added - Policy 状态机迁移（先审核再支付）
+
+**功能描述**:
+将 `Policy.status` 从 `String` 迁移至严格的 `PolicyStatus` 枚举类型，新增 `paymentDeadline` 字段支持"先审核再支付"业务流程，实现完整的保单生命周期状态机。
+
+**实现细节**:
+
+1. **Prisma Schema 变更**
+   - 新增枚举类型 `PolicyStatus`：
+     ```prisma
+     enum PolicyStatus {
+       DRAFT                      // 草稿（创建保单后）
+       PENDING_UNDERWRITING       // 待审核（签署合同后）
+       APPROVED_AWAITING_PAYMENT  // 审核通过，等待支付
+       ACTIVE                     // 生效中（支付后）
+       REJECTED                   // 审核拒绝
+       EXPIRED_UNPAID             // 逾期未支付
+       EXPIRED                    // 保单已过期
+     }
+     ```
+   - 修改 `Policy.status` 从 `String` → `PolicyStatus`，默认值 `DRAFT`
+   - 新增字段 `Policy.paymentDeadline: DateTime?`（审核通过时设置）
+
+2. **数据库迁移**
+   - 迁移文件: `apps/api/prisma/migrations/20251115082120_policy_state_machine/migration.sql`
+   - 使用 CASE WHEN 语句安全地将历史字符串值映射到枚举：
+     ```sql
+     'pending' → DRAFT
+     'under_review' → PENDING_UNDERWRITING
+     'approved' → APPROVED_AWAITING_PAYMENT
+     'active' → ACTIVE
+     'rejected' → REJECTED
+     'expired' → EXPIRED
+     未知值 → DRAFT (fallback)
+     ```
+   - ✅ 迁移已成功应用到数据库
+
+3. **代码更新 - 使用枚举值**
+   - 所有服务层文件已更新为使用 `PolicyStatus` 枚举：
+     ```typescript
+     import { PolicyStatus } from 'generated/prisma/enums';
+
+     // 创建保单
+     status: PolicyStatus.DRAFT
+
+     // 签署合同后
+     status: PolicyStatus.PENDING_UNDERWRITING
+
+     // 审核通过
+     status: PolicyStatus.APPROVED_AWAITING_PAYMENT
+
+     // 支付后激活
+     status: PolicyStatus.ACTIVE
+     ```
+   - DTO 也更新为枚举验证（`@IsEnum(PolicyStatus)`）
+
+4. **状态机业务规则**
+   - **DRAFT → PENDING_UNDERWRITING**: 用户签署合同
+   - **PENDING_UNDERWRITING → APPROVED_AWAITING_PAYMENT**: Admin 审核通过，**必须设置 paymentDeadline**
+   - **APPROVED_AWAITING_PAYMENT → ACTIVE**: 用户完成支付，设置 startAt/endAt
+   - **APPROVED_AWAITING_PAYMENT → EXPIRED_UNPAID**: 超过 paymentDeadline 未支付（需定时任务）
+   - **PENDING_UNDERWRITING → REJECTED**: Admin 审核拒绝
+   - **ACTIVE → EXPIRED**: 保障期结束（now > endAt）
+
+**修改文件**:
+```
+apps/api/prisma/schema.prisma                                    # 枚举定义 + Policy 模型
+apps/api/prisma/migrations/20251115082120_policy_state_machine/ # 数据库迁移
+apps/api/src/modules/policy/policy.service.ts                    # DRAFT, PENDING_UNDERWRITING, ACTIVE, EXPIRED
+apps/api/src/modules/admin/admin.service.ts                      # PENDING_UNDERWRITING, ACTIVE, REJECTED
+apps/api/src/modules/payment/payment.service.ts                  # PENDING_UNDERWRITING
+apps/api/src/modules/admin/dto/list-admin-policies.query.ts      # DTO 枚举验证
+apps/api/README.md                                               # 新增状态机文档 + Mermaid 图
+```
+
+**迁移命令**（已执行）:
+```bash
+# 生成 Prisma Client
+pnpm --filter api prisma:generate
+
+# 应用迁移（手动执行 SQL）
+docker exec -i web3ins-db psql -U postgres -d web3_insurance < migration.sql
+
+# 验证构建
+pnpm --filter api dev  # ✅ TypeScript 编译通过（0 errors）
+```
+
+**注意事项 - 历史数据兼容**:
+- ⚠️ 如果生产环境有历史数据，迁移 SQL 会自动映射字符串 → 枚举
+- ✅ 迁移包含安全的 fallback 逻辑（未知值默认为 DRAFT）
+- 🔒 新代码强制使用枚举，不再接受任意字符串，避免状态混乱
+
+**业务影响**:
+- ✅ 状态字段现在有编译时类型检查，减少运行时错误
+- ✅ 支持"先审核再支付"流程（Admin 审核 → 用户支付 → 激活）
+- ⚠️ 后续需要实现定时任务，自动将超过 `paymentDeadline` 的保单标记为 `EXPIRED_UNPAID`
+
+**文档更新**:
+- ✅ `apps/api/README.md` 新增章节：
+  - 📊 核心数据模型（Policy 表结构）
+  - 🔄 保单状态机（Mermaid 状态图 + 详细说明）
+  - 业务规则代码示例
+
+---
+
 ## [2025-11-14] - 🔐 Web 路由保护与认证修复 ✅ 完成
 
 ### ✅ Added - 统一路由守卫系统

@@ -31,7 +31,7 @@ export function PolicyTimeline({ policy }: PolicyTimelineProps) {
   }
 
   // Status changes
-  if (policy.status === 'under_review') {
+  if (policy.status === 'PENDING_UNDERWRITING') {
     events.push({
       title: 'Under Review',
       description: 'Policy is being reviewed by admin',
@@ -41,17 +41,17 @@ export function PolicyTimeline({ policy }: PolicyTimelineProps) {
     })
   }
 
-  if (policy.status === 'approved' && policy.startAt) {
+  if (policy.status === 'ACTIVE' && policy.startAt) {
     events.push({
-      title: 'Approved',
-      description: 'Policy approved and activated',
+      title: 'Active',
+      description: 'Policy activated',
       timestamp: policy.startAt,
       icon: CheckCircle,
       color: 'text-green-600',
     })
   }
 
-  if (policy.status === 'rejected') {
+  if (policy.status === 'REJECTED') {
     events.push({
       title: 'Rejected',
       description: policy.reviewerNote || 'Policy application rejected',

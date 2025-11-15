@@ -5,8 +5,9 @@
  */
 
 import { ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsInt, Min, IsString, IsIn } from 'class-validator';
+import { IsOptional, IsInt, Min, IsEnum } from 'class-validator';
 import { Type } from 'class-transformer';
+import { PolicyStatus } from 'generated/prisma/enums';
 
 /**
  * Query parameters for GET /admin/policies
@@ -48,19 +49,17 @@ export class ListAdminPoliciesQuery {
 
   /**
    * Filter by policy status
-   * @example 'under_review'
+   * @example 'PENDING_UNDERWRITING'
    */
   @ApiProperty({
     description: 'Filter by policy status',
-    example: 'under_review',
+    example: PolicyStatus.PENDING_UNDERWRITING,
     required: false,
-    enum: ['pending', 'under_review', 'active', 'rejected', 'expired'],
+    enum: PolicyStatus,
   })
   @IsOptional()
-  @IsString({ message: 'status must be a string' })
-  @IsIn(['pending', 'under_review', 'active', 'rejected', 'expired'], {
-    message:
-      'status must be one of: pending, under_review, active, rejected, expired',
+  @IsEnum(PolicyStatus, {
+    message: `status must be one of: ${Object.values(PolicyStatus).join(', ')}`,
   })
-  status?: string;
+  status?: PolicyStatus;
 }

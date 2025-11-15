@@ -7,12 +7,14 @@ import { PolicyTable } from '@/features/policies/components/PolicyTable'
 import { ApproveRejectDialog } from '@/features/policies/components/ApproveRejectDialog'
 import { Policy } from '@/features/policies/schemas'
 import { useToast } from '@/components/ui/use-toast'
+import { useLocaleStore } from '@/src/store/localeStore'
 
 export default function ReviewPage() {
+  const { t } = useLocaleStore()
   const [selectedPolicy, setSelectedPolicy] = useState<Policy | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
 
-  const { data, isLoading } = usePolicies({ status: 'under_review' })
+  const { data, isLoading } = usePolicies({ status: 'PENDING_UNDERWRITING' })
   const reviewMutation = useReviewPolicy()
   const { toast } = useToast()
 
@@ -21,21 +23,18 @@ export default function ReviewPage() {
     setDialogOpen(true)
   }
 
-  const handleSubmitReview = async (action: 'approved' | 'rejected', note?: string) => {
+  const handleSubmitReview = async (data: { action: 'approve' | 'reject'; paymentDeadline?: string; reviewerNote?: string }) => {
     if (!selectedPolicy) return
 
     try {
       await reviewMutation.mutateAsync({
         id: selectedPolicy.id,
-        data: {
-          status: action,
-          reviewerNote: note,
-        },
+        data,
       })
 
       toast({
-        title: `Policy ${action}`,
-        description: `Policy ${selectedPolicy.id} has been ${action}.`,
+        title: `Policy ${data.action}d`,
+        description: `Policy ${selectedPolicy.id} has been ${data.action}d.`,
       })
 
       setDialogOpen(false)
@@ -52,15 +51,15 @@ export default function ReviewPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Review Queue</h1>
+        <h1 className="text-3xl font-bold">{t.reviewPage.title}</h1>
         <p className="text-muted-foreground">
-          {data ? `${data.total} policies awaiting review` : 'Loading...'}
+          {data ? `${data.total} ${t.dashboard.pendingReview}` : t.common.loading}
         </p>
       </div>
 
       {isLoading ? (
         <div className="flex items-center justify-center py-12">
-          <div className="text-muted-foreground">Loading review queue...</div>
+          <div className="text-muted-foreground">{t.common.loading}</div>
         </div>
       ) : (
         <PolicyTable

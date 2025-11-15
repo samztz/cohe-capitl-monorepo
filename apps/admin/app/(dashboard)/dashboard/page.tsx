@@ -2,15 +2,17 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useStats } from '@/features/policies/hooks/useStats'
+import { useLocaleStore } from '@/src/store/localeStore'
 import { FileText, Clock, CheckCircle, XCircle } from 'lucide-react'
 
 export default function DashboardPage() {
+  const { t } = useLocaleStore()
   const { data: stats, isLoading } = useStats()
 
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <h1 className="text-3xl font-bold">Dashboard</h1>
+        <h1 className="text-3xl font-bold">{t.dashboard.title}</h1>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {[...Array(4)].map((_, i) => (
             <Card key={i}>
@@ -29,19 +31,19 @@ export default function DashboardPage() {
 
   const statCards = [
     {
-      title: 'Total Policies',
+      title: t.dashboard.totalPolicies,
       value: stats?.total || 0,
       icon: FileText,
       color: 'text-blue-600',
     },
     {
-      title: 'Under Review',
+      title: t.dashboard.pendingReview,
       value: stats?.underReview || 0,
       icon: Clock,
       color: 'text-amber-600',
     },
     {
-      title: 'Approved Today',
+      title: t.dashboard.activeInsurance,
       value: stats?.approvedToday || 0,
       icon: CheckCircle,
       color: 'text-green-600',
@@ -56,7 +58,7 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold">Dashboard</h1>
+      <h1 className="text-3xl font-bold">{t.dashboard.title}</h1>
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -81,17 +83,12 @@ export default function DashboardPage() {
       {/* TODO: Add chart here */}
       <Card>
         <CardHeader>
-          <CardTitle>Quick Actions</CardTitle>
+          <CardTitle>{t.dashboard.quickActions}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
           <p className="text-sm text-muted-foreground">
-            Welcome to Cohe Capital Admin Dashboard. Use the navigation above to manage policies.
+            {t.dashboard.welcome}
           </p>
-          <ul className="text-sm space-y-1 text-muted-foreground">
-            <li>• View and search all policies in the "All Policies" tab</li>
-            <li>• Review pending policies in the "Review Queue" tab</li>
-            <li>• Click on any policy to view details and approve/reject</li>
-          </ul>
         </CardContent>
       </Card>
     </div>

@@ -6,20 +6,20 @@ interface UsePoliciesParams {
   status?: string
   q?: string
   page?: number
-  limit?: number
+  pageSize?: number
 }
 
 export function usePolicies(params: UsePoliciesParams = {}) {
-  const { status, q, page = 1, limit = 20 } = params
+  const { status, q, page = 1, pageSize = 20 } = params
 
   return useQuery({
-    queryKey: ['policies', status, q, page, limit],
+    queryKey: ['policies', status, q, page, pageSize],
     queryFn: () =>
-      apiClient.get<PoliciesResponse>('/api/admin/policies', {
+      apiClient.get<PoliciesResponse>('/admin/policies', {
         status,
         q,
         page,
-        limit,
+        pageSize,
       }),
   })
 }

@@ -7,10 +7,13 @@ import { queryClient } from '@/lib/queryClient'
 import { isAuthed, logout, getUser } from '@/lib/auth'
 import { Button } from '@/components/ui/button'
 import { Toaster } from '@/components/ui/toaster'
+import { LanguageSwitcher } from '@/components/LanguageSwitcher'
+import { useLocaleStore } from '@/src/store/localeStore'
 import { LayoutDashboard, FileText, ClipboardCheck, LogOut } from 'lucide-react'
 import Link from 'next/link'
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const { t } = useLocaleStore()
   const router = useRouter()
   const pathname = usePathname()
 
@@ -32,9 +35,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   const navigation = [
-    { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-    { name: 'All Policies', href: '/policies', icon: FileText },
-    { name: 'Review Queue', href: '/review', icon: ClipboardCheck },
+    { name: t.navigation.dashboard, href: '/dashboard', icon: LayoutDashboard },
+    { name: t.navigation.allPolicies, href: '/policies', icon: FileText },
+    { name: t.navigation.reviewQueue, href: '/review', icon: ClipboardCheck },
   ]
 
   return (
@@ -70,10 +73,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 </div>
               </div>
               <div className="flex items-center space-x-4">
+                <LanguageSwitcher />
                 <span className="text-sm text-gray-600">{user?.email}</span>
                 <Button variant="ghost" size="sm" onClick={handleLogout}>
                   <LogOut className="mr-2 h-4 w-4" />
-                  Logout
+                  {t.navigation.logout}
                 </Button>
               </div>
             </div>

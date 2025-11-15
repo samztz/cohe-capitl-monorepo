@@ -32,9 +32,13 @@ import { ReviewPolicyResponse } from './dto/review-policy-response.dto';
 /**
  * Validation schema for review policy request
  * Validates action is either 'approve' or 'reject'
+ * Optionally validates paymentDeadline as ISO 8601 string
+ * Optionally validates reviewerNote as string
  */
 const ReviewPolicySchema = z.object({
   action: z.enum(['approve', 'reject']),
+  paymentDeadline: z.string().optional(),
+  reviewerNote: z.string().optional(),
 });
 
 /**
@@ -151,29 +155,44 @@ export class AdminController {
    * PATCH /admin/policies/:id
    *
    * Allows administrators to approve or reject policies that are under review.
+   * Supports "Review then Pay" workflow.
    *
    * Business rules:
-   * - Only policies with status='under_review' can be reviewed
-   * - Approve: activates policy and sets coverage period (startAt to endAt)
-   * - Reject: marks policy as rejected
+   * - Only policies with status=PENDING_UNDERWRITING can be reviewed
+   * - Approve: sets status=APPROVED_AWAITING_PAYMENT with paymentDeadline (NOT ACTIVE yet)
+   * - Reject: marks policy as REJECTED
    *
    * @param id - Policy UUID
-   * @param body - Request body containing action ('approve' or 'reject')
-   * @returns Updated policy with new status and dates (if approved)
+   * @param body - Request body containing action and optional paymentDeadline
+   * @returns Updated policy with new status and paymentDeadline (if approved)
    * @throws BadRequestException if validation fails or invalid status
    * @throws NotFoundException if policy not found
    *
    * @example
-   * Request (Approve):
+   * Request (Approve with custom deadline):
+   * PATCH /admin/policies/550e8400-e29b-41d4-a716-446655440000
+   * {
+   *   "action": "approve",
+   *   "paymentDeadline": "2025-12-31T23:59:59.000Z"
+   * }
+   *
+   * Response:
+   * {
+   *   "id": "550e8400-e29b-41d4-a716-446655440000",
+   *   "status": "APPROVED_AWAITING_PAYMENT",
+   *   "paymentDeadline": "2025-12-31T23:59:59.000Z"
+   * }
+   *
+   * @example
+   * Request (Approve with default deadline):
    * PATCH /admin/policies/550e8400-e29b-41d4-a716-446655440000
    * { "action": "approve" }
    *
    * Response:
    * {
    *   "id": "550e8400-e29b-41d4-a716-446655440000",
-   *   "status": "active",
-   *   "startAt": "2024-01-01T00:00:00.000Z",
-   *   "endAt": "2024-04-01T00:00:00.000Z"
+   *   "status": "APPROVED_AWAITING_PAYMENT",
+   *   "paymentDeadline": "2025-11-16T08:00:00.000Z"  // now + 24h
    * }
    *
    * @example
@@ -184,17 +203,18 @@ export class AdminController {
    * Response:
    * {
    *   "id": "550e8400-e29b-41d4-a716-446655440000",
-   *   "status": "rejected"
+   *   "status": "REJECTED"
    * }
    */
   @Patch('policies/:id')
   @ApiOperation({
-    summary: 'Review a policy (approve or reject)',
+    summary: 'Review a policy (approve or reject) - Review then Pay',
     description:
       'Approve or reject a policy under review. ' +
-      'Approve sets status to "active" and establishes coverage period. ' +
-      'Reject sets status to "rejected". ' +
-      'Only policies with status "under_review" can be reviewed.',
+      'Supports "Review then Pay" workflow:\n' +
+      '- Approve: sets status to APPROVED_AWAITING_PAYMENT with paymentDeadline (user pays later)\n' +
+      '- Reject: sets status to REJECTED\n' +
+      'Only policies with status PENDING_UNDERWRITING can be reviewed.',
   })
   @ApiParam({
     name: 'id',
@@ -256,18 +276,21 @@ export class AdminController {
       });
     }
 
-    const { action } = bodyResult.data;
+    const { action, paymentDeadline, reviewerNote } = bodyResult.data;
 
     // Execute review
     const result = await this.adminService.reviewPolicy(
       uuidResult.data,
       action,
+      paymentDeadline,
+      reviewerNote,
     );
 
     // Format response
     return {
       id: result.id,
       status: result.status,
+      paymentDeadline: result.paymentDeadline?.toISOString(),
       startAt: result.startAt?.toISOString(),
       endAt: result.endAt?.toISOString(),
     };

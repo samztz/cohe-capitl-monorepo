@@ -1,3 +1,5 @@
+import { getToken } from './auth'
+
 const API_BASE = process.env.NEXT_PUBLIC_ADMIN_API_BASE || ''
 
 interface RequestOptions extends RequestInit {
@@ -25,12 +27,20 @@ async function request<T>(
     }
   }
 
+  // Build headers with Authorization if token exists
+  const token = getToken()
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(fetchOptions.headers as Record<string, string>),
+  }
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
+
   const response = await fetch(url, {
     ...fetchOptions,
-    headers: {
-      'Content-Type': 'application/json',
-      ...fetchOptions.headers,
-    },
+    headers,
   })
 
   if (!response.ok) {

@@ -1,9 +1,11 @@
 export const POLICY_STATUSES = {
-  pending: { label: 'Pending', color: 'slate' },
-  under_review: { label: 'Under Review', color: 'amber' },
-  approved: { label: 'Approved', color: 'green' },
-  rejected: { label: 'Rejected', color: 'red' },
-  expired: { label: 'Expired', color: 'gray' },
+  DRAFT: { label: 'Draft', color: 'slate' },
+  PENDING_UNDERWRITING: { label: 'Pending Review', color: 'amber' },
+  APPROVED_AWAITING_PAYMENT: { label: 'Awaiting Payment', color: 'blue' },
+  ACTIVE: { label: 'Active', color: 'green' },
+  REJECTED: { label: 'Rejected', color: 'red' },
+  EXPIRED_UNPAID: { label: 'Expired (Unpaid)', color: 'gray' },
+  EXPIRED: { label: 'Expired', color: 'gray' },
 } as const
 
 export const ITEMS_PER_PAGE = 20
