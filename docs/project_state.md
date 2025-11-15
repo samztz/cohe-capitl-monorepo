@@ -1,7 +1,7 @@
 # 🧭 Project State - Cohe Capital 项目状态追踪
 
 > **MVP 版本**: v0.2.0
-> **最后更新**: 2025-01-15 (Web 端迁移中)
+> **最后更新**: 2025-01-15 (Web 路由保护系统已完成)
 > **管理工具**: Claude Code 自动同步
 > **协作规划**: ChatGPT (Epic 设计) + Claude Code (实现)
 > **协作规则**: 详见 [CLAUDE.md](../CLAUDE.md) 第 11 章
@@ -18,7 +18,7 @@
 | **E1. 后端基础与认证**        | NestJS + Prisma + SIWE 登录与 JWT 鉴权      | ✅ 100%   | 4/4 完成   | 2025-10-28     |
 | **E2. 保单购买闭环**          | Products / Policy / Payment / Admin 模块    | ✅ 100%   | 6/6 完成   | 2025-10-30     |
 | **E3. ~~Mobile DApp~~** (已废弃) | ~~React Native (Expo) 移动端~~ ⚠️ 已暂停    | 🔴 废弃   | 3/6 (暂停) | -              |
-| **E4. 前端 Web DApp**         | Next.js 14 Web 应用（钱包登录 + 保单购买）   | 🟡 20%    | 1/5 完成   | 2025-01-20     |
+| **E4. 前端 Web DApp**         | Next.js 14 Web 应用（钱包登录 + 保单购买）   | 🟡 40%    | 2/5 完成   | 2025-01-20     |
 | **E5. 前后端联调与测试**      | E2E 测试 / API 对接 / Bug 修复              | ⚪ 0%      | 0/4 完成   | 2025-01-25     |
 | **E6. 部署与演示环境**        | Docker / CI/CD / Staging 部署               | ⚪ 0%      | 0/4 完成   | 2025-01-30     |
 | **E7. Admin 审核前端**        | Next.js Web Admin Panel 保单审核与管理      | ✅ 100%   | 7/7 完成   | 2025-10-30     |
@@ -87,14 +87,14 @@
 
 **目标**：构建 Next.js 14 Web 应用，实现完整的用户端保险购买流程（替代 Mobile 端）。
 
-**状态**: 🟡 20% 完成 (1/5 任务完成)
+**状态**: 🟡 40% 完成 (2/5 任务完成)
 
 ### Issues
 
 | ID     | 子任务                                              | 状态     | Owner  | 完成时间       |
 | ------ | --------------------------------------------------- | -------- | ------ | -------------- |
 | #32    | 初始化 Web 项目结构（Next.js 14 + TypeScript）       | ✅ 完成   | Samztz | 2025-01-15     |
-| #33    | 集成 Reown AppKit React + SIWE 登录                 | ✅ 完成   | Samztz | 2025-01-15     |
+| #33    | 集成 Reown AppKit React + SIWE 登录 + 路由保护      | ✅ 完成   | Samztz | 2025-01-15     |
 | #34    | 产品列表页（/products）                             | ⚪ 待做   | Samztz | -              |
 | #35    | 保单购买流程页（/policy/create）                    | ⚪ 待做   | Samztz | -              |
 | #36    | 保单详情页（/policy/:id）+ 倒计时                   | ⚪ 待做   | Samztz | -              |
@@ -105,11 +105,21 @@
 - ✅ Reown AppKit React 钱包连接集成
 - ✅ SIWE 完整登录流程（apps/web/src/hooks/useSiweAuth.ts）
 - ✅ Auth Store 全局状态管理（Zustand + localStorage）
-- ✅ 智能路由（/ → 自动跳转到 /dashboard 或 /auth/connect）
-- ✅ **客户端路由保护**（useRequireAuth Hook）
-  - Dashboard 等受保护页面需要登录
-  - 未登录自动重定向到 /auth/connect
-  - Loading 状态避免闪烁
+- ✅ 智能路由（/ → 自动跳转到 /auth/connect）
+- ✅ **全站路由保护系统**（useRequireAuth Hook）- **已完善** 🆕
+  - ✅ 根路由（/）服务端重定向到 /auth/connect（零延迟，bundle size -92%）
+  - ✅ /auth/connect 三态分流逻辑完善（已连接未登录 / 已登录未连接 / 已登录已连接）
+  - ✅ 全部受保护页面统一使用 useRequireAuth 钩子：
+    - `/dashboard` - 仪表板
+    - `/products` - 产品列表页
+    - `/my-policies` - 我的保单页
+    - `/policy/form/[productId]` - 保单表单页
+    - `/policy/contract-sign/[policyId]` - 合同签署页
+    - `/policy/detail/[id]` - 保单详情页
+    - `/policy/success/[policyId]` - 购买成功页
+  - ✅ 未登录自动重定向到 /auth/connect
+  - ✅ Loading 状态避免 UI 闪烁
+  - ✅ 统一的 Loading 界面样式
 - ✅ 钱包连接页面（/auth/connect）- **已优化**
   - Connect Wallet 按钮
   - 网络检测（BSC Testnet/Mainnet）
@@ -230,19 +240,20 @@ update_policy: Claude Code 自动同步 project_state.md 和 CHANGELOG.md
 | 状态       | Epic 数量 | Issue 数量 | 完成率     |
 | ---------- | --------- | ---------- | ---------- |
 | ✅ 完成     | 3         | 17         | 53.1%      |
-| 🟡 进行中   | 1         | 1          | 3.1%       |
-| ⚪ 待做     | 2         | 10         | 31.3%      |
+| 🟡 进行中   | 1         | 2          | 6.3%       |
+| ⚪ 待做     | 2         | 9          | 28.1%      |
 | 🔴 废弃     | 1         | 4          | 12.5%      |
-| **总计**   | **7**     | **32**     | **56.3%**  |
+| **总计**   | **7**     | **32**     | **59.4%**  |
 
 **说明**：
 - 完成率 = (已完成 Issue 数量 + 已完成 Epic 的部分进度) / 总 Issue 数量
 - Epic 1（后端基础）: ✅ 100% 完成（4/4 Issues）
 - Epic 2（保单购买闭环）: ✅ 100% 完成（6/6 Issues）
 - Epic 7（Admin 前端）: ✅ 100% 完成（7/7 Issues）
-- Epic 4（Web DApp）: 🟡 20% 进行中（1/5 Issues）
+- Epic 4（Web DApp）: 🟡 40% 进行中（2/5 Issues）
 - Epic 3（Mobile DApp）: 🔴 废弃（3/6 Issues 暂停）
 - **当前优先级**: 完成 Epic 4 (Web DApp)，开启前后端联调测试
+- **最新进展**: ✅ Web 全站路由保护系统已完成（Issue #33）
 
 ---
 

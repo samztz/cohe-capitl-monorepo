@@ -17,8 +17,13 @@ import { useAppKit, useAppKitAccount, useAppKitNetwork, useAppKitProvider } from
 import { useAuthStore } from '@/store/authStore'
 import { useSiweAuth } from '@/hooks/useSiweAuth'
 import { resetAuth } from '@/lib/resetAuth'
+import { useTranslations } from '@/store/localeStore'
+import { LanguageSwitcher } from '@/components/LanguageSwitcher'
 
 export default function ConnectPage() {
+  // Translations
+  const t = useTranslations()
+
   // AppKit hooks
   const { open, close } = useAppKit()
   const { address, isConnected } = useAppKitAccount()
@@ -120,7 +125,7 @@ export default function ConnectPage() {
         const targetChainId = parseInt(process.env.NEXT_PUBLIC_CHAIN_ID || '97', 10)
         if (chainId !== targetChainId) {
           const targetNetworkName = targetChainId === 97 ? 'BSC Testnet' : 'BNB Smart Chain Mainnet'
-          const errorMsg = `Please switch to ${targetNetworkName} in your wallet`
+          const errorMsg = t.errors.switchNetwork.replace('{network}', targetNetworkName)
           setLocalError(errorMsg)
 
           // Disconnect wallet and reset flag
@@ -146,7 +151,7 @@ export default function ConnectPage() {
         setIsConnecting(false)
       } catch (error) {
         console.error('[ConnectPage] SIWE login error:', error)
-        setLocalError('Failed to sign in. Please try again.')
+        setLocalError(t.errors.signInFailed)
         // Reset flag and disconnect
         isUserInitiatedFlow.current = false
         await close()
@@ -178,7 +183,7 @@ export default function ConnectPage() {
       // After modal closes, Effect 3 will handle SIWE login if wallet is connected
     } catch (error) {
       console.error('[ConnectPage] Error opening wallet modal:', error)
-      setLocalError('Failed to open wallet modal')
+      setLocalError(t.errors.walletModalFailed)
       isUserInitiatedFlow.current = false
       setIsConnecting(false)
     }
@@ -209,7 +214,7 @@ export default function ConnectPage() {
       setLocalError(null)
     } catch (error) {
       console.error('[ConnectPage] Logout error:', error)
-      setLocalError('Failed to logout. Please try again.')
+      setLocalError(t.errors.logoutFailed)
     } finally {
       setIsLoggingOut(false)
     }
@@ -224,7 +229,7 @@ export default function ConnectPage() {
       <div className="min-h-screen bg-[#0F111A] flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 border-4 border-[#FFD54F] border-t-transparent rounded-full animate-spin" />
-          <p className="text-[#9CA3AF] text-sm font-medium">Loading...</p>
+          <p className="text-[#9CA3AF] text-sm font-medium">{t.common.loading}</p>
         </div>
       </div>
     )
@@ -236,7 +241,7 @@ export default function ConnectPage() {
       <div className="min-h-screen bg-[#0F111A] flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 border-4 border-[#FFD54F] border-t-transparent rounded-full animate-spin" />
-          <p className="text-white text-sm font-medium">Redirecting to dashboard...</p>
+          <p className="text-white text-sm font-medium">{t.auth.redirecting}</p>
         </div>
       </div>
     )
@@ -256,16 +261,19 @@ export default function ConnectPage() {
             className="w-8 h-8"
           />
           <span className="text-white text-base font-semibold tracking-wide">
-            COHE.CAPITL
+            {t.common.appName}
           </span>
         </div>
-        <button
-          onClick={handleLogout}
-          disabled={isLoggingOut}
-          className="bg-[#FFD54F] text-[#0F111A] px-4 py-1.5 rounded-lg text-sm font-semibold hover:brightness-110 transition-all h-8 flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {isLoggingOut ? 'Logging out...' : 'Logout'}
-        </button>
+        <div className="flex items-center gap-2">
+          <LanguageSwitcher variant="compact" />
+          <button
+            onClick={handleLogout}
+            disabled={isLoggingOut}
+            className="bg-[#FFD54F] text-[#0F111A] px-4 py-1.5 rounded-lg text-sm font-semibold hover:brightness-110 transition-all h-8 flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isLoggingOut ? t.welcome.disconnecting : t.welcome.logout}
+          </button>
+        </div>
       </header>
 
       {/* Main Content - Centered */}
@@ -285,19 +293,19 @@ export default function ConnectPage() {
         {/* Title */}
         <div className="text-center mb-4">
           <h1 className="text-white text-[28px] md:text-[36px] lg:text-[42px] font-bold leading-tight tracking-wide">
-            THE <span className="text-[#FFD54F]">FIRST</span> CRYPTO
+            {t.welcome.title.split(' ')[0]} <span className="text-[#FFD54F]">{t.welcome.titleHighlight}</span> {t.welcome.title.split(' ').slice(1).join(' ')}
           </h1>
           <h1 className="text-white text-[28px] md:text-[36px] lg:text-[42px] font-bold leading-tight tracking-wide">
-            INSURANCE
+            {t.welcome.subtitle2}
           </h1>
           <h1 className="text-white text-[28px] md:text-[36px] lg:text-[42px] font-bold leading-tight tracking-wide">
-            ALTERNATIVE
+            {t.welcome.subtitle3}
           </h1>
         </div>
 
         {/* Subtitle */}
         <p className="text-[#9CA3AF] text-xs font-medium tracking-[2px] text-center mb-10">
-          COVERING CRYPTO SINCE 2025
+          {t.welcome.tagline.toUpperCase()}
         </p>
 
         {/* Action Section - Binary states: Loading OR Connect Button */}
@@ -307,9 +315,9 @@ export default function ConnectPage() {
             <div className="text-center py-4">
               <div className="w-8 h-8 border-4 border-[#FFD54F] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
               <p className="text-white text-sm font-semibold">
-                {isSiweLoading ? 'Signing in with wallet...' : 'Connecting wallet...'}
+                {isSiweLoading ? t.welcome.signingIn : t.welcome.connecting}
               </p>
-              <p className="text-[#9CA3AF] text-xs mt-1">Please check your wallet</p>
+              <p className="text-[#9CA3AF] text-xs mt-1">{t.welcome.pleaseCheckWallet}</p>
             </div>
           ) : (
             // Not connected - Show Connect Wallet button
@@ -317,7 +325,7 @@ export default function ConnectPage() {
               onClick={handleConnectWallet}
               className="bg-[#FFD54F] text-[#0F111A] w-[70%] min-w-[200px] max-w-[280px] h-12 rounded-lg flex items-center justify-center text-base font-semibold tracking-wide hover:brightness-110 transition-all shadow-[0_4px_16px_rgba(255,213,79,0.3)]"
             >
-              Connect Wallet
+              {t.welcome.connectWallet}
             </button>
           )}
 

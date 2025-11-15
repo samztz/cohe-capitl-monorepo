@@ -95,10 +95,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   // Load stored authentication data on app startup with backend validation
   loadStoredAuth: async () => {
     try {
-      set({ isLoading: true })
-
       const storedToken = storage.getItem(JWT_STORAGE_KEY)
 
+      // If no token found, immediately set loading to false and return
       if (!storedToken) {
         set({
           isLoading: false,
@@ -106,9 +105,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           token: null,
           user: null,
         })
-        console.log('[AuthStore] No stored token found')
+        console.log('[AuthStore] No stored token found, ready for login')
         return
       }
+
+      // Only set loading to true if we have a token to validate
+      set({ isLoading: true })
 
       // Validate token with backend by calling /auth/siwe/me
       console.log('[AuthStore] Validating stored token with backend...')

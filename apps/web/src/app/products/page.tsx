@@ -8,8 +8,12 @@ import * as Utils from '@/utils'
 import Link from 'next/link'
 import Image from 'next/image'
 import BottomNav from '@/components/BottomNav'
+import { useRequireAuth } from '@/hooks/useRequireAuth'
 
 export default function ProductsPage() {
+  // Protected route - require authentication
+  const { isChecking } = useRequireAuth()
+
   const { data: products, isLoading, error } = useQuery({
     queryKey: ['products'],
     queryFn: async () => {
@@ -31,6 +35,18 @@ export default function ProductsPage() {
   ]
 
   const displayProducts = products || mockProducts
+
+  // Show loading screen while checking authentication
+  if (isChecking) {
+    return (
+      <div className="min-h-screen bg-[#0F111A] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-4 border-[#FFD54F] border-t-transparent rounded-full animate-spin" />
+          <p className="text-[#9CA3AF] text-sm font-medium">Checking auth...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-[#0F111A] flex flex-col">

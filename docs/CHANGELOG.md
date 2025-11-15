@@ -4,6 +4,402 @@
 
 ---
 
+## [2025-11-14] - 🔐 Web 路由保护与认证修复 ✅ 完成
+
+### ✅ Added - 统一路由守卫系统
+
+**功能描述**:
+为所有受保护路由（Dashboard、Products、Policies、Policy 相关页面）添加了统一的路由守卫，确保未登录用户无法访问受保护页面，并稳定重定向到 `/auth/connect`，无 UI 闪烁。
+
+**实现细节**:
+1. **路由守卫 Hook** - `useRequireAuth` 已存在并优化
+   - 读取 `authStore` 的 `isAuthenticated`、`isLoading`、`user` 状态
+   - 提供 `isChecking` 状态，页面在检查期间显示统一 Loading 屏
+   - 未登录时使用 `router.replace('/auth/connect')` 重定向
+   - 添加日志前缀 `[useRequireAuth]` 便于排查
+
+2. **受保护页面接入路由守卫**
+   - `/dashboard` - 已有保护 ✅
+   - `/products` - 新增保护 ✅
+   - `/my-policies` - 新增保护 ✅
+   - `/policy/form/[productId]` - 新增保护 ✅
+   - `/policy/detail/[id]` - 新增保护 ✅
+   - `/policy/contract-sign/[policyId]` - 新增保护 ✅
+   - `/policy/success/[policyId]` - 新增保护 ✅
+
+3. **统一 Loading 屏样式**
+   - 所有受保护页面使用一致的 Loading UI
+   - 黑色背景 + 金黄色转圈 + "Checking auth..." 提示
+
+4. **/auth/connect 三态分流**
+   - 现有逻辑已完善，无需修改
+   - **已连接未登录**: 显示连接钱包按钮，触发 SIWE 登录
+   - **已登录未连接**: Effect 2 会断开陈旧连接（或用户可重新连接）
+   - **已登录已连接**: Effect 1 立即跳转到 `/dashboard`
+
+5. **根路由保持服务端重定向**
+   - `apps/web/src/app/page.tsx` 保持使用 `redirect('/auth/connect')`
+   - 避免历史上的"无限 Loading"问题回归
+
+**修改文件**:
+```
+apps/web/src/hooks/useRequireAuth.ts         # 已存在，保持原样
+apps/web/src/app/products/page.tsx           # 添加 useRequireAuth + Loading screen
+apps/web/src/app/my-policies/page.tsx        # 添加 useRequireAuth + Loading screen
+apps/web/src/app/policy/form/[productId]/page.tsx          # 添加 useRequireAuth + Loading screen
+apps/web/src/app/policy/detail/[id]/page.tsx               # 添加 useRequireAuth + Loading screen
+apps/web/src/app/policy/contract-sign/[policyId]/page.tsx  # 添加 useRequireAuth + Loading screen
+apps/web/src/app/policy/success/[policyId]/page.tsx        # 添加 useRequireAuth + Loading screen
+apps/web/src/app/auth/connect/page.tsx       # 保持现有三态分流逻辑（已完善）
+apps/web/src/app/page.tsx                    # 保持服务端 redirect（已优化）
+```
+
+**代码示例**:
+```typescript
+// 所有受保护页面的标准模式
+export default function ProtectedPage() {
+  // Protected route - require authentication
+  const { isChecking } = useRequireAuth()
+
+  // ... 页面逻辑
+
+  // Show loading screen while checking authentication
+  if (isChecking) {
+    return (
+      <div className="min-h-screen bg-[#0F111A] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-4 border-[#FFD54F] border-t-transparent rounded-full animate-spin" />
+          <p className="text-[#9CA3AF] text-sm font-medium">Checking auth...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Render normal page content
+  return <div>...</div>
+}
+```
+
+**测试验证**:
+```bash
+# 1. 构建测试
+pnpm --filter web build
+# ✅ 构建成功，无类型错误
+
+# 2. 本地验证
+pnpm --filter web dev
+
+# 3. 浏览器测试
+# ✅ 未登录访问 /dashboard → 稳定跳到 /auth/connect（无闪烁）
+# ✅ 未登录访问 /products → 稳定跳到 /auth/connect
+# ✅ 未登录访问 /my-policies → 稳定跳到 /auth/connect
+# ✅ 未登录访问 /policy/* → 稳定跳到 /auth/connect
+# ✅ /auth/connect 三态分流正确（已连接未登录、已登录未连接、已登录已连接）
+# ✅ 已登录访问受保护路由正常进入
+# ✅ 根路由 / 立即重定向到 /auth/connect（无 Loading）
+```
+
+**安全性**:
+- ✅ 不在前端日志打印 JWT、签名等敏感信息
+- ✅ 仅基于 `authStore` 与 `provider` 状态进行导航
+- ✅ 严格遵循"受保护路由必须登录"约束
+- ✅ 所有重定向使用 `replace()` 而非 `push()`，避免返回绕过认证
+
+**用户体验改进**:
+- 🎯 **无闪烁**: 首次访问受保护路由时不会出现"先渲染后跳转"的视觉跳动
+- ⚡ **快速响应**: Loading 屏简洁明了，authStore 初始化快速
+- 🔄 **稳定重定向**: 未登录用户始终被引导到 /auth/connect
+- 📱 **一致体验**: 所有受保护页面使用统一的 Loading 样式
+
+**注意事项**:
+- ⚠️ `/auth/connect` 的三态分流逻辑已经很完善，本次未修改
+- ⚠️ `authStore` 的 `loadStoredAuth()` 已优化（无 token 时立即设置 `isLoading: false`）
+- ⚠️ 所有 console.log 使用统一前缀（`[useRequireAuth]`、`[ConnectPage]`等）便于调试
+- ⚠️ 受保护页面的 `isChecking` 检查必须在所有其他逻辑之前，确保优先级
+
+**后续工作**:
+- [ ] 考虑为 Loading 屏添加国际化支持（当前硬编码 "Checking auth..."）
+- [ ] 可选：在 `useRequireAuth` 中添加更细粒度的权限检查（如角色、权限）
+- [ ] 可选：添加路由切换的 loading 指示器（NProgress 或类似）
+
+---
+
+## [2025-11-14] - 🎨 修复底部导航栏图标变形问题 ✅ 完成
+
+### 🐛 Fixed - 导航图标保持一致形状
+
+**问题描述**:
+底部导航栏的图标在 active (focus) 状态时会变形，因为 `fill` 和 `strokeWidth` 属性会改变图标的渲染方式。
+
+**根本原因**:
+```typescript
+// 之前的代码
+icon: (active: boolean) => (
+  <svg fill={active ? 'currentColor' : 'none'} stroke="currentColor">
+    <path strokeWidth={active ? 0 : 2} d="..." />
+  </svg>
+)
+```
+
+当 `active` 为 `true` 时：
+- `fill='currentColor'` 会填充图标内部
+- `strokeWidth={0}` 会移除描边
+- 这导致图标从描边样式变为填充样式，形状发生改变
+
+**解决方案**:
+移除动态的 `fill` 和 `strokeWidth` 属性，保持图标形状一致，只通过父元素的 `text-[#FFD54F]` 来改变颜色：
+
+```typescript
+// 修改后的代码
+icon: (active: boolean) => (
+  <svg fill="none" stroke="currentColor">
+    <path strokeWidth={2} d="..." />
+  </svg>
+)
+```
+
+- ✅ `fill` 始终为 `"none"`（不填充）
+- ✅ `strokeWidth` 始终为 `2`（描边宽度固定）
+- ✅ 颜色通过 `stroke="currentColor"` 继承父元素的文字颜色
+- ✅ 父元素的 `className` 根据 `isActive` 切换 `text-[#FFD54F]` 或 `text-[#9CA3AF]`
+
+**修改文件**:
+```
+apps/web/src/components/BottomNav.tsx (lines 15-46)
+```
+
+**效果**:
+- ✅ **非激活状态**: 灰色描边图标 (`text-[#9CA3AF]`)
+- ✅ **激活状态**: 金黄色描边图标 (`text-[#FFD54F]`)
+- ✅ **图标形状**: 始终保持一致，不会变形
+- ✅ **用户体验**: 清晰的视觉反馈，无闪烁或变形
+
+**测试方式**:
+```bash
+pnpm --filter web dev
+# 访问不同页面，观察底部导航栏图标
+# ✅ Dashboard、Products、Policies、Settings 之间切换
+# ✅ 图标应只改变颜色，不改变形状
+```
+
+---
+
+## [2025-11-14] - 🐛 修复首页无限 Loading 问题 ✅ 完成
+
+### 🐛 Fixed - 简化根路由为直接重定向
+
+**问题描述**:
+首次访问应用（localStorage 为空）时，根路由 `/` 会无限 loading，不会自动跳转到 `/auth/connect`。只有刷新页面后才能正常跳转。
+
+**根本原因**:
+根路由 `/` 使用了 Client Component + `useEffect` 进行路由跳转，依赖 `authStore` 的 `isLoading` 状态。在某些情况下（特别是首次访问），状态初始化的时序问题导致路由跳转失败。
+
+**解决方案**:
+完全移除根路由的复杂逻辑，改为使用 Next.js 的 `redirect()` 直接重定向到 `/auth/connect`：
+- ✅ **服务端重定向**：使用 `redirect()` 在服务端直接跳转，无需等待 Client Component 渲染
+- ✅ **简化架构**：移除不必要的中间层，`/auth/connect` 已有完整的认证路由逻辑
+- ✅ **性能提升**：页面体积从 1.81 kB 降至 143 B（减少 92%）
+
+**修改文件**:
+```
+apps/web/src/app/page.tsx (完全重写，从 76 行减少到 12 行)
+apps/web/src/store/authStore.ts (优化 loadStoredAuth 逻辑)
+```
+
+**修改内容**:
+```typescript
+// 修改前（76 行，Client Component）
+'use client'
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { useAuthStore } from '@/store/authStore'
+
+export default function Home() {
+  const router = useRouter()
+  const { isAuthenticated, isLoading } = useAuthStore()
+
+  useEffect(() => {
+    if (isLoading) return
+    if (isAuthenticated) {
+      router.replace('/dashboard')
+    } else {
+      router.replace('/auth/connect')
+    }
+  }, [isAuthenticated, isLoading, router])
+
+  return <div>Loading...</div>
+}
+
+// 修改后（12 行，Server Component）
+import { redirect } from 'next/navigation'
+
+/**
+ * Root Page - Immediate Redirect
+ * Redirects all traffic to /auth/connect
+ * The connect page handles authentication routing:
+ * - Not authenticated -> Show wallet connect UI
+ * - Authenticated -> Redirect to /dashboard
+ */
+export default function Home() {
+  redirect('/auth/connect')
+}
+```
+
+**authStore 优化**:
+```typescript
+// apps/web/src/store/authStore.ts
+loadStoredAuth: async () => {
+  try {
+    const storedToken = storage.getItem(JWT_STORAGE_KEY)
+
+    // ✅ 先检查 token，无 token 则立即 ready（不调用后端 API）
+    if (!storedToken) {
+      set({ isLoading: false, isAuthenticated: false, token: null, user: null })
+      console.log('[AuthStore] No stored token found, ready for login')
+      return
+    }
+
+    // ✅ 只有有 token 时才 loading 并验证
+    set({ isLoading: true })
+    // ... 调用后端验证
+  }
+}
+```
+
+**测试验证**:
+```bash
+# 1. 清除浏览器 localStorage
+# 2. 运行开发服务器
+pnpm --filter web dev
+
+# 3. 访问 http://localhost:3000
+# ✅ 立即重定向到 /auth/connect（无 loading 画面）
+# ✅ 无需刷新页面
+# ✅ 性能显著提升
+```
+
+**性能改进**:
+- 📦 **Bundle 体积**: 1.81 kB → 143 B（减少 **92%**）
+- ⚡ **加载速度**: 服务端重定向，无需等待 React hydration
+- 🎯 **用户体验**: 无闪烁、无 loading 画面，立即跳转
+
+**影响范围**:
+- ✅ 所有访问根路由 `/` 的请求都会立即重定向到 `/auth/connect`
+- ✅ `/auth/connect` 页面已有完整的认证逻辑（未登录显示连接页面，已登录跳转 dashboard）
+- ✅ 已登录用户的体验不受影响（authStore 仍会验证 token）
+- ✅ 首次访问用户的体验大幅提升（立即看到连接页面）
+
+---
+
+## [2025-11-14] - 🌐 Web 端国际化系统（英文/繁体中文） ✅ 完成
+
+### ✅ Added - 完整的双语支持系统
+
+**功能描述**:
+实现了完整的国际化（i18n）系统，支持英文和繁体中文双语切换。用户可以在 Welcome 页面和 Settings 页面一键切换语言，语言偏好会持久化存储在 localStorage 中，所有 UI 文字（除专业术语如 BTC/BSC）均已翻译。
+
+**实现细节**:
+1. **类型安全的翻译系统** - 使用 TypeScript 类型推导，确保所有翻译键的类型安全
+2. **Zustand 状态管理** - 统一的状态管理，与现有 authStore 模式一致
+3. **LocalStorage 持久化** - 语言偏好在页面刷新后保持
+4. **可复用组件** - LanguageSwitcher 组件支持 compact 和 button 两种变体
+5. **全局初始化** - AppProviders 中自动加载已保存的语言偏好
+
+**相关文件**:
+```
+apps/web/src/locales/
+├── en.ts                           # 英文翻译（220+ 行，完整覆盖所有模块）
+├── zh-TW.ts                        # 繁体中文翻译（220+ 行）
+└── index.ts                        # 配置和类型导出
+
+apps/web/src/store/
+└── localeStore.ts                  # Zustand store + hooks
+
+apps/web/src/components/
+├── LanguageSwitcher.tsx            # 语言切换按钮组件（双变体）
+├── AppProviders.tsx                # ✏️ 添加 locale 初始化
+└── BottomNav.tsx                   # ✏️ 使用 t.nav.* 翻译
+
+apps/web/src/app/
+├── auth/connect/page.tsx           # ✏️ Welcome 页面全面翻译
+└── settings/page.tsx               # ✏️ Settings 页面全面翻译 + 功能化语言切换
+```
+
+**翻译覆盖范围**:
+- ✅ Common（通用词汇）: 20+ 项
+- ✅ Welcome/Connect 页面: 15+ 项
+- ✅ Auth 流程: 5+ 项
+- ✅ Dashboard: 10+ 项
+- ✅ Policies: 15+ 项
+- ✅ Claims: 10+ 项
+- ✅ Settings: 30+ 项（包含所有设置选项和对话框）
+- ✅ Navigation: 5 项
+- ✅ Errors: 13+ 项
+- ✅ Success: 6+ 项
+- ✅ Confirm: 3+ 项
+- ✅ Date/Time: 7+ 项
+- ✅ Currency: 5+ 项
+
+**使用方法**:
+```typescript
+// 在任何 Client Component 中使用
+import { useTranslations, useCurrentLocale, useLocaleStore } from '@/store/localeStore'
+
+function MyComponent() {
+  const t = useTranslations()                      // 获取翻译对象
+  const locale = useCurrentLocale()                // 获取当前语言 'en' | 'zh-TW'
+  const setLocale = useLocaleStore((s) => s.setLocale)  // 切换语言函数
+
+  return (
+    <div>
+      <h1>{t.common.appName}</h1>
+      <p>{t.welcome.title}</p>
+      <button onClick={() => setLocale('zh-TW')}>切换到中文</button>
+    </div>
+  )
+}
+```
+
+**语言切换功能位置**:
+1. **Welcome/Connect 页面** - 右上角紧凑按钮（显示"中"/"EN"）
+2. **Settings 页面** - Preferences 区域的 Language 选项（可点击切换，显示完整语言名称）
+
+**技术亮点**:
+- 🔒 **类型安全**: 使用 TypeScript `typeof` 确保中文翻译与英文结构完全一致
+- 🚀 **零侵入**: 移除了 `as const`，避免字面量类型限制，提高灵活性
+- 📦 **轻量化**: 无需第三方 i18n 库，纯 Zustand + TypeScript 实现
+- 🔄 **实时响应**: 切换语言后所有组件立即更新，无需刷新页面
+- 💾 **持久化**: localStorage key `app_locale`，跨会话保持用户偏好
+
+**测试方式**:
+```bash
+# 构建测试
+pnpm --filter web build
+
+# 开发环境测试
+pnpm --filter web dev
+# 访问 http://localhost:3000/auth/connect
+# 1. 点击右上角"中"按钮，验证页面文字切换为繁体中文
+# 2. 刷新页面，验证语言偏好保持
+# 3. 进入 Settings 页面，点击 Language 选项，验证切换功能
+# 4. 测试所有页面的翻译完整性
+```
+
+**注意事项**:
+- ⚠️ **专业术语保持不变**: BTC, BSC, ETH, USDT 等专业术语在所有语言中保持英文原样
+- ⚠️ **未翻译的页面**: Dashboard, Products, Policies 等主要业务页面的翻译键已创建，但页面代码尚未更新使用翻译（待后续更新）
+- ⚠️ **默认语言**: 系统默认为英文（en），首次访问或清除 localStorage 后显示英文
+- ⚠️ **类型检查**: 如果添加新翻译键，必须同时在 en.ts 和 zh-TW.ts 中添加，否则会有 TypeScript 错误
+
+**后续工作**:
+- [ ] 更新 Dashboard 页面使用翻译
+- [ ] 更新 Products 页面使用翻译
+- [ ] 更新 My Policies 页面使用翻译
+- [ ] 更新 Policy 相关表单页面使用翻译
+- [ ] 添加更多语言支持（如简体中文）
+
+---
+
 ## [2025-11-14] - 🧪 整理和优化后端测试套件 ✅ 完成
 
 ### ✅ Added - 统一的测试管理系统
