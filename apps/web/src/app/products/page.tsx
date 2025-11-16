@@ -17,24 +17,13 @@ export default function ProductsPage() {
   const { data: products, isLoading, error } = useQuery({
     queryKey: ['products'],
     queryFn: async () => {
-      const response = await apiClient.get<Types.Product[]>(API_ENDPOINTS.PRODUCTS)
-      return response.data
+      const response = await apiClient.get<Types.BackendSku[]>(API_ENDPOINTS.PRODUCTS)
+      // Adapt backend SKU to frontend Product type
+      return response.data.map(Utils.mapProduct)
     },
   })
 
-  // Mock product for display if API fails
-  const mockProducts = [
-    {
-      id: 'mock-1',
-      name: 'YULIY SHIELD INSURANCE',
-      description: 'Coverage for Coinbase Custody claims',
-      coverageAmount: '10000',
-      premiumAmount: '100',
-      termDays: 90,
-    }
-  ]
-
-  const displayProducts = products || mockProducts
+  const displayProducts = products || []
 
   // Show loading screen while checking authentication
   if (isChecking) {
@@ -97,7 +86,7 @@ export default function ProductsPage() {
         {error && (
           <div className="bg-red-500/10 border border-red-500/50 rounded-lg p-4 mb-6">
             <p className="text-red-500 text-sm">
-              Error loading products. Showing mock data.
+              Failed to load products. Please try again later.
             </p>
           </div>
         )}
@@ -109,12 +98,9 @@ export default function ProductsPage() {
               key={product.id}
               className="bg-[#1A1D2E] rounded-lg p-6 border border-[#374151]"
             >
-              <h2 className="text-white text-lg font-bold mb-2">
+              <h2 className="text-white text-lg font-bold mb-4">
                 {product.name}
               </h2>
-              <p className="text-[#9CA3AF] text-sm mb-4">
-                {product.description}
-              </p>
 
               <div className="space-y-2 mb-6 text-sm">
                 <div className="flex items-center justify-between">
@@ -136,7 +122,7 @@ export default function ProductsPage() {
               </div>
 
               <Link
-                href={`/policy/form/${product.id}`}
+                href={`/policy/form/${product.id}?name=${encodeURIComponent(product.name)}&termDays=${product.termDays}&premium=${product.premiumAmount}&coverage=${product.coverageAmount}`}
                 className="block text-center px-4 py-3 bg-[#FFD54F] text-[#0F111A] rounded-lg hover:brightness-110 transition-all font-semibold text-sm"
               >
                 Select

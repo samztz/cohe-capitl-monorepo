@@ -3,14 +3,16 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 3030",
+    "dev": "next dev -p 3000",
     "build": "next build",
-    "start": "next start -p 3030",
+    "start": "next start -p 3000",
     "lint": "next lint"
   },
   "dependencies": {
+    "@hookform/resolvers": "^3.9.1",
     "@reown/appkit": "^1.8.14",
     "@reown/appkit-adapter-ethers": "^1.8.14",
+    "@reown/appkit-pay": "^1.8.14",
     "@tanstack/react-query": "^5.62.11",
     "axios": "^1.7.7",
     "dayjs": "^1.11.13",
@@ -18,6 +20,7 @@
     "next": "^14.2.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "react-hook-form": "^7.54.0",
     "viem": "~2.38.5",
     "zod": "^3.23.8",
     "zustand": "^5.0.8"

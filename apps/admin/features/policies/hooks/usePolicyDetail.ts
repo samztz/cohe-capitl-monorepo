@@ -5,7 +5,7 @@ import { Policy, ReviewRequest } from '../schemas'
 export function usePolicyDetail(id: string) {
   return useQuery({
     queryKey: ['policy', id],
-    queryFn: () => apiClient.get<Policy>(`/policy/${id}`),
+    queryFn: () => apiClient.get<Policy>(`/admin/policies/${id}`),
     enabled: !!id,
   })
 }

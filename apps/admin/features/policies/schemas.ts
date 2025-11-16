@@ -52,7 +52,7 @@ export const PoliciesResponse = z.object({
   items: z.array(Policy),
   total: z.number(),
   page: z.number(),
-  limit: z.number(),
+  pageSize: z.number(),
 })
 
 export type PoliciesResponse = z.infer<typeof PoliciesResponse>

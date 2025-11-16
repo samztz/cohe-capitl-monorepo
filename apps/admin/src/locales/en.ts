@@ -72,6 +72,7 @@ export const en = {
     dashboard: 'Dashboard',
     allPolicies: 'All Policies',
     reviewQueue: 'Review Queue',
+    settings: 'Settings',
     logout: 'Logout',
   },
   policyDetail: {
@@ -125,6 +126,22 @@ export const en = {
   policiesPage: {
     title: 'All Policies',
     description: 'View and manage all policy applications',
+  },
+  settingsPage: {
+    title: 'Settings',
+    description: 'Configure system settings',
+    treasury: 'Treasury Settings',
+    treasuryDescription: 'Configure the wallet address for receiving insurance premium payments',
+    treasuryAddress: 'Treasury Address',
+    treasuryAddressPlaceholder: '0x...',
+    currentAddress: 'Current Address',
+    notConfigured: 'Not configured',
+    update: 'Update Address',
+    updating: 'Updating...',
+    updateSuccess: 'Treasury address updated successfully',
+    updateError: 'Failed to update treasury address',
+    invalidAddress: 'Invalid Ethereum address format',
+    addressRequired: 'Treasury address is required',
   },
 }
 

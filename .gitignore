@@ -17,5 +17,8 @@ apps/mobile/android/*
 apps/mobile/ios/*
 
 apps/admin/.turbo/turbo-build.log
+apps/admin/.turbo/turbo-dev.log
 apps/api/.turbo/turbo-build.log
 apps/web/.turbo/turbo-build.log
+apps/web/.turbo/turbo-dev.log
+docs/ui-snapshot/policy-form-001.png

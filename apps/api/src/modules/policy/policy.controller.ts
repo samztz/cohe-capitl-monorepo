@@ -35,10 +35,12 @@ import { CountdownResponseDto } from './dto/countdown-response.dto';
 
 /**
  * Validation schema for policy creation request
- * Validates SKU ID is a non-empty string
+ * Validates SKU ID, premium amount, and coverage amount
  */
 const CreatePolicyRequestSchema = z.object({
   skuId: z.string().min(1, 'SKU_ID_REQUIRED'),
+  premiumAmt: z.string().min(1, 'PREMIUM_AMT_REQUIRED'),
+  coverageAmt: z.string().min(1, 'COVERAGE_AMT_REQUIRED'),
 });
 
 /**
@@ -144,14 +146,16 @@ export class PolicyController {
       });
     }
 
-    const { skuId } = parsed.data;
+    const { skuId, premiumAmt, coverageAmt } = parsed.data;
     const { userId, address } = req.user;
 
-    // Create policy with authenticated user's info
+    // Create policy with authenticated user's info and specified amounts
     return this.policyService.createPolicy({
       skuId,
       userId,
       walletAddress: address,
+      premiumAmt,
+      coverageAmt,
     });
   }
 
@@ -236,6 +240,61 @@ export class PolicyController {
       userSig,
       userId,
     });
+  }
+
+  /**
+   * Get user's policies
+   *
+   * GET /policy/my/list
+   *
+   * Retrieves all policies for the authenticated user.
+   * Returns policies ordered by creation date (newest first).
+   *
+   * @param req - Request with authenticated user info from JWT
+   * @returns Array of policy objects
+   *
+   * @example
+   * Request:
+   * GET /policy/my/list
+   * Authorization: Bearer <jwt-token>
+   *
+   * Response:
+   * [
+   *   {
+   *     "id": "550e8400-e29b-41d4-a716-446655440000",
+   *     "userId": "650e8400-e29b-41d4-a716-446655440000",
+   *     "skuId": "bsc-usdt-plan-seed",
+   *     "walletAddress": "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
+   *     "premiumAmt": "100.0",
+   *     "status": "ACTIVE",
+   *     "createdAt": "2025-01-01T00:00:00.000Z",
+   *     "updatedAt": "2025-01-01T00:00:00.000Z"
+   *   }
+   * ]
+   */
+  @Get('my/list')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT')
+  @ApiOperation({
+    summary: 'Get user policies',
+    description:
+      'Retrieves all policies for the authenticated user. ' +
+      'Returns policies ordered by creation date (newest first).',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Policies retrieved successfully',
+    type: [PolicyResponseDto],
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - Invalid or missing JWT token',
+  })
+  async getUserPolicies(
+    @Req() req: { user: AuthenticatedUser },
+  ): Promise<Policy[]> {
+    const { userId } = req.user;
+    return this.policyService.getUserPolicies(userId);
   }
 
   /**

@@ -41,6 +41,39 @@ export class AdminPolicyItem {
   skuId!: string;
 
   /**
+   * SKU name (product name)
+   * @example 'YULILY SHIELD INSURANCE'
+   */
+  @ApiProperty({
+    description: 'Product name',
+    example: 'YULILY SHIELD INSURANCE',
+    required: false,
+  })
+  skuName?: string;
+
+  /**
+   * Coverage amount (as string to preserve precision)
+   * @example '10000.0'
+   */
+  @ApiProperty({
+    description: 'Coverage amount',
+    example: '10000.0',
+    required: false,
+  })
+  coverageAmt?: string;
+
+  /**
+   * Term duration in days
+   * @example 90
+   */
+  @ApiProperty({
+    description: 'Insurance term in days',
+    example: 90,
+    required: false,
+  })
+  termDays?: number;
+
+  /**
    * Premium amount (as string to preserve precision)
    * @example '100.0'
    */
@@ -49,6 +82,17 @@ export class AdminPolicyItem {
     example: '100.0',
   })
   premiumAmt!: string;
+
+  /**
+   * User email
+   * @example 'user@example.com'
+   */
+  @ApiProperty({
+    description: 'User email address',
+    example: 'user@example.com',
+    required: false,
+  })
+  email?: string;
 
   /**
    * Current policy status

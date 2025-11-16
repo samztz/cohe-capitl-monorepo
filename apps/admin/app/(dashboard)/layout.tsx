@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClient } from '@/lib/queryClient'
@@ -9,15 +9,17 @@ import { Button } from '@/components/ui/button'
 import { Toaster } from '@/components/ui/toaster'
 import { LanguageSwitcher } from '@/components/LanguageSwitcher'
 import { useLocaleStore } from '@/src/store/localeStore'
-import { LayoutDashboard, FileText, ClipboardCheck, LogOut } from 'lucide-react'
+import { LayoutDashboard, FileText, ClipboardCheck, Settings, LogOut } from 'lucide-react'
 import Link from 'next/link'
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { t } = useLocaleStore()
   const router = useRouter()
   const pathname = usePathname()
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
+    setMounted(true)
     if (!isAuthed()) {
       router.push('/login')
     }
@@ -26,6 +28,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const handleLogout = () => {
     logout()
     router.push('/login')
+  }
+
+  // Show nothing until client-side hydration is complete
+  if (!mounted) {
+    return null
   }
 
   const user = getUser()
@@ -38,6 +45,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { name: t.navigation.dashboard, href: '/dashboard', icon: LayoutDashboard },
     { name: t.navigation.allPolicies, href: '/policies', icon: FileText },
     { name: t.navigation.reviewQueue, href: '/review', icon: ClipboardCheck },
+    { name: t.navigation.settings, href: '/settings', icon: Settings },
   ]
 
   return (

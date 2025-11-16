@@ -62,4 +62,16 @@ export class ListAdminPoliciesQuery {
     message: `status must be one of: ${Object.values(PolicyStatus).join(', ')}`,
   })
   status?: PolicyStatus;
+
+  /**
+   * Search query (searches in policy ID, wallet address, and user email)
+   * @example '0x1234'
+   */
+  @ApiProperty({
+    description: 'Search query for policy ID, wallet address, or user email',
+    example: '0x1234',
+    required: false,
+  })
+  @IsOptional()
+  q?: string;
 }

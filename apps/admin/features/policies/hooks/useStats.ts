@@ -5,6 +5,10 @@ import { StatsResponse } from '../schemas'
 export function useStats() {
   return useQuery({
     queryKey: ['stats'],
-    queryFn: () => apiClient.get<StatsResponse>('/api/admin/stats'),
+    queryFn: async () => {
+      // Use dedicated stats endpoint
+      const stats = await apiClient.get<StatsResponse>('/admin/stats')
+      return stats
+    },
   })
 }

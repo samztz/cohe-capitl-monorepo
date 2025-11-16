@@ -2,19 +2,36 @@
  * Shared Types for Cohe Capital
  */
 
-// Product/SKU Types
+// Backend SKU Type (from API response)
+export interface BackendSku {
+  id: string;
+  name: string;
+  chainId: number;
+  tokenAddress: string;
+  decimals: number;
+  premiumAmt: string;  // Backend field name
+  coverageAmt: string; // Backend field name
+  termDays: number;
+  status: string;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+}
+
+// Product/SKU Types (Frontend)
 export interface Product {
   id: string;
   name: string;
-  description: string;
-  coverageAmount: string; // Decimal as string
-  premiumAmount: string;  // Decimal as string
+  description?: string;
+  coverageAmount: string; // Mapped from coverageAmt
+  premiumAmount: string;  // Mapped from premiumAmt
   termDays: number;
-  tokenAddress: string;
-  chainId: number;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
+  tokenAddress?: string;
+  chainId?: number;
+  decimals?: number;
+  status?: string;
+  isActive?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 // Policy Types

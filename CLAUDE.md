@@ -53,6 +53,12 @@ Security: validate address format, ensure JWT.address === payload.address.
   - API: `*.spec.ts` using supertest.
   - Contracts: Foundry tests with revert reasons.
   - RN components: react-native-testing-library.
+- **Test Script Organization** (MANDATORY):
+  - ✅ Unit/integration tests: Place in `apps/{app}/test/` or `apps/{app}/src/**/*.spec.ts`
+  - ✅ Manual test scripts: Place in `scripts/tests/` (e.g., `test-api.mjs`, `test-policy.sh`)
+  - ✅ Test documentation: Place in `docs/` or `docs/archived/` for outdated docs
+  - ❌ **NEVER** create test files in project root
+  - ❌ **NEVER** create test files scattered across random directories
 
 ---
 

@@ -1,71 +1,130 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useRequireAuth } from '@/hooks/useRequireAuth'
+import { apiClient } from '@/lib/apiClient'
+import { useAuthStore } from '@/store/authStore'
 
-// Mock policy data - will be replaced with API call later
-const mockPolicyData: Record<string, any> = {
-  '1': {
-    id: '1',
-    productName: 'YULIY SHIELD INSURANCE',
-    status: 'active',
-    coverageAmount: '600',
-    premiumAmount: '60',
-    startDate: '2025-09-16',
-    endDate: '2026-05-03',
-    daysRemaining: 89,
-    walletAddress: '0xABCD...B064',
-    policyNumber: 'POL-2025-001',
-    blockchain: 'BSC',
-    token: 'USDT',
-    transactionHash: '0x1234...5678',
-  },
-  '2': {
-    id: '2',
-    productName: 'YULIY SHIELD INSURANCE',
-    status: 'under_review',
-    coverageAmount: '1000',
-    premiumAmount: '100',
-    startDate: null,
-    endDate: null,
-    daysRemaining: null,
-    walletAddress: '0xABCD...B064',
-    policyNumber: 'POL-2025-002',
-    blockchain: 'BSC',
-    token: 'USDT',
-    transactionHash: '0xabcd...efgh',
-  },
-  '3': {
-    id: '3',
-    productName: 'YULIY SHIELD INSURANCE',
-    status: 'expired',
-    coverageAmount: '500',
-    premiumAmount: '50',
-    startDate: '2024-01-01',
-    endDate: '2024-04-01',
-    daysRemaining: 0,
-    walletAddress: '0xABCD...B064',
-    policyNumber: 'POL-2024-001',
-    blockchain: 'BSC',
-    token: 'USDT',
-    transactionHash: '0x9876...5432',
-  },
+interface Policy {
+  id: string
+  skuId: string
+  walletAddress: string
+  premiumAmt: string
+  coverageAmt: string
+  status: string
+  contractHash?: string
+  startAt?: string
+  endAt?: string
+  paymentDeadline?: string
+  createdAt: string
+  updatedAt: string
+}
+
+interface Product {
+  id: string
+  name: string
+  chainId: number
+  tokenAddress: string
+  premiumAmt: string
+  coverageAmt: string
+  termDays: number
+}
+
+// Map backend status to display label
+const getStatusLabel = (status: string) => {
+  switch (status) {
+    case 'ACTIVE':
+      return 'Active'
+    case 'PENDING_UNDERWRITING':
+    case 'DRAFT':
+      return 'Pending Review'
+    case 'APPROVED_AWAITING_PAYMENT':
+      return 'Awaiting Payment'
+    case 'EXPIRED':
+    case 'EXPIRED_UNPAID':
+      return 'Expired'
+    case 'REJECTED':
+      return 'Rejected'
+    default:
+      return status
+  }
 }
 
 export default function PolicyDetailPage() {
   // Protected route - require authentication
   const { isChecking } = useRequireAuth()
+  const user = useAuthStore((state) => state.user)
 
   const params = useParams()
   const router = useRouter()
   const policyId = params.id as string
 
-  const policy = mockPolicyData[policyId]
+  const [policy, setPolicy] = useState<Policy | null>(null)
+  const [product, setProduct] = useState<Product | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string>('')
+  const [daysRemaining, setDaysRemaining] = useState<number | null>(null)
+
+  useEffect(() => {
+    if (!isChecking && user && policyId) {
+      loadPolicy()
+    }
+  }, [isChecking, user, policyId])
+
+  async function loadPolicy() {
+    try {
+      setLoading(true)
+      setError('')
+
+      const response = await apiClient.get<Policy>(`/policy/${policyId}`)
+      const policyData = response.data
+      setPolicy(policyData)
+
+      // Load product information
+      const productsResponse = await apiClient.get<Product[]>('/products')
+      const products = productsResponse.data
+      const productData = products.find((p) => p.id === policyData.skuId)
+      setProduct(productData || null)
+
+      // Calculate days remaining for active policies
+      if (policyData.status === 'ACTIVE' && policyData.endAt) {
+        const end = new Date(policyData.endAt)
+        const now = new Date()
+        const diffMs = end.getTime() - now.getTime()
+        const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24))
+        setDaysRemaining(Math.max(0, diffDays))
+      }
+    } catch (err: any) {
+      console.error('[Policy Detail] Load error:', err)
+      setError(err.response?.data?.message || 'Failed to load policy details')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'ACTIVE':
+        return 'bg-green-500/20 text-green-500'
+      case 'PENDING_UNDERWRITING':
+      case 'DRAFT':
+        return 'bg-yellow-500/20 text-yellow-500'
+      case 'APPROVED_AWAITING_PAYMENT':
+        return 'bg-blue-500/20 text-blue-500'
+      case 'EXPIRED':
+      case 'EXPIRED_UNPAID':
+      case 'REJECTED':
+        return 'bg-gray-500/20 text-gray-500'
+      default:
+        return 'bg-gray-500/20 text-gray-500'
+    }
+  }
 
   // Show loading screen while checking authentication
-  if (isChecking) {
+  if (isChecking || !user) {
     return (
       <div className="min-h-screen bg-[#0F111A] flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
@@ -76,7 +135,18 @@ export default function PolicyDetailPage() {
     )
   }
 
-  if (!policy) {
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#0F111A] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-4 border-[#FFD54F] border-t-transparent rounded-full animate-spin" />
+          <p className="text-[#9CA3AF] text-sm font-medium">Loading policy...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!policy || error) {
     return (
       <div className="min-h-screen bg-[#0F111A] flex flex-col">
         <header className="px-5 py-4 flex items-center justify-between">
@@ -93,15 +163,17 @@ export default function PolicyDetailPage() {
             </span>
           </div>
           <div className="bg-[#FFD54F] text-[#0F111A] px-4 py-1.5 rounded-lg text-sm font-semibold h-8 flex items-center">
-            0xAB...B064
+            {user.address?.slice(0, 6)}...{user.address?.slice(-4)}
           </div>
         </header>
 
         <div className="flex-1 flex items-center justify-center px-5">
           <div className="text-center">
-            <h1 className="text-white text-xl font-bold mb-2">Policy Not Found</h1>
+            <h1 className="text-white text-xl font-bold mb-2">
+              {error ? 'Error Loading Policy' : 'Policy Not Found'}
+            </h1>
             <p className="text-[#9CA3AF] text-sm mb-4">
-              The policy you're looking for doesn't exist.
+              {error || "The policy you're looking for doesn't exist."}
             </p>
             <Link
               href="/my-policies"
@@ -113,32 +185,6 @@ export default function PolicyDetailPage() {
         </div>
       </div>
     )
-  }
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active':
-        return 'bg-green-500/20 text-green-500'
-      case 'under_review':
-        return 'bg-yellow-500/20 text-yellow-500'
-      case 'expired':
-        return 'bg-gray-500/20 text-gray-500'
-      default:
-        return 'bg-gray-500/20 text-gray-500'
-    }
-  }
-
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case 'active':
-        return 'Active'
-      case 'under_review':
-        return 'Pending Review'
-      case 'expired':
-        return 'Expired'
-      default:
-        return status
-    }
   }
 
   return (
@@ -158,13 +204,16 @@ export default function PolicyDetailPage() {
           </span>
         </div>
         <div className="bg-[#FFD54F] text-[#0F111A] px-4 py-1.5 rounded-lg text-sm font-semibold h-8 flex items-center">
-          {policy.walletAddress}
+          {policy.walletAddress.slice(0, 6)}...{policy.walletAddress.slice(-4)}
         </div>
       </header>
 
       {/* Back Button */}
       <div className="px-5 py-4">
-        <Link href="/my-policies" className="text-white text-sm flex items-center gap-2 hover:opacity-80">
+        <Link
+          href="/my-policies"
+          className="text-white text-sm flex items-center gap-2 hover:opacity-80"
+        >
           &lt; BACK
         </Link>
       </div>
@@ -175,13 +224,13 @@ export default function PolicyDetailPage() {
         <div className="mb-6">
           <div className="flex items-start justify-between mb-2">
             <h1 className="text-white text-2xl font-bold flex-1">
-              {policy.productName}
+              {product?.name || 'Insurance Policy'}
             </h1>
             <div className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(policy.status)}`}>
               {getStatusLabel(policy.status)}
             </div>
           </div>
-          <p className="text-[#9CA3AF] text-sm">Policy #{policy.policyNumber}</p>
+          <p className="text-[#9CA3AF] text-sm">Policy #{policy.id.slice(0, 8)}...</p>
         </div>
 
         {/* Coverage Overview Card */}
@@ -190,43 +239,51 @@ export default function PolicyDetailPage() {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <span className="text-[#9CA3AF] text-sm">Coverage Amount</span>
-              <span className="text-white text-lg font-bold">{policy.coverageAmount} {policy.token}</span>
+              <span className="text-white text-lg font-bold">{policy?.coverageAmt || '0'} USDT</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-[#9CA3AF] text-sm">Premium Paid</span>
-              <span className="text-white text-sm font-semibold">{policy.premiumAmount} {policy.token}</span>
+              <span className="text-white text-sm font-semibold">{policy.premiumAmt} USDT</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-[#9CA3AF] text-sm">Blockchain</span>
-              <span className="text-white text-sm font-semibold">{policy.blockchain}</span>
+              <span className="text-white text-sm font-semibold">
+                {product?.chainId === 56 ? 'BSC' : product?.chainId === 97 ? 'BSC Testnet' : `Chain ${product?.chainId}`}
+              </span>
             </div>
           </div>
         </div>
 
         {/* Period Information */}
-        {policy.startDate && policy.endDate && (
+        {policy.startAt && policy.endAt && (
           <div className="bg-[#1A1D2E] rounded-lg p-6 border border-[#374151] mb-6">
             <h2 className="text-white text-lg font-semibold mb-4">Coverage Period</h2>
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-[#9CA3AF] text-sm">Start Date</span>
-                <span className="text-white text-sm font-semibold">{policy.startDate}</span>
+                <span className="text-white text-sm font-semibold">
+                  {new Date(policy.startAt).toLocaleDateString()}
+                </span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-[#9CA3AF] text-sm">End Date</span>
-                <span className="text-white text-sm font-semibold">{policy.endDate}</span>
+                <span className="text-white text-sm font-semibold">
+                  {new Date(policy.endAt).toLocaleDateString()}
+                </span>
               </div>
-              {policy.status === 'active' && policy.daysRemaining !== null && (
+              {policy.status === 'ACTIVE' && daysRemaining !== null && (
                 <>
                   <div className="flex items-center justify-between">
                     <span className="text-[#9CA3AF] text-sm">Days Remaining</span>
-                    <span className="text-[#FFD54F] text-sm font-semibold">{policy.daysRemaining} days</span>
+                    <span className="text-[#FFD54F] text-sm font-semibold">{daysRemaining} days</span>
                   </div>
                   <div className="mt-2">
                     <div className="w-full bg-[#374151] h-2 rounded-full overflow-hidden">
                       <div
                         className="bg-[#FFD54F] h-full rounded-full transition-all"
-                        style={{ width: `${(policy.daysRemaining / 90) * 100}%` }}
+                        style={{
+                          width: `${Math.min(100, (daysRemaining / (product?.termDays || 90)) * 100)}%`,
+                        }}
                       />
                     </div>
                   </div>
@@ -244,35 +301,95 @@ export default function PolicyDetailPage() {
               <div className="text-[#9CA3AF] text-xs mb-1">Wallet Address</div>
               <div className="text-white text-sm font-mono break-all">{policy.walletAddress}</div>
             </div>
+            {policy.contractHash && (
+              <div>
+                <div className="text-[#9CA3AF] text-xs mb-1">Contract Hash</div>
+                <div className="text-white text-sm font-mono break-all">{policy.contractHash}</div>
+              </div>
+            )}
             <div>
-              <div className="text-[#9CA3AF] text-xs mb-1">Transaction Hash</div>
-              <div className="text-white text-sm font-mono break-all">{policy.transactionHash}</div>
+              <div className="text-[#9CA3AF] text-xs mb-1">Created At</div>
+              <div className="text-white text-sm">
+                {new Date(policy.createdAt).toLocaleString()}
+              </div>
             </div>
           </div>
         </div>
 
         {/* Policy Status Information */}
-        {policy.status === 'under_review' && (
+        {policy.status === 'PENDING_UNDERWRITING' && (
           <div className="bg-yellow-500/10 border border-yellow-500/50 rounded-lg p-4 mb-6">
             <div className="flex items-start gap-3">
-              <svg className="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              <svg
+                className="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                />
               </svg>
               <div>
                 <h3 className="text-yellow-500 text-sm font-semibold mb-1">Pending Review</h3>
                 <p className="text-yellow-500/80 text-xs">
-                  Your policy is currently under review. We'll notify you once it's approved and active.
+                  Your policy is currently under review. We'll notify you once it's approved and
+                  active.
                 </p>
               </div>
             </div>
           </div>
         )}
 
-        {policy.status === 'expired' && (
+        {policy.status === 'APPROVED_AWAITING_PAYMENT' && (
+          <div className="bg-blue-500/10 border border-blue-500/50 rounded-lg p-4 mb-6">
+            <div className="flex items-start gap-3">
+              <svg
+                className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              <div>
+                <h3 className="text-blue-500 text-sm font-semibold mb-1">Awaiting Payment</h3>
+                <p className="text-blue-500/80 text-xs mb-2">
+                  Your policy has been approved! Please complete the payment to activate your coverage.
+                </p>
+                {policy.paymentDeadline && (
+                  <p className="text-blue-500/60 text-xs">
+                    Payment deadline: {new Date(policy.paymentDeadline).toLocaleString()}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {(policy.status === 'EXPIRED' || policy.status === 'EXPIRED_UNPAID') && (
           <div className="bg-gray-500/10 border border-gray-500/50 rounded-lg p-4 mb-6">
             <div className="flex items-start gap-3">
-              <svg className="w-5 h-5 text-gray-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <svg
+                className="w-5 h-5 text-gray-500 flex-shrink-0 mt-0.5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
               </svg>
               <div>
                 <h3 className="text-gray-500 text-sm font-semibold mb-1">Policy Expired</h3>
@@ -284,19 +401,52 @@ export default function PolicyDetailPage() {
           </div>
         )}
 
+        {policy.status === 'REJECTED' && (
+          <div className="bg-red-500/10 border border-red-500/50 rounded-lg p-4 mb-6">
+            <div className="flex items-start gap-3">
+              <svg
+                className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              <div>
+                <h3 className="text-red-500 text-sm font-semibold mb-1">Policy Rejected</h3>
+                <p className="text-red-500/80 text-xs">
+                  This policy was not approved. Please contact support for more information.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Contract Document */}
-        <div className="bg-[#1A1D2E] rounded-lg p-6 border border-[#374151] mb-6">
-          <h2 className="text-white text-lg font-semibold mb-4">Policy Contract</h2>
-          <button className="w-full bg-[#2D3748] text-white px-4 py-3 rounded-lg border border-[#374151] hover:bg-[#374151] transition-all flex items-center justify-center gap-2">
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            <span className="text-sm font-semibold">Download Contract (PDF)</span>
-          </button>
-        </div>
+        {policy.contractHash && (
+          <div className="bg-[#1A1D2E] rounded-lg p-6 border border-[#374151] mb-6">
+            <h2 className="text-white text-lg font-semibold mb-4">Policy Contract</h2>
+            <button className="w-full bg-[#2D3748] text-white px-4 py-3 rounded-lg border border-[#374151] hover:bg-[#374151] transition-all flex items-center justify-center gap-2">
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
+              <span className="text-sm font-semibold">Download Contract (PDF)</span>
+            </button>
+          </div>
+        )}
 
         {/* Action Buttons */}
-        {policy.status === 'active' && (
+        {policy.status === 'ACTIVE' && (
           <div className="space-y-3">
             <button className="w-full bg-[#FFD54F] text-[#0F111A] px-6 py-4 rounded-lg font-semibold text-sm hover:brightness-110 transition-all">
               File a Claim
@@ -307,7 +457,16 @@ export default function PolicyDetailPage() {
           </div>
         )}
 
-        {policy.status === 'expired' && (
+        {policy.status === 'APPROVED_AWAITING_PAYMENT' && (
+          <Link
+            href={`/policy/payment/${policy.id}`}
+            className="block w-full bg-[#FFD54F] text-[#0F111A] px-6 py-4 rounded-lg font-semibold text-sm hover:brightness-110 transition-all text-center"
+          >
+            Complete Payment
+          </Link>
+        )}
+
+        {(policy.status === 'EXPIRED' || policy.status === 'EXPIRED_UNPAID') && (
           <Link
             href="/products"
             className="block w-full bg-[#FFD54F] text-[#0F111A] px-6 py-4 rounded-lg font-semibold text-sm hover:brightness-110 transition-all text-center"
@@ -316,7 +475,7 @@ export default function PolicyDetailPage() {
           </Link>
         )}
 
-        {policy.status === 'under_review' && (
+        {(policy.status === 'PENDING_UNDERWRITING' || policy.status === 'DRAFT') && (
           <button className="w-full bg-[#1A1D2E] text-white px-6 py-4 rounded-lg font-semibold text-sm border border-[#374151] hover:bg-[#2D3748] transition-all">
             Contact Support
           </button>

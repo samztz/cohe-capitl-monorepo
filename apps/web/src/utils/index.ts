@@ -4,6 +4,7 @@
 
 import dayjs from 'dayjs';
 import duration from 'dayjs/plugin/duration';
+import type { BackendSku, Product } from '@/types';
 
 dayjs.extend(duration);
 
@@ -66,4 +67,25 @@ export function formatCurrency(amount: string | number, decimals = 2): string {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
   });
+}
+
+/**
+ * Map backend SKU response to frontend Product type
+ * Adapts premiumAmt/coverageAmt field names to premiumAmount/coverageAmount
+ */
+export function mapProduct(sku: BackendSku): Product {
+  return {
+    id: sku.id,
+    name: sku.name,
+    premiumAmount: sku.premiumAmt,
+    coverageAmount: sku.coverageAmt,
+    termDays: sku.termDays,
+    chainId: sku.chainId,
+    tokenAddress: sku.tokenAddress,
+    decimals: sku.decimals,
+    status: sku.status,
+    isActive: sku.status === 'active',
+    createdAt: typeof sku.createdAt === 'string' ? sku.createdAt : sku.createdAt.toISOString(),
+    updatedAt: typeof sku.updatedAt === 'string' ? sku.updatedAt : sku.updatedAt.toISOString(),
+  };
 }

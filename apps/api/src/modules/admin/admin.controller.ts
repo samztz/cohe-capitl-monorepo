@@ -58,6 +58,52 @@ export class AdminController {
   constructor(private readonly adminService: AdminService) {}
 
   /**
+   * Get statistics for admin dashboard
+   *
+   * GET /admin/stats
+   *
+   * Returns aggregated statistics for the admin dashboard.
+   * Used by the dashboard to display summary cards with policy counts.
+   *
+   * @returns Statistics object with counts
+   *
+   * @example
+   * Request:
+   * GET /admin/stats
+   *
+   * Response:
+   * {
+   *   "total": 150,
+   *   "underReview": 20,
+   *   "approvedToday": 5,
+   *   "rejectedToday": 2
+   * }
+   */
+  @Get('stats')
+  @ApiOperation({
+    summary: 'Get admin dashboard statistics',
+    description:
+      'Returns aggregated statistics including total policies, policies under review, ' +
+      'approved policies awaiting payment, and rejected policies. ' +
+      'Note: "approvedToday" and "rejectedToday" currently return totals, not daily counts.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Statistics retrieved successfully',
+    schema: {
+      properties: {
+        total: { type: 'number', example: 150 },
+        underReview: { type: 'number', example: 20 },
+        approvedToday: { type: 'number', example: 5 },
+        rejectedToday: { type: 'number', example: 2 },
+      },
+    },
+  })
+  async getStats() {
+    return this.adminService.getStats();
+  }
+
+  /**
    * List policies with pagination and filtering
    *
    * GET /admin/policies?status=under_review&page=1&pageSize=20
@@ -116,6 +162,13 @@ export class AdminController {
     example: 20,
     type: Number,
   })
+  @ApiQuery({
+    name: 'q',
+    required: false,
+    description: 'Search query for policy ID, wallet address, or user email',
+    example: '0x1234',
+    type: String,
+  })
   @ApiResponse({
     status: 200,
     description: 'Policy list retrieved successfully',
@@ -129,9 +182,10 @@ export class AdminController {
     @Query() query: ListAdminPoliciesQuery,
   ): Promise<AdminPolicyListResponse> {
     const result = await this.adminService.listPolicies({
-      page: query.page || 1,
-      pageSize: query.pageSize || 20,
+      page: Number(query.page) || 1,
+      pageSize: Number(query.pageSize) || 20,
       status: query.status,
+      q: query.q,
     });
 
     return {
@@ -142,9 +196,129 @@ export class AdminController {
         id: item.id,
         walletAddress: item.walletAddress,
         skuId: item.skuId,
+        skuName: item.skuName,
+        coverageAmt: item.coverageAmt,
+        termDays: item.termDays,
         premiumAmt: item.premiumAmt,
+        email: item.email,
         status: item.status,
         createdAt: item.createdAt.toISOString(),
+      })),
+    };
+  }
+
+  /**
+   * Get a single policy by ID
+   *
+   * GET /admin/policies/:id
+   *
+   * Returns full policy details for admin review, including SKU information,
+   * user details, and payment deadline.
+   *
+   * @param id - Policy UUID
+   * @returns Full policy details
+   * @throws BadRequestException if UUID format is invalid
+   * @throws NotFoundException if policy not found
+   *
+   * @example
+   * Request:
+   * GET /admin/policies/550e8400-e29b-41d4-a716-446655440000
+   *
+   * Response:
+   * {
+   *   "id": "550e8400-e29b-41d4-a716-446655440000",
+   *   "walletAddress": "0xabc...",
+   *   "sku": {
+   *     "id": "...",
+   *     "name": "YULILY SHIELD INSURANCE",
+   *     "coverageAmt": "10000.0",
+   *     "termDays": 90
+   *   },
+   *   "user": {
+   *     "email": "user@example.com"
+   *   },
+   *   "premiumAmt": "100.0",
+   *   "status": "PENDING_UNDERWRITING",
+   *   "paymentDeadline": "2025-11-16T08:00:00.000Z",
+   *   "createdAt": "2025-11-15T08:00:00.000Z"
+   * }
+   */
+  @Get('policies/:id')
+  @ApiOperation({
+    summary: 'Get policy details by ID',
+    description:
+      'Returns full policy details including SKU, user, and payment information. ' +
+      'Used by admin portal to view policy details and payment deadlines.',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Policy UUID',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Policy details retrieved successfully',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid UUID format',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Policy not found',
+  })
+  async getPolicyById(@Param('id') id: string) {
+    // Validate UUID parameter
+    const uuidResult = UuidSchema.safeParse(id);
+    if (!uuidResult.success) {
+      throw new BadRequestException({
+        message: 'Invalid policy ID format',
+        errors: uuidResult.error.issues,
+      });
+    }
+
+    const policy = await this.adminService.getPolicyById(uuidResult.data);
+
+    // Format response with Decimal to string conversion
+    return {
+      id: policy.id,
+      walletAddress: policy.walletAddress,
+      skuId: policy.skuId,
+      sku: policy.sku
+        ? {
+            id: policy.sku.id,
+            name: policy.sku.name,
+            coverageAmt: policy.sku.coverageAmt.toString(),
+            premiumAmt: policy.sku.premiumAmt.toString(),
+            termDays: policy.sku.termDays,
+            chainId: policy.sku.chainId,
+            tokenAddress: policy.sku.tokenAddress,
+          }
+        : undefined,
+      user: policy.user
+        ? {
+            id: policy.user.id,
+            email: policy.user.email,
+            walletAddress: policy.user.walletAddress,
+          }
+        : undefined,
+      premiumAmt: policy.premiumAmt.toString(),
+      status: policy.status,
+      paymentDeadline: policy.paymentDeadline?.toISOString(),
+      startAt: policy.startAt?.toISOString(),
+      endAt: policy.endAt?.toISOString(),
+      createdAt: policy.createdAt.toISOString(),
+      updatedAt: policy.updatedAt.toISOString(),
+      payments: policy.payments.map((payment) => ({
+        id: payment.id,
+        amount: payment.amount.toString(),
+        txHash: payment.txHash,
+        confirmed: payment.confirmed,
+        chainId: payment.chainId,
+        tokenAddress: payment.tokenAddress,
+        fromAddress: payment.fromAddress,
+        toAddress: payment.toAddress,
+        createdAt: payment.createdAt.toISOString(),
       })),
     };
   }

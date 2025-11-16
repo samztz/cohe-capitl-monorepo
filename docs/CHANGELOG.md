@@ -4,6 +4,1718 @@
 
 ---
 
+## [2025-11-16] - 💰 保单金额字段重构 - 用户自定义保费与保额 ✅ 完成
+
+### ✅ Fixed - Policy Amount Design Flaw
+
+**问题**: 用户在创建保单时输入的保费 (Insurance Cost) 和保额 (Insurance Amount) 被硬编码为 SKU 默认值 (100 和 10000)，而非保存用户实际输入的金额
+
+**根本原因**:
+- Policy 表缺少 `coverageAmt` 字段
+- 后端仅接收 `skuId`，自动从 SKU 表复制金额
+- 前端将用户输入的金额作为 URL 参数传递，未保存到数据库
+
+**修复方案**: 完全重构保单创建流程，将金额从 SKU 模板值改为用户输入值
+
+**实现细节**:
+
+#### 1. **数据库迁移 - 添加 coverageAmt 字段**
+- ✅ Prisma Schema: 添加 `coverageAmt Decimal @db.Decimal(38, 18)` 到 Policy 模型
+- ✅ 创建自定义迁移 SQL (`20251116043700_add_coverage_amt/migration.sql`):
+  - Step 1: 添加列为 nullable
+  - Step 2: 从 SKU 表回填现有保单数据
+  - Step 3: 设置列为 NOT NULL
+- ✅ 执行迁移: `prisma migrate resolve --applied`
+- ✅ 重新生成 Prisma Client
+
+#### 2. **后端 API 修改**
+
+**DTO 更新** (`apps/api/src/modules/policy/dto/create-policy.dto.ts`):
+```typescript
+export class CreatePolicyDto {
+  skuId!: string;
+  premiumAmt!: string;    // 新增：用户输入保费
+  coverageAmt!: string;   // 新增：用户输入保额
+}
+```
+
+**Service 层** (`apps/api/src/modules/policy/policy.service.ts`):
+- ✅ 更新 `CreatePolicyInput` 接口添加 `premiumAmt` 和 `coverageAmt`
+- ✅ 更新 `Policy` 接口添加 `coverageAmt` 字段
+- ✅ 修改 `createPolicy()` 方法:
+  - 接收用户输入的金额
+  - 验证金额为正数
+  - 保存到数据库而非从 SKU 复制
+- ✅ 更新 `getUserPolicies()` 和 `getPolicyById()` 返回 `coverageAmt`
+
+**Controller 层** (`apps/api/src/modules/policy/policy.controller.ts`):
+- ✅ 更新 Zod 验证 Schema 添加 `premiumAmt` 和 `coverageAmt`
+- ✅ 从请求体提取金额并传递给 Service
+
+#### 3. **前端修改**
+
+**Policy 创建表单** (`apps/web/src/app/policy/form/[productId]/page.tsx`):
+```typescript
+// Before (错误):
+const response = await apiClient.post('/policy', {
+  skuId: productId,  // 仅发送 skuId
+})
+// 金额作为 URL 参数传递，未保存
+
+// After (正确):
+const response = await apiClient.post('/policy', {
+  skuId: productId,
+  premiumAmt: data.insuranceCost,     // 发送用户输入保费
+  coverageAmt: data.insuranceAmount,  // 发送用户输入保额
+})
+```
+
+**My Policies 页面** (`apps/web/src/app/my-policies/page.tsx`):
+- ✅ 添加 `coverageAmt` 到 Policy 接口
+- ✅ 移除 `getProductCoverage()` 函数
+- ✅ 显示 `policy.coverageAmt` 而非 `product.coverageAmt`
+
+**Policy Detail 页面** (`apps/web/src/app/policy/detail/[id]/page.tsx`):
+- ✅ 添加 `coverageAmt` 到 Policy 接口
+- ✅ 显示 `policy.coverageAmt` 而非 `product.coverageAmt`
+
+**相关文件**:
+```
+# Database
+apps/api/prisma/schema.prisma (新增 coverageAmt 字段)
+apps/api/prisma/migrations/20251116043700_add_coverage_amt/migration.sql (迁移 SQL)
+
+# Backend
+apps/api/src/modules/policy/dto/create-policy.dto.ts (新增字段)
+apps/api/src/modules/policy/policy.service.ts (业务逻辑重构)
+apps/api/src/modules/policy/policy.controller.ts (验证 Schema 更新)
+
+# Frontend
+apps/web/src/app/policy/form/[productId]/page.tsx (发送金额到 API)
+apps/web/src/app/my-policies/page.tsx (显示保单金额)
+apps/web/src/app/policy/detail/[id]/page.tsx (显示保单金额)
+```
+
+**构建验证**:
+```bash
+pnpm --filter api exec prisma generate  # ✅ Pass
+pnpm --filter api build                  # ✅ Pass
+pnpm --filter web build                  # ✅ Pass
+```
+
+**重要变更**:
+- ⚠️ **破坏性变更**: `POST /policy` API 现在需要 `premiumAmt` 和 `coverageAmt` 字段
+- ✅ **向后兼容**: 已有保单的 `coverageAmt` 已从 SKU 回填，不影响现有数据
+- 🔒 **数据验证**: 后端验证金额必须为正数
+
+**测试建议**:
+```bash
+# 1. 创建新保单，输入自定义金额
+# 2. 验证保单列表显示正确金额
+# 3. 验证保单详情显示正确金额
+# 4. 验证 Admin 面板显示正确金额
+```
+
+---
+
+## [2025-11-15] - 📋 用户保单列表与详情真实数据集成 ✅ 完成
+
+### ✅ Added - Real Policy Data Integration
+
+**功能**: 将 My Policies 和 Policy Detail 页面从 Mock 数据迁移到真实 API 数据
+
+**实现细节**:
+
+#### 1. **后端 - 新增用户保单列表 API** (`GET /policy/my/list`)
+- PolicyController 添加 `getUserPolicies` 端点 (需要 JWT 认证)
+- PolicyService 实现查询用户所有保单,按创建时间倒序
+- 返回安全字段,不包含敏感数据
+
+#### 2. **前端 - My Policies 页面** (`apps/web/src/app/my-policies/page.tsx`)
+- ✅ 移除所有 Mock 数据
+- ✅ 调用 `GET /policy/my/list` 和 `GET /products`
+- ✅ 自动计算剩余天数 (ACTIVE policies)
+- ✅ 动态筛选: All, Active, Pending, Awaiting Payment, Ended
+- ✅ 加载骨架屏 + 错误处理
+
+#### 3. **前端 - Policy Detail 页面** (`apps/web/src/app/policy/detail/[id]/page.tsx`)
+- ✅ 移除所有 Mock 数据
+- ✅ 调用 `GET /policy/{id}` 获取保单详情
+- ✅ 根据状态显示不同提示卡片和操作按钮
+- ✅ 智能操作: File Claim, Complete Payment, Purchase New Policy
+
+**相关文件**:
+```
+apps/api/src/modules/policy/policy.controller.ts (新增 getUserPolicies)
+apps/api/src/modules/policy/policy.service.ts (新增 getUserPolicies)
+apps/web/src/app/my-policies/page.tsx (完全重写)
+apps/web/src/app/policy/detail/[id]/page.tsx (完全重写)
+```
+
+**构建验证**:
+```bash
+cd apps/api && pnpm build   # ✅ Pass
+cd apps/web && pnpm build   # ✅ Pass
+  /my-policies: 4.32 kB
+  /policy/detail/[id]: 4.85 kB
+```
+
+---
+
+## [2025-11-16] - 🔍 Admin 搜索功能 + 数据完整性修复 ✅ 完成
+
+### ✅ Fixed - Admin Panel Critical Data Issues (P0/P1 Bugs)
+
+**功能**: 修复 Admin 管理面板的搜索功能、数据缺失、字段不匹配等关键问题
+
+**问题背景**:
+完成全链路验收后发现 10 个问题（3 个 P0 阻塞性、2 个 P1 高优先级、5 个 P2-P3）。本次修复所有 P0 和 P1 问题，确保 Admin 管理面板核心功能正常运行。
+
+**实现细节**:
+
+#### 1. **Issue #1 (P0) - 修复搜索功能**
+
+**问题**: 前端发送 `q` 参数但后端未处理，导致搜索功能完全失效
+
+**修复**:
+- ✅ 后端 DTO 已添加 `q?: string` 字段 (`list-admin-policies.query.ts:66-76`)
+- ✅ 后端 Service 已实现搜索逻辑 (`admin.service.ts:96-103`)
+  - 支持按 Policy ID 模糊搜索
+  - 支持按钱包地址模糊搜索
+  - 支持按用户邮箱模糊搜索
+  - 使用 Prisma OR 条件 + case-insensitive 匹配
+
+**代码示例**:
+```typescript
+// apps/api/src/modules/admin/admin.service.ts:96-103
+if (q) {
+  where.OR = [
+    { id: { contains: q, mode: 'insensitive' } },
+    { walletAddress: { contains: q, mode: 'insensitive' } },
+    { user: { email: { contains: q, mode: 'insensitive' } } },
+  ];
+}
+```
+
+#### 2. **Issue #2 (P0) - 修复 SKU/User 数据缺失**
+
+**问题**: Admin 列表 API 仅返回 `skuId`，未返回 SKU 名称、保额、期限等关键信息
+
+**修复**:
+- ✅ 后端 Service 已添加 Prisma `include` 关系查询 (`admin.service.ts:113-120`)
+  - 包含 SKU 信息: `name`, `coverageAmt`, `termDays`
+  - 包含 User 信息: `email`
+- ✅ 后端 Controller 已映射字段到响应 (`admin.controller.ts:195-206`)
+  - `skuName`, `coverageAmt`, `termDays`, `email` 全部返回
+
+**代码示例**:
+```typescript
+// apps/api/src/modules/admin/admin.service.ts:113-120
+include: {
+  sku: {
+    select: { name: true, coverageAmt: true, termDays: true },
+  },
+  user: {
+    select: { email: true },
+  },
+}
+```
+
+#### 3. **Issue #4 (P0) - 实现统计 API**
+
+**问题**: 前端调用 `/admin/stats` 但端点不存在，导致 Dashboard 统计数据丢失
+
+**修复**:
+- ✅ 实现 `GET /admin/stats` 端点 (`admin.controller.ts:82-104`)
+- ✅ 实现 `AdminService.getStats()` 方法 (`admin.service.ts:161-179`)
+  - 返回 `total`: 总保单数
+  - 返回 `underReview`: 待审核数量 (PENDING_UNDERWRITING)
+  - 返回 `approvedToday`: 已批准数量 (APPROVED_AWAITING_PAYMENT)
+  - 返回 `rejectedToday`: 已拒绝数量 (REJECTED)
+  - 使用 `Promise.all` 并发查询优化性能
+
+**API 响应示例**:
+```json
+{
+  "total": 150,
+  "underReview": 20,
+  "approvedToday": 5,
+  "rejectedToday": 2
+}
+```
+
+#### 4. **Issue #6 (P1) - 添加 reviewerNote 数据库字段**
+
+**问题**: 代码中使用 `reviewerNote` 但数据库缺少该字段，导致审核备注无法保存
+
+**修复**:
+- ✅ 更新 Prisma Schema (`schema.prisma:70`)
+  ```prisma
+  reviewerNote    String?       // Admin note when approving/rejecting policy
+  ```
+- ✅ 更新 AdminService 保存逻辑 (`admin.service.ts:318, 341`)
+  - Approve 时保存 `reviewerNote`
+  - Reject 时保存 `reviewerNote`
+- ✅ 执行数据库迁移
+  ```bash
+  pnpm --filter api exec -- prisma db push
+  ```
+
+#### 5. **Issue #3 (Schema Mismatch) - 修复响应字段不匹配**
+
+**问题**: 后端返回 `pageSize`，前端 Schema 定义为 `limit`，导致类型不匹配
+
+**修复**:
+- ✅ 更新前端 Schema (`schemas.ts:51-56`)
+  ```typescript
+  export const PoliciesResponse = z.object({
+    items: z.array(Policy),
+    total: z.number(),
+    page: z.number(),
+    pageSize: z.number(),  // ← 从 limit 改为 pageSize
+  })
+  ```
+
+**相关文件**:
+```
+# Backend
+apps/api/src/modules/admin/admin.controller.ts (已修复 - 统计 API)
+apps/api/src/modules/admin/admin.service.ts (已修复 - 搜索、SKU 数据、统计)
+apps/api/src/modules/admin/dto/list-admin-policies.query.ts (已修复 - 搜索参数)
+apps/api/prisma/schema.prisma (已修复 - reviewerNote 字段)
+
+# Frontend
+apps/admin/features/policies/schemas.ts (已修复 - pageSize 字段)
+```
+
+**测试方法**:
+
+1. **测试搜索功能**:
+   ```bash
+   # 按钱包地址搜索
+   curl "http://localhost:3001/admin/policies?q=0x1234" \
+     -H "Authorization: Bearer YOUR_JWT"
+
+   # 按邮箱搜索
+   curl "http://localhost:3001/admin/policies?q=user@example.com" \
+     -H "Authorization: Bearer YOUR_JWT"
+   ```
+
+2. **测试统计 API**:
+   ```bash
+   curl http://localhost:3001/admin/stats \
+     -H "Authorization: Bearer YOUR_JWT"
+
+   # 响应: {"total":150,"underReview":20,"approvedToday":5,"rejectedToday":2}
+   ```
+
+3. **测试 SKU 数据完整性**:
+   ```bash
+   curl "http://localhost:3001/admin/policies?page=1&pageSize=10" \
+     -H "Authorization: Bearer YOUR_JWT"
+
+   # 验证响应包含: skuName, coverageAmt, termDays, email
+   ```
+
+4. **测试审核备注**:
+   ```bash
+   curl -X PATCH "http://localhost:3001/admin/policies/{policyId}" \
+     -H "Authorization: Bearer YOUR_JWT" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "action": "approve",
+       "paymentDeadline": "2025-12-31T23:59:59.000Z",
+       "reviewerNote": "Approved after KYC verification"
+     }'
+   ```
+
+**注意事项**:
+
+⚠️ **数据库迁移**:
+- 使用 `prisma db push` 而非 `migrate dev` 因为存在 schema drift
+- 如需正式迁移文件，需先解决 drift 问题（Setting 表、User.roles 等）
+
+⚠️ **统计 API 命名不准确**:
+- `approvedToday` 实际返回**所有**批准的保单，不是今日
+- `rejectedToday` 实际返回**所有**拒绝的保单，不是今日
+- 如需真实今日统计，需添加 `createdAt` 过滤条件
+
+⚠️ **搜索性能**:
+- 当前使用 `contains` + `insensitive` 模式，对大数据量可能较慢
+- 建议后续添加全文搜索索引或使用专用搜索引擎（如 Elasticsearch）
+
+⚠️ **待修复的 P2-P3 问题** (非阻塞):
+- Issue #5: Payment idempotency 未验证 policyId 匹配
+- Issue #7: Timezone 处理未统一为 UTC
+- Issue #8: Mock 数据需要清理
+- Issue #9: 缺少 Cron job 处理过期保单
+- Issue #10: 前后端格式不一致（underReview vs PENDING_UNDERWRITING）
+
+---
+
+## [2025-11-15] - 💳 Web 支付页面 + 金庫設置 API 完成 ✅ 完成
+
+### ✅ Added - Payment Integration (Task M3-P4)
+
+**功能**: Web 支付页面集成 AppKit Pay + 后端金库地址配置系统
+
+**实现细节**:
+
+#### 1. **后端 - 金库设置模块** (`apps/api/src/modules/settings/`)
+
+- **Setting Model** (Prisma Schema):
+  ```prisma
+  model Setting {
+    id        String   @id @default(uuid())
+    key       String   @unique
+    value     String
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+    @@index([key])
+  }
+  ```
+
+- **SettingsService**: 金库地址管理，三级回退策略
+  - 优先级: 数据库 > 环境变量 > null (错误)
+  - `getTreasuryAddress()`: 获取金库地址
+  - `setTreasuryAddress()`: 更新金库地址 (upsert)
+
+- **SettingsController**: 管理员专用 API
+  - `GET /admin/settings/treasury` - 获取金库地址
+  - `PUT /admin/settings/treasury` - 更新金库地址 (需要 JWT 认证)
+
+- **UpdateTreasuryDto**: 地址验证
+  ```typescript
+  @Matches(/^0x[a-fA-F0-9]{40}$/, {
+    message: 'Address must be a valid Ethereum address'
+  })
+  address!: string
+  ```
+
+#### 2. **前端 - 支付资产辅助函数** (`apps/web/src/pay/assets.ts`)
+
+- **buildPaymentAsset()**: 构建 AppKit Pay 资产对象
+  - 支持原生代币 (ETH, BNB) 和 ERC20 (USDT, USDC)
+  - 网络标识符: `eip155:{chainId}`
+  - 默认代币元数据 (symbol, decimals, name)
+
+- **validatePaymentAmount()**: 金额验证
+  - 确保正数，精度控制
+
+#### 3. **前端 - 支付页面** (`apps/web/src/app/policy/payment/[policyId]/page.tsx`)
+
+- **功能**:
+  - 加载保单和产品数据
+  - 从 API 获取金库地址 (备用: 环境变量)
+  - 支付网关检查 (状态、截止日期、网络)
+  - AppKit 模态框集成
+  - **手动 txHash 确认回退机制**
+
+- **支付流程**:
+  1. 用户点击 "Pay with Exchange"
+  2. 打开 AppKit 模态框
+  3. 用户在钱包完成支付
+  4. 用户粘贴 txHash 到手动确认表单
+  5. 后端验证 → 保单激活
+
+- **状态管理**:
+  - `policy`, `product`, `treasuryAddress` 数据加载
+  - `manualTxHash` 手动确认
+  - `confirming`, `confirmSuccess`, `confirmError` 确认状态
+
+#### 4. **Admin - 金库设置页面** (`apps/admin/app/(dashboard)/settings/page.tsx`)
+
+- **功能**:
+  - 显示当前金库地址
+  - 更新金库地址表单
+  - 地址格式验证 (0x + 40 hex)
+  - 成功/错误反馈
+  - i18n 支持 (en, zh-TW)
+
+- **API 集成**:
+  - `GET /admin/settings/treasury` - 加载当前地址
+  - `PUT /admin/settings/treasury` - 更新地址
+
+- **UI 组件**:
+  - Card 布局
+  - 当前地址显示 (只读)
+  - 新地址输入 (验证)
+  - 更新按钮 (禁用状态管理)
+
+#### 5. **配置更新**
+
+- **Web 应用端口**: `apps/web/package.json`
+  ```json
+  "dev": "next dev -p 3000"  // AppKit Pay 要求端口 3000
+  ```
+
+- **Admin API Client**: 添加 `put` 方法
+  ```typescript
+  put: <T>(endpoint: string, data?: unknown) =>
+    request<T>(endpoint, { method: 'PUT', body: JSON.stringify(data) })
+  ```
+
+**相关文件**:
+```
+# Backend
+apps/api/prisma/schema.prisma (新增 Setting model)
+apps/api/src/app.module.ts (集成 SettingsModule)
+apps/api/src/modules/settings/settings.module.ts (新)
+apps/api/src/modules/settings/settings.service.ts (新)
+apps/api/src/modules/settings/settings.controller.ts (新)
+apps/api/src/modules/settings/dto/update-treasury.dto.ts (新)
+
+# Frontend - Web
+apps/web/package.json (端口改为 3000)
+apps/web/src/pay/assets.ts (新 - 支付资产辅助函数)
+apps/web/src/app/policy/payment/[policyId]/page.tsx (新 - 支付页面)
+
+# Frontend - Admin
+apps/admin/lib/apiClient.ts (添加 put 方法)
+apps/admin/src/locales/en.ts (添加 settingsPage 翻译)
+apps/admin/src/locales/zh-TW.ts (添加 settingsPage 翻译)
+apps/admin/app/(dashboard)/layout.tsx (添加 Settings 导航)
+apps/admin/app/(dashboard)/settings/page.tsx (新 - 设置页面)
+```
+
+**环境变量**:
+```bash
+# Backend (可选，数据库优先)
+TREASURY_ADDRESS=0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb
+
+# Frontend - Web
+NEXT_PUBLIC_CHAIN_ID=56  # BSC Mainnet
+NEXT_PUBLIC_TREASURY_ADDRESS=0x...  # 备用
+```
+
+**测试方法**:
+
+1. **配置金库地址** (二选一):
+   ```bash
+   # 方式 1: 通过 Admin 页面
+   # 访问 http://localhost:3002/settings
+   # 输入金库地址并保存
+
+   # 方式 2: 通过 API
+   curl -X PUT http://localhost:3001/admin/settings/treasury \
+     -H "Authorization: Bearer YOUR_JWT" \
+     -H "Content-Type: application/json" \
+     -d '{"address":"0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb"}'
+   ```
+
+2. **测试支付流程**:
+   ```bash
+   # 1. 创建保单
+   # 2. Admin 批准 → 状态变为 APPROVED_AWAITING_PAYMENT
+   # 3. 访问支付页面
+   curl http://localhost:3000/policy/payment/{policyId}
+
+   # 4. 点击 "Pay with Exchange"
+   # 5. 在钱包完成支付
+   # 6. 粘贴 txHash 到手动确认表单
+   # 7. 后端验证支付 → 保单激活
+   ```
+
+3. **验证 API**:
+   ```bash
+   # 获取金库地址
+   curl http://localhost:3001/admin/settings/treasury \
+     -H "Authorization: Bearer YOUR_JWT"
+
+   # 响应: {"address":"0x..."}
+   ```
+
+**注意事项**:
+
+⚠️ **AppKit Pay 集成限制**:
+- `usePay` hook 未按文档导出 `pay` 函数
+- 当前使用 `useAppKit().open()` 打开模态框
+- **用户需要手动粘贴 txHash 完成确认** (不是自动捕获)
+- 这是设计妥协，后续可优化
+
+⚠️ **端口限制**:
+- Web 应用必须在端口 3000 运行 (AppKit Pay 要求)
+- Admin 应用在 3002，API 在 3001
+
+⚠️ **网络支持**:
+- 主网: BSC (chainId: 56)
+- 测试网: BSC Testnet (97), Base Sepolia (84532)
+- AppKit Pay 对 BSC 支持可能有限，建议先在 Base Sepolia 测试
+
+⚠️ **安全**:
+- Treasury API 需要 JWT 认证
+- 地址格式严格验证 (0x + 40 hex)
+- 后端会验证 txHash 和支付金额
+
+**构建验证**:
+```bash
+# All builds passed ✅
+cd apps/web && pnpm build     # ✅ Payment page 3.69 kB
+cd apps/admin && pnpm build   # ✅ Settings page 6.17 kB
+cd apps/api && pnpm build     # ✅ SettingsModule compiled
+```
+
+---
+
+## [2025-11-15] - ♻️ 移除保单唯一性约束，允许重复购买 ✅ 完成
+
+### ✅ Changed - Allow Multiple Policies for Same Product
+
+**问题**:
+用户创建保单时报错：
+```
+Policy already exists for wallet 0x83b6e7e65f223336b7531ccab6468017a5eb7f77 and SKU bsc-usdt-plan-seed
+```
+
+**根本原因**:
+- Prisma schema 中存在 `@@unique([walletAddress, skuId])` 唯一约束
+- 数据库表 Policy 有唯一索引 `Policy_walletAddress_skuId_key`
+- 后端代码捕获 P2002 错误并抛出 ConflictException
+- **这与业务逻辑不符**：用户应该能够重复购买相同的保险产品
+
+**修复内容**:
+
+#### 1. **数据库 Schema 修改** (`apps/api/prisma/schema.prisma`)
+   - **移除**: `@@unique([walletAddress, skuId])` 唯一约束
+   - **添加**: `@@index([walletAddress, skuId])` 非唯一索引（保持查询性能）
+
+   ```prisma
+   model Policy {
+     // ... fields
+
+     @@index([userId])
+     @@index([status])
+     @@index([walletAddress, skuId])  // ← 非唯一索引
+     // @@unique([walletAddress, skuId])  // ← 已移除
+   }
+   ```
+
+#### 2. **数据库迁移** (`20251115142936_remove_wallet_sku_unique_constraint`)
+   ```sql
+   -- Drop the unique constraint
+   ALTER TABLE "Policy" DROP CONSTRAINT IF EXISTS "Policy_walletAddress_skuId_key";
+
+   -- Create a non-unique index for efficient queries
+   CREATE INDEX IF NOT EXISTS "Policy_walletAddress_skuId_idx"
+     ON "Policy"("walletAddress", "skuId");
+   ```
+
+#### 3. **后端代码修改** (`apps/api/src/modules/policy/policy.service.ts`)
+   - **移除**: ConflictException 导入
+   - **移除**: P2002 错误特殊处理逻辑
+   - **更新**: 文档注释，说明允许重复购买
+   - **添加**: Logger 用于错误日志记录
+
+   **修改前**:
+   ```typescript
+   } catch (error: any) {
+     if (error.code === 'P2002') {
+       throw new ConflictException(
+         `Policy already exists for wallet ${normalizedAddress} and SKU ${skuId}`,
+       );
+     }
+     throw error;
+   }
+   ```
+
+   **修改后**:
+   ```typescript
+   } catch (error: any) {
+     this.logger.error('Failed to create policy', {
+       error: error.message,
+       code: error.code,
+       userId,
+       skuId,
+     });
+     throw error;
+   }
+   ```
+
+**业务影响**:
+- ✅ 用户现在可以购买**多份相同的保险产品**
+- ✅ 例如：同一个钱包可以购买 3 份"YULILY SHIELD INSURANCE"
+- ✅ 每次购买都会创建独立的保单记录（不同的 Policy ID）
+- ✅ 查询性能不受影响（保留了索引）
+
+**使用场景**:
+```typescript
+// 用户第一次购买
+POST /policy { skuId: "bsc-usdt-plan-seed" }
+→ 201 Created { id: "policy-1", status: "DRAFT" }
+
+// 用户再次购买相同产品（现在允许）
+POST /policy { skuId: "bsc-usdt-plan-seed" }
+→ 201 Created { id: "policy-2", status: "DRAFT" }
+
+// 查询用户所有保单
+GET /my-policies
+→ [
+  { id: "policy-1", skuName: "YULILY SHIELD", status: "ACTIVE" },
+  { id: "policy-2", skuName: "YULILY SHIELD", status: "DRAFT" }
+]
+```
+
+**测试方法**:
+```bash
+# 重启后端（应用迁移和代码更改）
+pnpm --filter api build && pnpm --filter api dev
+
+# 测试 1: 创建第一份保单
+curl -X POST http://localhost:3001/policy \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"skuId": "bsc-usdt-plan-seed"}'
+# 应该返回 201 Created
+
+# 测试 2: 创建第二份相同产品的保单（应该成功）
+curl -X POST http://localhost:3001/policy \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"skuId": "bsc-usdt-plan-seed"}'
+# 应该返回 201 Created（不再是 409 Conflict）
+
+# 测试 3: 前端测试
+访问 http://localhost:3000/products
+选择产品 → 填写表单 → Confirm and Pay
+应该成功创建，即使之前已购买过该产品
+```
+
+**相关文件**:
+```
+apps/api/prisma/schema.prisma                                      (移除唯一约束)
+apps/api/prisma/migrations/20251115142936_.../migration.sql       (数据库迁移)
+apps/api/src/modules/policy/policy.service.ts                     (移除冲突检查)
+```
+
+**注意事项**:
+- ✅ 迁移已成功应用到数据库
+- ✅ 保留了组合索引以保持查询性能
+- ⚠️ **这是一个重要的业务逻辑变更**，确保符合产品需求
+- ⚠️ 如果需要限制购买数量，应在应用层实现（如"最多购买 5 份"）
+- ⚠️ 前端可以考虑在"我的保单"页面显示同一产品的购买次数
+
+---
+
+## [2025-11-15] - 🐛 Admin 保单详情页缺少 Payments 数据 ✅ 完成
+
+### ✅ Fixed - Policy Detail Page Missing Payments
+
+**问题**:
+Admin Web 保单详情页报错：
+```
+TypeError: Cannot read properties of undefined (reading 'length')
+Source: app/(dashboard)/policies/[id]/page.tsx (212:34)
+{policy.payments.length} payment(s) recorded
+```
+
+**根本原因**:
+- 后端 `GET /admin/policies/:id` 返回的 policy 对象缺少 `payments` 字段
+- `AdminService.getPolicyById()` 没有 include payments 关联
+- 前端尝试访问 `policy.payments.length` 时遇到 undefined
+
+**修复**:
+1. **Service 层** (`apps/api/src/modules/admin/admin.service.ts:203-205`):
+   ```typescript
+   include: {
+     sku: true,
+     user: true,
+     payments: {
+       orderBy: { createdAt: 'desc' },  // ← 新增 payments 关联
+     },
+   }
+   ```
+
+2. **Controller 层** (`apps/api/src/modules/admin/admin.controller.ts:312-322`):
+   ```typescript
+   payments: policy.payments.map((payment) => ({
+     id: payment.id,
+     amount: payment.amount.toString(),
+     txHash: payment.txHash,
+     confirmed: payment.confirmed,  // ← 使用 confirmed 而非 status
+     chainId: payment.chainId,
+     tokenAddress: payment.tokenAddress,
+     fromAddress: payment.fromAddress,
+     toAddress: payment.toAddress,
+     createdAt: payment.createdAt.toISOString(),
+   }))
+   ```
+
+**Payment 模型字段**:
+```prisma
+model Payment {
+  id           String   @id @default(uuid())
+  policyId     String
+  txHash       String   @unique
+  chainId      Int
+  tokenAddress String
+  fromAddress  String
+  toAddress    String
+  amount       Decimal  @db.Decimal(38, 18)
+  confirmed    Boolean  @default(false)  // ← 注意：是 confirmed 而非 status
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+```
+
+**响应示例**:
+```json
+{
+  "id": "policy-uuid",
+  "sku": { "name": "YULILY SHIELD INSURANCE" },
+  "user": { "email": "user@example.com" },
+  "payments": [
+    {
+      "id": "payment-uuid",
+      "amount": "100.0",
+      "txHash": "0x123...",
+      "confirmed": true,
+      "chainId": 97,
+      "createdAt": "2025-11-15T..."
+    }
+  ]
+}
+```
+
+**测试方法**:
+```bash
+# 重启后端
+pnpm --filter api build && pnpm --filter api dev
+
+# 测试 API
+curl "http://localhost:3001/admin/policies/{policy-id}"
+# 验证响应包含 payments 数组
+
+# 前端测试
+访问 http://localhost:3000/policies/{policy-id}
+# 应该正常显示 "X payment(s) recorded"，无错误
+```
+
+**相关文件**:
+```
+apps/api/src/modules/admin/admin.service.ts    (添加 payments include)
+apps/api/src/modules/admin/admin.controller.ts (映射 payments 字段)
+```
+
+**注意事项**:
+- ✅ Payments 按创建时间倒序排列（最新的在前）
+- ✅ Amount 转换为字符串以保持精度
+- ⚠️ Payment 模型使用 `confirmed` 字段而非 `status`
+- ⚠️ 必须重启后端服务才能生效
+
+---
+
+## [2025-11-15] - 🔥 紧急修复：Prisma 类型错误（pageSize 字符串 → 整数）✅ 完成
+
+### ✅ Fixed - Admin Policies API Runtime Error
+
+**问题**:
+Admin Web 打开 "All Policies" 和 "Review Queue" 页面时后端报错：
+```
+Argument `take`: Invalid value provided. Expected Int, provided String.
+take: "20"  // ← 字符串，应该是数字
+```
+
+**根本原因**:
+- URL 查询参数默认是字符串类型（`"20"` 而非 `20`）
+- NestJS 的 `@Type(() => Number)` 装饰器在某些情况下未正确转换
+- Controller 直接传递 `query.pageSize` 给 Prisma，导致类型不匹配
+- Prisma 的 `findMany({ take: "20" })` 严格要求整数，运行时抛出 `PrismaClientValidationError`
+
+**修复**:
+```typescript
+// apps/api/src/modules/admin/admin.controller.ts:185-186
+const result = await this.adminService.listPolicies({
+  page: Number(query.page) || 1,        // ← 显式转换为数字
+  pageSize: Number(query.pageSize) || 20,  // ← 显式转换为数字
+  status: query.status,
+  q: query.q,
+});
+```
+
+**影响范围**:
+- ✅ GET `/admin/policies` - 所有保单列表
+- ✅ GET `/admin/policies?status=PENDING_UNDERWRITING` - Review Queue
+
+**测试方法**:
+```bash
+# 重启后端
+pnpm --filter api build && pnpm --filter api dev
+
+# 测试 1: All Policies
+curl "http://localhost:3001/admin/policies?page=1&pageSize=20"
+# 应该返回 200 OK，包含 items 数组
+
+# 测试 2: Review Queue
+curl "http://localhost:3001/admin/policies?status=PENDING_UNDERWRITING&page=1&pageSize=20"
+# 应该返回 200 OK
+
+# 前端测试
+访问 http://localhost:3000/policies (All Policies)
+访问 http://localhost:3000/review (Review Queue)
+# 应该正常显示列表，无 500 错误
+```
+
+**相关文件**:
+```
+apps/api/src/modules/admin/admin.controller.ts (显式 Number() 转换)
+```
+
+**注意事项**:
+- ⚠️ 这是运行时错误，TypeScript 编译期无法检测（DTO 类型是 `number`，但运行时是 `string`）
+- ⚠️ 必须重启后端服务才能生效（pnpm --filter api build）
+- ✅ 使用 `Number()` 比 `parseInt()` 更安全（处理 `undefined`/`null` 时返回 `NaN`，然后 `|| 默认值` 生效）
+
+---
+
+## [2025-11-15] - 🐛 Admin API 四个关键 Bug 修复 ✅ 完成
+
+### ✅ Fixed - Admin 后端 API 功能完善
+
+**问题概述**:
+在排查 Admin 门户问题时发现 4 个后端 API 契约不匹配和功能缺失的关键 Bug：
+1. ❌ 搜索功能完全失效（前端发送 `q` 参数，后端未处理）
+2. ❌ 保单列表缺少 SKU 关联数据（只返回 UUID，无产品名称）
+3. ❌ Admin 保单详情端点不存在（前端调用错误的用户端点）
+4. ❌ Stats 统计端点不存在（前端发起 4 次 API 调用计算统计）
+
+**修复详情**:
+
+#### 1. **修复搜索功能（Bug #1）** ✅
+   - **问题**: 前端在 `/admin/policies` 请求中发送 `q` 参数（搜索 ID/钱包/邮箱），但后端 DTO 和 Service 未定义此参数，导致搜索功能完全失效
+   - **修复**:
+     - `apps/api/src/modules/admin/dto/list-admin-policies.query.ts`: 添加 `q?: string` 可选参数
+     - `apps/api/src/modules/admin/admin.service.ts`: 在 `listPolicies` 方法中添加搜索逻辑
+     ```typescript
+     if (q) {
+       where.OR = [
+         { id: { contains: q, mode: 'insensitive' } },
+         { walletAddress: { contains: q, mode: 'insensitive' } },
+         { user: { email: { contains: q, mode: 'insensitive' } } },
+       ];
+     }
+     ```
+     - `apps/api/src/modules/admin/admin.controller.ts`: 添加 `@ApiQuery` 文档并传递 `q` 参数
+   - **效果**: Admin 搜索框现在可以正常按 Policy ID、钱包地址、用户邮箱搜索
+
+#### 2. **修复保单列表 SKU 关联数据缺失（Bug #2）** ✅
+   - **问题**: 后端只返回 `skuId` (UUID)，未 join SKU 和 User 表，导致前端显示 UUID 而非产品名称，缺少覆盖金额、期限、邮箱等关键信息
+   - **修复**:
+     - `apps/api/src/modules/admin/admin.service.ts`:
+       - 添加 `include: { sku: {...}, user: {...} }` 关联查询
+       - 接口新增字段：`skuName`, `coverageAmt`, `termDays`, `email`
+     - `apps/api/src/modules/admin/admin.controller.ts`: 映射新字段到响应
+     - `apps/api/src/modules/admin/dto/admin-policy-list-response.dto.ts`: 添加新字段的 Swagger 文档
+   - **数据示例**:
+     ```json
+     {
+       "skuId": "uuid",
+       "skuName": "YULILY SHIELD INSURANCE",  // ← 新增
+       "coverageAmt": "10000.0",              // ← 新增
+       "termDays": 90,                        // ← 新增
+       "email": "user@example.com"            // ← 新增
+     }
+     ```
+   - **效果**: 保单列表现在显示可读的产品名称和完整信息，无需额外查询
+
+#### 3. **添加 Admin 保单详情 API 端点（Bug #3）** ✅
+   - **问题**:
+     - 前端 `usePolicyDetail` hook 调用 `/policy/:id`（用户端点）而非 Admin 端点
+     - 缺少 Admin 专用的 GET `/admin/policies/:id` 端点
+     - 用户端点不返回 `paymentDeadline` 等管理员专属字段
+   - **修复**:
+     - `apps/api/src/modules/admin/admin.service.ts`: 新增 `getPolicyById()` 方法
+     ```typescript
+     async getPolicyById(policyId: string) {
+       return this.prisma.policy.findUnique({
+         where: { id: policyId },
+         include: { sku: true, user: true },
+       });
+     }
+     ```
+     - `apps/api/src/modules/admin/admin.controller.ts`: 新增 GET `/admin/policies/:id` 端点
+     - `apps/admin/features/policies/hooks/usePolicyDetail.ts`: 修正路径为 `/admin/policies/${id}`
+   - **响应示例**:
+     ```json
+     {
+       "id": "uuid",
+       "sku": { "name": "YULILY SHIELD INSURANCE", "coverageAmt": "10000.0" },
+       "user": { "email": "user@example.com" },
+       "paymentDeadline": "2025-11-16T08:00:00.000Z"  // ← Admin 专属字段
+     }
+     ```
+   - **效果**: Admin 保单详情页现在使用正确的端点，显示完整信息
+
+#### 4. **添加 Admin Stats 统计 API 专用端点（Bug #4）** ✅
+   - **问题**:
+     - 后端无 `/admin/stats` 端点
+     - 前端 `useStats` hook 发起 4 次 `/admin/policies` 请求并客户端聚合（性能差）
+   - **修复**:
+     - `apps/api/src/modules/admin/admin.service.ts`: 新增 `getStats()` 方法
+     ```typescript
+     async getStats() {
+       const [total, underReview, approved, rejected] = await Promise.all([
+         this.prisma.policy.count(),
+         this.prisma.policy.count({ where: { status: 'PENDING_UNDERWRITING' } }),
+         this.prisma.policy.count({ where: { status: 'APPROVED_AWAITING_PAYMENT' } }),
+         this.prisma.policy.count({ where: { status: 'REJECTED' } }),
+       ]);
+       return { total, underReview, approvedToday: approved, rejectedToday: rejected };
+     }
+     ```
+     - `apps/api/src/modules/admin/admin.controller.ts`: 新增 GET `/admin/stats` 端点
+     - `apps/admin/features/policies/hooks/useStats.ts`: 简化为单次 API 调用
+   - **性能提升**: 从 4 次请求 → 1 次请求，减少 75% 网络开销
+   - **效果**: Dashboard 统计卡片加载更快，数据一致性更好
+
+**相关文件**:
+```
+apps/api/src/modules/admin/dto/list-admin-policies.query.ts  (添加 q 参数)
+apps/api/src/modules/admin/admin.service.ts                 (4 个修复：搜索 + SKU 关联 + 详情 + 统计)
+apps/api/src/modules/admin/admin.controller.ts              (4 个修复：搜索 + SKU 关联 + 详情 + 统计)
+apps/api/src/modules/admin/dto/admin-policy-list-response.dto.ts (新增字段文档)
+apps/admin/features/policies/hooks/usePolicyDetail.ts       (修正 API 路径)
+apps/admin/features/policies/hooks/useStats.ts              (简化为单次 API 调用)
+```
+
+**测试方法**:
+```bash
+# Terminal 1: 启动后端
+pnpm --filter api dev
+
+# Terminal 2: 启动 Admin
+pnpm --filter admin dev
+
+# 测试 1: 搜索功能
+curl "http://localhost:3001/admin/policies?q=0x1234"
+
+# 测试 2: SKU 关联数据
+curl "http://localhost:3001/admin/policies?page=1&pageSize=10"
+# 验证响应包含 skuName, coverageAmt, termDays, email
+
+# 测试 3: 保单详情
+curl "http://localhost:3001/admin/policies/{policy-id}"
+# 验证响应包含 sku 对象、user 对象、paymentDeadline
+
+# 测试 4: 统计 API
+curl "http://localhost:3001/admin/stats"
+# 验证响应: { total, underReview, approvedToday, rejectedToday }
+
+# 前端测试
+访问 http://localhost:3000/dashboard
+- 验证统计卡片显示正确数字
+- 搜索框输入钱包地址/邮箱，验证搜索结果
+- 点击保单列表项，验证详情页加载
+```
+
+**注意事项**:
+- ✅ 所有 4 个 Bug 已完全修复
+- ✅ 前后端 API 契约现在完全匹配
+- ✅ TypeScript 类型安全（无 any，所有字段有类型）
+- ✅ Swagger 文档已更新（包含所有新字段和端点）
+- ⚠️ `approvedToday` 和 `rejectedToday` 实际返回总数（非当日），未来可添加日期过滤
+- ⚠️ 搜索为模糊匹配（`contains`），大数据集需考虑添加索引
+- ⚠️ Policy 模型无 `phone` 字段，已从代码中移除
+
+---
+
+## [2025-11-15] - 🔧 Admin 数据展示修复（Hydration + API 对接）✅ 完成
+
+### ✅ Fixed - Admin Portal 后端数据对接修复
+
+**问题概述**:
+Admin 管理端门户出现以下问题：
+1. React Hydration 错误（服务端/客户端 HTML 不匹配）
+2. 无法从后端获取任何 policy 数据
+3. 统计信息（Stats）未显示
+
+**根本原因**:
+1. **Hydration 错误**: `apps/admin/app/(dashboard)/layout.tsx` 中 `getUser()` 和 `isAuthed()` 在服务端和客户端返回不同值，导致条件渲染结果不一致
+2. **API Base URL 缺失**: `.env.local` 中 `NEXT_PUBLIC_ADMIN_API_BASE` 为空字符串
+3. **Stats API 不存在**: `useStats` hook 调用了不存在的 `/api/admin/stats` 端点
+
+**实现细节**:
+
+#### 1. **修复 Hydration 错误** (apps/admin/app/(dashboard)/layout.tsx:19-36)
+   - **问题**: Zustand persist 在服务端访问 localStorage，返回初始值；客户端返回实际存储值 → SSR/CSR HTML 不匹配
+   - **解决方案**: 添加 `mounted` 状态，延迟渲染直到客户端 hydration 完成
+   ```typescript
+   const [mounted, setMounted] = useState(false)
+
+   useEffect(() => {
+     setMounted(true)
+     if (!isAuthed()) {
+       router.push('/login')
+     }
+   }, [router])
+
+   // 关键：hydration 完成前不渲染任何内容
+   if (!mounted) {
+     return null
+   }
+   ```
+   - **效果**:
+     - 服务端始终渲染 `null`
+     - 客户端 hydration 后渲染完整 UI
+     - 零 HTML 不匹配错误
+
+#### 2. **配置 API Base URL** (apps/admin/.env.local:1-2)
+   - **变更前**:
+     ```
+     NEXT_PUBLIC_ADMIN_API_BASE=
+     NEXT_PUBLIC_USE_MOCK=true
+     ```
+   - **变更后**:
+     ```
+     NEXT_PUBLIC_ADMIN_API_BASE=http://localhost:3001
+     NEXT_PUBLIC_USE_MOCK=false
+     ```
+   - **说明**:
+     - Admin 门户需要连接到后端 API (localhost:3001)
+     - 关闭 mock 模式，使用真实后端数据
+
+#### 3. **重写 Stats Hook** (apps/admin/features/policies/hooks/useStats.ts)
+   - **问题**: 后端未实现专用 `/api/admin/stats` 端点
+   - **解决方案**: 客户端聚合统计 - 并行请求多个 `/admin/policies` 端点并汇总结果
+   ```typescript
+   const [allPolicies, underReview, approved, rejected] = await Promise.all([
+     apiClient.get<{ data: any[]; total: number }>('/admin/policies', { pageSize: 1 }),
+     apiClient.get<{ data: any[]; total: number }>('/admin/policies', {
+       status: 'PENDING_UNDERWRITING', pageSize: 1
+     }),
+     apiClient.get<{ data: any[]; total: number }>('/admin/policies', {
+       status: 'APPROVED_AWAITING_PAYMENT', pageSize: 1
+     }),
+     apiClient.get<{ data: any[]; total: number }>('/admin/policies', {
+       status: 'REJECTED', pageSize: 1
+     }),
+   ])
+
+   return {
+     total: allPolicies.total || 0,
+     underReview: underReview.total || 0,
+     approvedToday: approved.total || 0,
+     rejectedToday: rejected.total || 0,
+   }
+   ```
+   - **优点**:
+     - 立即可用，无需后端改动
+     - 使用现有 `/admin/policies` API（支持 status 过滤）
+     - 只请求 1 条数据（pageSize=1），仅获取 total count
+   - **性能**: 4 个并行请求，总耗时 ≈ 单次请求时间
+
+**相关文件**:
+```
+apps/admin/app/(dashboard)/layout.tsx         (新增 mounted 状态)
+apps/admin/.env.local                         (配置 API Base URL)
+apps/admin/features/policies/hooks/useStats.ts (重写 Stats 获取逻辑)
+```
+
+**测试方法**:
+```bash
+# Terminal 1: 启动后端 API
+pnpm --filter api dev
+
+# Terminal 2: 启动 Admin 门户
+pnpm --filter admin dev
+
+# 浏览器访问
+http://localhost:3000/login
+→ 登录成功后查看 Dashboard
+→ 验证统计卡片显示正确数据（总数、待审核、已批准、已拒绝）
+→ 导航到 /policies，验证保单列表正确加载
+→ 验证无 hydration 错误（检查浏览器控制台）
+```
+
+**注意事项**:
+- ✅ Hydration 问题已彻底解决（服务端渲染 null，客户端完整渲染）
+- ✅ Admin 门户现在可以正确显示后端数据
+- ⚠️ Stats 目前客户端计算（4 个并行请求），未来可优化为后端专用 API
+- ⚠️ 确保后端 API (localhost:3001) 在访问 Admin 门户前已启动
+- ⚠️ Stats 显示的 "今日批准/拒绝" 实际为 "所有批准/拒绝总数"（需要后端 API 支持日期过滤）
+
+---
+
+## [2025-11-15] - 📝 合同签署页：签名→等待审核（对齐设计 + 真实后端）✅ 完成
+
+### ✅ Implemented - Web 合同签署页完整实现
+
+**功能概述**:
+完成合同签署页（/policy/contract-sign/[policyId]）的完整实现，集成真实后端 API（GET /policy/:id + POST /policy/contract-sign），实现钱包签名、状态流转、UI 对齐设计稿。签署成功后保单状态从 DRAFT → PENDING_UNDERWRITING。
+
+**实现细节**:
+
+#### 1. **数据准备与 API 集成**
+   - **GET /policy/:id**: 获取保单详情（status、premiumAmt、walletAddress 等）
+   - **Query 参数融合**: 从上一页（form）接收 coverage/period/symbol/premium，与后端数据融合展示
+   - **TanStack Query**: 使用 `useQuery` 加载保单，retry: 1，优雅错误处理
+   - **后端优先**: Premium 优先使用后端返回的 `policy.premiumAmt`，query 参数作为 fallback
+
+#### 2. **状态检查与路由引导** (严格 DRAFT Only)
+   非 DRAFT 状态时显示状态页，清晰引导用户：
+   - **PENDING_UNDERWRITING**: "已签署，等待审核" → 按钮"查看详情"
+   - **APPROVED_AWAITING_PAYMENT**: "已通过审核，待支付" → 按钮"去支付"
+   - **ACTIVE/REJECTED/EXPIRED**: 按钮"查看详情"
+   - 状态页居中展示，带黄色按钮 + 阴影效果
+
+#### 3. **合同 Payload 构造** (Canonical Order)
+   按固定键名顺序组织 payload，避免签名差异：
+   ```typescript
+   const contractPayload = {
+     policyId: policy.id,
+     walletAddress: user.address,      // 来自 authStore，只读
+     coverageAmount: coverageFromQuery,
+     premiumAmount: policy.premiumAmt,  // 后端返回的真实值
+     termDays: parseInt(periodFromQuery),
+     symbol: symbolFromQuery,
+     timestamp: Date.now(),
+   }
+   ```
+
+#### 4. **钱包签名流程** (ethers v6 BrowserProvider)
+   - **Step 1**: 检查 chainId，不符合时抛出错误并禁用按钮
+   - **Step 2**: 使用 `BrowserProvider(walletProvider)` 获取 signer
+   - **Step 3**: `signer.signMessage(JSON.stringify(contractPayload))` 签名
+   - **Step 4**: POST /policy/contract-sign，提交 { policyId, contractPayload, userSig }
+   - **Step 5**: 成功后 `router.replace(/policy/detail/${policyId})`
+
+#### 5. **ChainID 校验** (防钓鱼)
+   - 从 `process.env.NEXT_PUBLIC_CHAIN_ID` 读取期望链网（97 = BSC Testnet）
+   - 签名前检查 `network.chainId`，不一致时：
+     - 显示红色警告框："请切换到 BSC Testnet (Chain ID: 97)"
+     - 禁用签名按钮
+     - 抛出错误阻止签名
+
+#### 6. **按钮禁用逻辑**
+   ```typescript
+   const isChainCorrect = currentChainId === null || currentChainId === EXPECTED_CHAIN_ID
+   const canSign = agreed && isChainCorrect && !isSigning
+   ```
+   禁用条件：
+   - 未勾选"我已阅读并同意"
+   - 链网不符
+   - 正在签名中
+   - 正在加载 policy
+
+#### 7. **错误处理与友好提示**
+   - **用户取消签名**: "Signature request was cancelled" (检查 err.code === 4001)
+   - **链网错误**: 显示完整错误信息（如 "Please switch to BSC Testnet"）
+   - **网络错误**: "Network error. Please check your connection"
+   - **后端错误**: 显示 `err.response.data.message`
+   - 错误框可点击 Dismiss 关闭
+
+#### 8. **UI 对齐设计稿**
+   - **背景**: `bg-[#050816]` (深色)
+   - **合同区块**: `bg-[#2D3748]` + `border-[#374151]` + `rounded-xl` + `h-[400px]` + 可滚动
+   - **同意按钮**: 边框切换态（未选: border-only，已选: bg-[#5B7C4F] 实心）
+   - **签名按钮**: `bg-[#FECF4C] text-[#111827] rounded-xl shadow-[0_4px_16px_rgba(254,207,76,0.45)]`
+   - **Header/BACK**: 与 form 页一致（`bg-[#050816]`, 钱包 pill `rounded-full`, uppercase 文字）
+   - **移动端优先**: `max-w-md mx-auto w-full`
+
+#### 9. **Loading Skeleton**
+   - 加载时显示骨架屏（header + contract box + buttons）
+   - 使用 `animate-pulse` 和灰色背景
+   - 避免内容闪烁
+
+#### 10. **合同内容展示**
+   在合同区块内显示保单概要：
+   - Policy ID (截断显示)
+   - Coverage Amount
+   - Premium (后端值优先)
+   - Term (天数)
+   - Wallet Address (截断显示)
+   - 底部分隔线 + 条款说明文字
+
+**相关文件**:
+```
+apps/web/src/app/policy/contract-sign/[policyId]/page.tsx    # 完全重写
+```
+
+**API 接口**:
+- **GET /policy/:id** → PolicyResponse (id, status, premiumAmt, etc.)
+- **POST /policy/contract-sign** → Body: { policyId, contractPayload, userSig } → { contractHash }
+
+**Contract Payload 字段**:
+```json
+{
+  "policyId": "uuid",
+  "walletAddress": "0x...",
+  "coverageAmount": "string",
+  "premiumAmount": "string",
+  "termDays": number,
+  "symbol": "USDT",
+  "timestamp": number
+}
+```
+
+**构建测试**:
+```bash
+pnpm --filter web build
+# ✓ 构建成功，无类型错误，605 kB First Load JS (contract-sign page)
+```
+
+**状态流转**:
+```
+DRAFT (可签署)
+  ↓ 签名成功
+PENDING_UNDERWRITING (等待审核)
+  ↓ 管理员审核
+APPROVED_AWAITING_PAYMENT (待支付)
+  ↓ 支付成功
+ACTIVE (生效)
+```
+
+**验收标准验证**:
+- ✅ 非 DRAFT 不允许签署，并有清晰引导
+- ✅ 签署按钮仅在勾选同意且链网正确时可用
+- ✅ 成功签署后状态流转为 PENDING_UNDERWRITING，跳转详情页
+- ✅ UI、间距、按钮风格与设计稿基本一致
+- ✅ Skeleton 友好，无明显闪烁
+
+**注意事项**:
+- 不打印 userSig 明文，仅打印 policyId 和关键流程点
+- chainId 校验失败禁止签名（防钓鱼）
+- 签名的地址来自 authStore（只读），不信任用户输入
+- Payload 键名顺序固定，确保签名一致性
+- 后端 premiumAmt 优先于前端 query 参数
+
+---
+
+## [2025-11-15] - 🔧 Policy 表单页三项优化（增减按钮移除 + 产品改名 + 双向绑定）✅ 完成
+
+### ✅ Enhanced - 表单交互优化与数据双向绑定
+
+**功能概述**:
+完成 Policy 表单页的三项重要优化：移除数字输入框的浏览器默认增减按钮、更新产品名称为 "YULILY SHIELD INSURANCE"、实现 Insurance Amount 和 Insurance Cost 的双向绑定计算。
+
+**实现细节**:
+
+#### 1. **移除数字输入框增减按钮**
+   - **问题**: 浏览器默认的数字输入框（type="number"）在 focus 时会显示上下箭头按钮，影响 UI 美观
+   - **解决方案**: 添加 Tailwind CSS 自定义类名
+   ```tsx
+   className="... [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+   ```
+   - **效果**: 完全隐藏 Chrome/Safari/Firefox 的数字输入框增减按钮，保持纯净 UI
+
+#### 2. **更新产品名称**
+   - **修改文件**:
+     - `apps/api/prisma/seed.ts`: Seed 数据中的产品名从 "BSC USDT Protection Plan" 改为 "YULILY SHIELD INSURANCE"
+     - `apps/web/src/app/policy/form/[productId]/page.tsx`: 前端 fallback 默认值同步更新
+   - **注意**: Seed 脚本使用 `upsert`，下次运行时会自动更新现有数据库记录
+
+#### 3. **Insurance Cost 双向绑定计算** （核心功能）
+
+   **3.1 架构设计**:
+   - 新增状态: `lastEditedField` 追踪最后编辑的字段（'amount' | 'cost'）
+   - 两个字段都可编辑，互相自动计算
+   - 使用 `useEffect` 监听变化并触发反向计算
+
+   **3.2 计算逻辑**:
+   ```typescript
+   // 当 Insurance Amount 改变时 → 自动计算 Insurance Cost
+   insuranceCost = insuranceAmount * premiumRate
+
+   // 当 Insurance Cost 改变时 → 自动反推 Insurance Amount
+   insuranceAmount = insuranceCost / premiumRate
+   ```
+
+   **3.3 实现要点**:
+   - **Form Schema 扩展**: 新增 `insuranceCost` 字段到 zod schema
+   - **双向 useEffect**:
+     - `watchedAmount` 变化 → 更新 `insuranceCost`（仅当 `lastEditedField === 'amount'`）
+     - `watchedCost` 变化 → 更新 `insuranceAmount`（仅当 `lastEditedField === 'cost'`）
+   - **onChange 处理**: 为两个输入框添加自定义 `onChange`，设置 `lastEditedField` 以区分编辑源
+   - **Overview 同步**: Overview 区域显示 `watchedCost` 的实时值
+   - **Submit 数据**: 提交时使用 `data.insuranceCost`（而非计算值）
+
+   **3.4 UI 变化**:
+   - Insurance Cost 从只读（disabled）改为可编辑
+   - 辅助文字从 "Auto-calculated" 改为 "Bidirectional"
+   - 添加与 Insurance Amount 相同的样式和增减按钮隐藏
+
+**相关文件**:
+```
+apps/web/src/app/policy/form/[productId]/page.tsx    # 表单逻辑全面优化
+apps/api/prisma/seed.ts                               # 产品名称更新
+```
+
+**构建测试**:
+```bash
+pnpm --filter web build
+# ✓ 构建成功，无类型错误，165 kB First Load JS
+```
+
+**关键代码片段**:
+```typescript
+// 状态追踪
+const [lastEditedField, setLastEditedField] = useState<'amount' | 'cost'>('amount')
+
+// 双向绑定 - Amount → Cost
+useEffect(() => {
+  if (lastEditedField === 'amount') {
+    const amount = parseFloat(watchedAmount)
+    if (!isNaN(amount) && amount > 0 && premiumRate > 0) {
+      const calculatedCost = Math.round(amount * premiumRate * 100) / 100
+      setValue('insuranceCost', String(calculatedCost), { shouldValidate: true })
+    }
+  }
+}, [watchedAmount, lastEditedField, premiumRate, setValue])
+
+// 双向绑定 - Cost → Amount
+useEffect(() => {
+  if (lastEditedField === 'cost') {
+    const cost = parseFloat(watchedCost)
+    if (!isNaN(cost) && cost > 0 && premiumRate > 0) {
+      const calculatedAmount = Math.round((cost / premiumRate) * 100) / 100
+      setValue('insuranceAmount', String(calculatedAmount), { shouldValidate: true })
+    }
+  }
+}, [watchedCost, lastEditedField, premiumRate, setValue])
+```
+
+**注意事项**:
+- 双向绑定的关键是 `lastEditedField` 状态，避免无限循环更新
+- 计算时保留两位小数: `Math.round(value * 100) / 100`
+- 两个字段都需要隐藏浏览器默认增减按钮以保持 UI 一致性
+- Premium Rate 从产品 API 获取: `premiumRate = premiumAmt / coverageAmt`
+
+---
+
+## [2025-11-15] - 🎨 Policy 表单页 UI 全面重构（完美对齐设计稿）✅ 完成
+
+### ✅ Refactored - 表单页 UI 完全对齐移动端设计稿
+
+**功能概述**:
+对 Policy 表单页（/policy/form/[productId]）进行全面 UI 重构，完美对齐移动端设计稿 `docs/designs/保险细节页面.png`。实现统一卡片样式、精准色彩系统、移动端优先布局（max-w-md 居中）。
+
+**实现细节**:
+
+#### 1. **整体布局改造**
+   - **背景色**: 从 `#0F111A` 改为 `#050816`（更深的深色背景）
+   - **移动端优先**: 内容区域添加 `max-w-md mx-auto w-full`，在大屏上居中显示
+   - **Skeleton 更新**: Loading 骨架屏同步使用新配色和布局
+
+#### 2. **Header + BACK 按钮重构**
+   - **Header 背景**: `bg-[#050816]`（与页面背景一致）
+   - **Logo 文字**: `text-sm uppercase tracking-[1.5px]`（小号大写字母间距）
+   - **钱包 Pill**:
+     - 从圆角矩形改为圆形按钮 `rounded-full`
+     - 颜色: `bg-[#FECF4C] text-[#111827]`（黄色背景 + 深色文字）
+     - 字号: `text-xs font-semibold`
+   - **BACK 按钮**: `text-xs uppercase tracking-[1.5px]`（大写字母间距）
+
+#### 3. **统一表单卡片样式**（4 个字段）
+   所有表单字段（Wallet Address / Amount / Cost / Period）采用统一卡片设计:
+   - **卡片容器**: `bg-[#111827] rounded-xl px-4 py-3 border border-[#1F2937]`
+   - **Label 样式**: `text-[#9CA3AF] text-xs uppercase tracking-[1.5px]`（灰色小号大写）
+   - **Value 样式**: `text-white text-2xl font-semibold`（白色大号半粗）
+   - **辅助文字**: `text-[#6B7280] text-[10px]`（Max/Auto-calculated）
+   - **输入框**:
+     - 无独立背景，直接 `bg-transparent`，融入卡片
+     - 移除内部边框，仅通过卡片边框统一
+     - Focus 状态自然融入卡片设计
+
+#### 4. **Overview 卡片样式对齐**
+   - 采用与表单字段相同的卡片样式: `bg-[#111827] rounded-xl border border-[#1F2937]`
+   - Section 标题: `text-sm font-semibold mb-2.5`（缩小标题间距）
+   - 内部分隔线: `border-[#1F2937]`（与卡片边框一致）
+   - 所有文本缩小到 `text-xs`
+
+#### 5. **Terms & Filing 卡片样式**
+   - 采用统一卡片设计: `bg-[#111827] rounded-xl border border-[#1F2937]`
+   - **圆点图标改造**:
+     - 从 emoji ✓/● 改为圆形 div: `w-2 h-2 rounded-full`
+     - 绿色: `bg-green-500`（保护项目）
+     - 红色: `bg-red-500`（排除项目）
+     - 灰色: `bg-[#9CA3AF]`（Filing 列表）
+   - 文字尺寸: `text-[10px]`（Terms）、`text-[9px]`（免责声明）
+   - Section 标题: `text-sm font-semibold mb-2.5`
+
+#### 6. **底部按钮样式**
+   - **正常状态**:
+     - 背景: `bg-[#FECF4C]`（品牌黄色）
+     - 文字: `text-[#111827]`（深色）
+     - 圆角: `rounded-xl`
+     - 阴影: `shadow-[0_4px_16px_rgba(254,207,76,0.45)]`（黄色发光效果）
+   - **禁用状态**: `bg-[#374151] text-[#6B7280]`（灰色）
+   - 文字: `text-sm font-semibold`
+
+#### 7. **颜色系统标准化**
+   ```
+   深色背景: #050816 (页面)、#111827 (卡片)
+   边框:     #1F2937 (卡片边框、分隔线)
+   文字:     #FFFFFF (主要)、#9CA3AF (Label)、#6B7280 (辅助)
+   品牌色:   #FECF4C (按钮、图标、高亮)
+   状态色:   green-500 (保护)、red-500 (排除)
+   ```
+
+**相关文件**:
+```
+apps/web/src/app/policy/form/[productId]/page.tsx    # UI 完全重构
+```
+
+**设计对齐参考**:
+- 设计稿: `docs/designs/保险细节页面.png`
+- 实现截图对比: `docs/ui-snapshot/policy-form-001.png` (重构前)
+
+**构建测试**:
+```bash
+pnpm --filter web build
+# ✓ 构建成功，无类型错误
+```
+
+**注意事项**:
+- 所有卡片样式统一使用 `bg-[#111827] rounded-xl border border-[#1F2937]`
+- Label 统一使用 `text-xs uppercase tracking-[1.5px]`（大写 + 字母间距）
+- 移动端优先设计，375px 宽度完美展示，大屏居中
+- 黄色品牌色统一为 `#FECF4C`（非 #FFD54F）
+- 业务逻辑（验证、计算、API）保持不变，仅 UI 重构
+
+---
+
+## [2025-11-15] - 📝 任务 M3-P2：Policy 表单页对齐设计稿 + 真实 API + 完整验证 ✅ 完成
+
+### ✅ Refactored - 保单表单页全面重构，解决 9 个核心问题
+
+**功能概述**:
+完成 Policy 表单页（/policy/form/[productId]）的全面重构，按照设计稿实现所有交互细节，接入真实 API，添加完整的表单验证、实时计算、Loading Skeleton，修复所有命名和逻辑问题。
+
+**实现细节**:
+
+#### 1. **钱包地址自动填充（严重问题 - 已修复）**
+   - 路径: `apps/web/src/app/policy/form/[productId]/page.tsx:110-115`
+   - 从 `useAuthStore` 读取 `user.address`，自动填入「Insurance Wallet Address」
+   - 字段设为 `readOnly` 和 `disabled`，防止用户修改
+   - 使用 `useEffect` 监听 `user.address` 变化，动态填充
+   - 后端始终以 JWT.address 为准，前端地址仅作展示
+
+#### 2. **字段命名修正（严重问题 - 已修复）**
+   - 上栏: **Insurance Amount**（用户可编辑，保障额度）
+   - 下栏: **Insurance Cost**（只读，自动计算的保费）
+   - 移除错误的第二个"Insurance Amount"命名
+   - Label、placeholder、帮助文案严格区分
+
+#### 3. **币种单位与 Max 显示（中等问题 - 已修复）**
+   - 路径: `apps/web/src/app/policy/form/[productId]/page.tsx:18-26, 283`
+   - 实现 `getTokenSymbol()` 函数：BSC USDT 地址 → "USDT"，默认 "USDT"
+   - 在金额输入框右上方显示: `Max: {maxCoverage.toLocaleString()} {tokenSymbol}`
+   - 输入框右侧显示币种圆形图标（黄色圆 + "$" 符号）
+   - maxCoverage 取自真实 API 的 `product.coverageAmount`
+
+#### 4. **表单验证（中等问题 - 已修复）**
+   - 路径: `apps/web/src/app/policy/form/[productId]/page.tsx:74-91`
+   - 使用 `react-hook-form` + `zod` + `zodResolver`
+   - Schema 定义:
+     - `walletAddress`: 正则 `/^0x[a-fA-F0-9]{40}$/`，必填（但只读，理论不会出错）
+     - `insuranceAmount`: 字符串转数字，> 0，≤ maxCoverage，错误提示统一
+     - `insurancePeriodDays`: 必须在允许集合中（30/60/90/defaultTermDays）
+   - 错误提示样式：红色文本、text-xs、mt-2 间距一致
+
+#### 5. **Overview 实时同步（严重问题 - 已修复）**
+   - 路径: `apps/web/src/app/policy/form/[productId]/page.tsx:117-124, 356-392`
+   - 使用 `watch()` 实时监听 `insuranceAmount` 和 `insurancePeriodDays`
+   - 计算公式:
+     - `premiumRate = premiumAmt / coverageAmt`（从真实产品获取）
+     - `insuranceCost = round(insuranceAmount * premiumRate, 2)`（保留两位小数）
+   - Overview 区块显示:
+     - Insurance Amount: 实时同步
+     - Insurance Period: 实时同步（天数）
+     - Insurance Cost: 实时计算
+
+#### 6. **UI 排版对齐设计稿（中-重问题 - 已修复）**
+   - 路径: 整个 page.tsx
+   - Label: `text-sm font-semibold`
+   - Input: 圆角 `rounded-lg`，边框 `border-[#374151]`，focus 边色 `focus:border-[#FFD54F]`
+   - Section 标题: `text-white text-base font-semibold`
+   - 区块背景: `bg-[#1A1D2E]`，边框 `border-[#374151]`
+   - 按钮: `bg-[#FFD54F] text-[#0F111A]`，hover `brightness-110`，圆角一致
+   - Terms & Conditions: 分组列表（✓/●），行距紧凑
+
+#### 7. **Max 动态化（轻-中问题 - 已修复）**
+   - 路径: `apps/web/src/app/policy/form/[productId]/page.tsx:61`
+   - Max 取自真实 API: `product.coverageAmount`
+   - 若 API 未返回，则使用 query 参数中的 `coverageFromQuery`，否则默认 8000000
+   - UI 显示: `Max: {maxCoverage.toLocaleString()} {tokenSymbol}`
+
+#### 8. **真实 API 接入（严重问题 - 已修复）**
+   - 路径: `apps/web/src/app/policy/form/[productId]/page.tsx:48-58, 127-155`
+   - **获取产品详情**:
+     - GET /products → 前端 find(productId) 找到对应产品
+     - 提取 premiumAmount、coverageAmount、termDays、tokenAddress
+   - **创建保单**:
+     - POST /policy，仅传 `{ skuId: productId }`
+     - 后端通过 JWT.address 自动关联用户
+     - 成功后拿到 `policyId`
+   - **跳转签署页**:
+     - `/policy/contract-sign/${policyId}?coverage=${amount}&period=${days}&symbol=${symbol}&premium=${cost}`
+     - 签署页可直接使用这些 query 显示概览，同时可调用 `/policy/:id` 兜底
+
+#### 9. **Loading Skeleton（中等问题 - 已修复）**
+   - 路径: `apps/web/src/app/policy/form/[productId]/page.tsx:158-208`
+   - 当 `isChecking || isAuthLoading || isProductLoading` 时显示骨架屏
+   - 骨架组件:
+     - Header（logo + address badge）
+     - Back button
+     - Title + Description（2-3 行）
+     - 表单字段（4 个 label + input）
+     - Overview 区块
+     - 提交按钮
+   - 使用 `animate-pulse` 和 `bg-[#374151]` 灰色块，避免闪烁
+
+**相关文件**:
+```
+apps/web/src/app/policy/form/[productId]/page.tsx    # 表单页完全重写
+apps/web/package.json                                 # 新增 react-hook-form, @hookform/resolvers
+```
+
+**依赖更新**:
+```bash
+# 新增依赖（兼容版本）
+pnpm --filter web add react-hook-form@7.54.0 @hookform/resolvers@3.9.1
+# zod@3.23.8 已存在
+```
+
+**费率计算公式**:
+```typescript
+// 从真实产品获取费率
+const premiumRate = parseFloat(product.premiumAmount) / parseFloat(product.coverageAmount)
+
+// 实时计算保费（保留两位小数）
+const insuranceCost = Math.round(parseFloat(insuranceAmount) * premiumRate * 100) / 100
+```
+
+**构建验证**:
+```bash
+pnpm --filter web build
+# ✅ 构建成功，无类型错误
+# ✅ 表单页 bundle size: 26.9 kB (合理)
+```
+
+**测试方法**:
+1. 启动后端 API: `pnpm --filter api dev`
+2. 启动 Web 前端: `pnpm --filter web dev`
+3. 登录后访问 http://localhost:3030/products
+4. 点击任意产品的 "Select" 按钮
+5. 验证表单页功能：
+
+**验收清单**:
+- ✅ 钱包地址自动填充且不可编辑（灰色、只读）
+- ✅ Insurance Amount（可编辑）vs Insurance Cost（只读、自动计算）命名正确
+- ✅ Max 和币种符号正确显示（取自真实 API）
+- ✅ 输入 Insurance Amount，Cost 实时变化，Overview 同步更新
+- ✅ 表单验证：金额 > 0、≤ maxCoverage，Period 在允许集合中
+- ✅ 错误提示样式一致（红色、text-xs）
+- ✅ UI 对齐设计稿（spacing、border、font、color）
+- ✅ 提交成功 → 跳转 `/policy/contract-sign/[policyId]?coverage=...&period=...`
+- ✅ Loading Skeleton 覆盖所有加载状态
+
+**注意事项**:
+- ✅ 后端始终以 JWT.address 为准，前端地址仅展示
+- ✅ 不打印 JWT、签名等敏感信息
+- ✅ 日志仅输出必要调试信息
+- ⚠️ 下一步需在 `/policy/contract-sign/[policyId]` 页接收 query 参数并显示
+
+---
+
+## [2025-11-15] - 🛒 任务 M3-P1：Products 页面接入真实后端 API + 适配器 ✅ 完成
+
+### ✅ Added - 产品列表页面真实 API 对接 + 后端字段适配
+
+**功能概述**:
+完成 Web DApp 产品列表页面（/products）与后端 GET /products 接口的对接，实现后端字段（premiumAmt/coverageAmt）到前端字段（premiumAmount/coverageAmount）的适配，保留 Loading/Error/Empty 三态 UI，并在跳转时携带产品信息参数。
+
+**实现细节**:
+
+1. **类型定义扩展**
+   - 路径: `apps/web/src/types/index.ts`
+   - 新增 `BackendSku` 接口（后端 API 响应类型）
+   - 更新 `Product` 接口（前端使用类型，字段改为可选以适配不同场景）
+   - 字段映射：
+     - `premiumAmt` (后端) → `premiumAmount` (前端)
+     - `coverageAmt` (后端) → `coverageAmount` (前端)
+
+2. **适配器函数**
+   - 路径: `apps/web/src/utils/index.ts:76`
+   - 新增 `mapProduct(sku: BackendSku): Product` 函数
+   - 功能：转换后端 SKU 响应为前端 Product 类型
+   - 处理：
+     - 字段名称映射（premiumAmt → premiumAmount）
+     - 状态转换（status === 'active' → isActive: true）
+     - 日期格式标准化（Date → ISO string）
+
+3. **Products 页面真实 API 对接**
+   - 路径: `apps/web/src/app/products/page.tsx:17-26`
+   - 使用 TanStack Query 调用 GET /products 接口
+   - 响应数据通过 `Utils.mapProduct` 适配器转换
+   - 移除 Mock 数据逻辑，改为空数组作为 fallback
+   - 移除 `description` 字段显示（后端不返回）
+   - 更新错误提示文案："Failed to load products. Please try again later."
+
+4. **跳转链接携带产品信息**
+   - 路径: `apps/web/src/app/products/page.tsx:128`
+   - 格式: `/policy/form/{productId}?name=...&termDays=...&premium=...&coverage=...`
+   - 目的：减少保单表单页的二次请求，提升用户体验
+   - 参数编码：使用 `encodeURIComponent` 处理产品名称
+
+**相关文件**:
+```
+apps/web/src/types/index.ts
+apps/web/src/utils/index.ts
+apps/web/src/app/products/page.tsx
+```
+
+**构建验证**:
+```bash
+pnpm --filter web build
+# ✅ 构建成功，TypeScript 类型检查通过
+# ✅ 无类型错误，无编译错误
+```
+
+**测试方法**:
+1. 启动后端 API 服务: `pnpm --filter api dev`
+2. 启动 Web 前端服务: `pnpm --filter web dev`
+3. 访问 http://localhost:3000/products（需先登录）
+4. 验证以下功能：
+   - ✅ Loading 状态显示（"Loading products..."）
+   - ✅ 产品列表显示真实数据（来自后端 GET /products）
+   - ✅ 产品卡片显示：产品名称、Coverage、Premium、Term Days
+   - ✅ Error 状态显示（如后端未启动）
+   - ✅ Empty 状态显示（如后端返回空数组）
+   - ✅ 点击 Select 按钮跳转到 `/policy/form/{id}?name=...&termDays=...` 等
+
+**API 调用示例**:
+```bash
+# 获取产品列表（需 JWT Token）
+curl -X GET http://localhost:3001/products \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+
+# 响应示例
+[
+  {
+    "id": "bsc-usdt-plan-seed",
+    "name": "BSC USDT Insurance - Seed Round",
+    "chainId": 56,
+    "tokenAddress": "0x55d398326f99059fF775485246999027B3197955",
+    "decimals": 18,
+    "premiumAmt": "100.0",
+    "coverageAmt": "10000.0",
+    "termDays": 90,
+    "status": "active",
+    "createdAt": "2024-10-25T00:00:00.000Z",
+    "updatedAt": "2024-10-25T00:00:00.000Z"
+  }
+]
+```
+
+**注意事项**:
+- ✅ 后端 GET /products 为公开接口（无需鉴权），但前端已添加路由保护（useRequireAuth）
+- ✅ 适配器函数使用严格类型，确保类型安全
+- ✅ 产品名称可能包含特殊字符，已使用 `encodeURIComponent` 编码
+- ✅ 保留了 Loading、Error、Empty 三态 UI，用户体验良好
+- ⚠️ 下一步需要在 `/policy/form/[productId]` 页面接收并使用这些 query 参数
+
+---
+
 ## [2025-11-15] - 🌐 Admin i18n 扩展覆盖 - Dashboard + Policies + Review 页面 ✅ 完成
 
 ### ✅ Enhanced - i18n 繁体中文翻译扩展至所有核心页面

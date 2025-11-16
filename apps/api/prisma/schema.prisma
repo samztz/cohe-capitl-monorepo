@@ -62,20 +62,22 @@ model Policy {
   skuId           String
   sku             Sku           @relation(fields: [skuId], references: [id])
   walletAddress   String
-  premiumAmt      Decimal       @db.Decimal(38, 18)
+  premiumAmt      Decimal       @db.Decimal(38, 18)  // User-input premium amount
+  coverageAmt     Decimal       @db.Decimal(38, 18)  // User-input coverage amount
   status          PolicyStatus  @default(DRAFT)
   contractHash    String?
   userSig         String?
   paymentDeadline DateTime?     // Deadline for payment after approval (set when APPROVED_AWAITING_PAYMENT)
+  reviewerNote    String?       // Admin note when approving/rejecting policy
   startAt         DateTime?     // Coverage start time (set when ACTIVE)
   endAt           DateTime?     // Coverage end time (startAt + termDays)
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
   payments        Payment[]
 
-  @@unique([walletAddress, skuId])
   @@index([userId])
   @@index([status])
+  @@index([walletAddress, skuId])  // Index for efficient queries, but not unique
 }
 
 model Payment {
@@ -95,4 +97,14 @@ model Payment {
   @@index([policyId])
   @@index([txHash])
   @@index([confirmed])
+}
+
+model Setting {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([key])
 }

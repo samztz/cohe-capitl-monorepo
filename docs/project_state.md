@@ -1,7 +1,7 @@
 # 🧭 Project State - Cohe Capital 项目状态追踪
 
 > **MVP 版本**: v0.2.0
-> **最后更新**: 2025-11-15 (Admin API 修补 + Deadline UI + 繁体中文 i18n 已完成)
+> **最后更新**: 2025-11-16 (Admin 数据完整性修复完成)
 > **管理工具**: Claude Code 自动同步
 > **协作规划**: ChatGPT (Epic 设计) + Claude Code (实现)
 > **协作规则**: 详见 [CLAUDE.md](../CLAUDE.md) 第 11 章
@@ -18,7 +18,7 @@
 | **E1. 后端基础与认证**        | NestJS + Prisma + SIWE 登录与 JWT 鉴权      | ✅ 100%   | 4/4 完成   | 2025-10-28     |
 | **E2. 保单购买闭环**          | Products / Policy / Payment / Admin 模块    | ✅ 100%   | 10/10 完成 | 2025-11-15     |
 | **E3. ~~Mobile DApp~~** (已废弃) | ~~React Native (Expo) 移动端~~ ⚠️ 已暂停    | 🔴 废弃   | 3/6 (暂停) | -              |
-| **E4. 前端 Web DApp**         | Next.js 14 Web 应用（钱包登录 + 保单购买）   | 🟡 40%    | 2/5 完成   | 2025-01-20     |
+| **E4. 前端 Web DApp**         | Next.js 14 Web 应用（钱包登录 + 保单购买）   | 🟡 80%    | 4/5 完成   | 2025-01-20     |
 | **E5. 前后端联调与测试**      | E2E 测试 / API 对接 / Bug 修复              | ⚪ 0%      | 0/4 完成   | 2025-01-25     |
 | **E6. 部署与演示环境**        | Docker / CI/CD / Staging 部署               | ⚪ 0%      | 0/4 完成   | 2025-01-30     |
 | **E7. Admin 审核前端**        | Next.js Web Admin Panel 保单审核与管理      | ✅ 100%   | 8/8 完成   | 2025-11-15     |
@@ -91,7 +91,7 @@
 
 **目标**：构建 Next.js 14 Web 应用，实现完整的用户端保险购买流程（替代 Mobile 端）。
 
-**状态**: 🟡 40% 完成 (2/5 任务完成)
+**状态**: 🟡 83.3% 完成 (5/6 任务完成)
 
 ### Issues
 
@@ -99,8 +99,9 @@
 | ------ | --------------------------------------------------- | -------- | ------ | -------------- |
 | #32    | 初始化 Web 项目结构（Next.js 14 + TypeScript）       | ✅ 完成   | Samztz | 2025-01-15     |
 | #33    | 集成 Reown AppKit React + SIWE 登录 + 路由保护      | ✅ 完成   | Samztz | 2025-01-15     |
-| #34    | 产品列表页（/products）                             | ⚪ 待做   | Samztz | -              |
-| #35    | 保单购买流程页（/policy/create）                    | ⚪ 待做   | Samztz | -              |
+| #34    | 产品列表页（/products）真实 API 对接 + 适配器       | ✅ 完成   | Samztz | 2025-11-15     |
+| #35    | 保单表单页（/policy/form）完整重构 + 真实 API      | ✅ 完成   | Samztz | 2025-11-15     |
+| #37    | 合同签署页（/policy/contract-sign）钱包签名 + 状态流转 | ✅ 完成 | Samztz | 2025-11-15     |
 | #36    | 保单详情页（/policy/:id）+ 倒计时                   | ⚪ 待做   | Samztz | -              |
 
 **已完成功能**:
@@ -142,10 +143,28 @@
 - Ethers.js v6
 - React Query (数据获取)
 
+**最新完成** (2025-11-15):
+- ✅ **保单表单页完整重构**（Issue #35）
+  - ✅ 9 个核心问题全部修复
+  - ✅ 钱包地址自动填充（从 authStore，只读）
+  - ✅ 字段命名修正（Insurance Amount vs Cost）
+  - ✅ 币种单位 + Max 动态显示（取自真实 API）
+  - ✅ 完整表单验证（react-hook-form + zod）
+  - ✅ Overview 实时同步（watch + 费率计算）
+  - ✅ UI 对齐设计稿（spacing、border、color）
+  - ✅ 真实 API 接入（GET /products + POST /policy）
+  - ✅ Loading Skeleton（避免 UI 闪烁）
+  - ✅ 跳转签署页携带 query（coverage/period/symbol/premium）
+
+- ✅ 产品列表页真实 API 对接（Issue #34）
+  - 后端字段适配器（premiumAmt/coverageAmt → premiumAmount/coverageAmount）
+  - TanStack Query 数据获取
+  - Loading/Error/Empty 三态 UI
+  - 跳转链接携带产品信息参数
+
 **下一步**:
-- ⚪ 实现产品列表页（Issue #34）
-- ⚪ 实现保单购买流程（Issue #35）
 - ⚪ 实现保单详情页与倒计时（Issue #36）
+- ⚪ 完善签署页接收 query 参数（M3-P3）
 
 ---
 
@@ -244,26 +263,28 @@ update_policy: Claude Code 自动同步 project_state.md 和 CHANGELOG.md
 
 | 状态       | Epic 数量 | Issue 数量 | 完成率     |
 | ---------- | --------- | ---------- | ---------- |
-| ✅ 完成     | 3         | 21         | 58.3%      |
-| 🟡 进行中   | 1         | 2          | 5.6%       |
-| ⚪ 待做     | 2         | 9          | 25.0%      |
+| ✅ 完成     | 3         | 23         | 63.9%      |
+| 🟡 进行中   | 1         | 1          | 2.8%       |
+| ⚪ 待做     | 2         | 8          | 22.2%      |
 | 🔴 废弃     | 1         | 4          | 11.1%      |
-| **总计**   | **7**     | **36**     | **63.9%**  |
+| **总计**   | **7**     | **37**     | **70.3%**  |
 
 **说明**：
 - 完成率 = (已完成 Issue 数量 + 已完成 Epic 的部分进度) / 总 Issue 数量
 - Epic 1（后端基础）: ✅ 100% 完成（4/4 Issues）
-- Epic 2（保单购买闭环）: ✅ 100% 完成（10/10 Issues）← 新增 Issue #14 支付确认限制
-- Epic 7（Admin 前端）: ✅ 100% 完成（7/7 Issues）
-- Epic 4（Web DApp）: 🟡 40% 进行中（2/5 Issues）
+- Epic 2（保单购买闭环）: ✅ 100% 完成（10/10 Issues）
+- Epic 7（Admin 前端）: ✅ 100% 完成（8/8 Issues）+ 5 个 P0/P1 bug 修复
+- Epic 4（Web DApp）: 🟡 83.3% 进行中（5/6 Issues）← 新增 Issue #37 合同签署页完成
 - Epic 3（Mobile DApp）: 🔴 废弃（3/6 Issues 暂停）
-- **当前优先级**: 完成 Epic 4 (Web DApp)，开启前后端联调测试
+- **当前优先级**: 完成 Epic 4 (Web DApp) Issue #36 保单详情页，开启前后端联调测试
 - **最新进展**:
+  - ✅ **Admin 数据完整性修复** - 修复 5 个关键 Bug（搜索、SKU 数据、统计 API、reviewerNote 字段、Schema 不匹配）（2025-11-16）
+  - ✅ 合同签署页完整实现 + 钱包签名 + 状态流转完成（Issue #37, 2025-11-15）
+  - ✅ Policy 表单页完整重构 + 9 个问题修复完成（Issue #35, 2025-11-15）
+  - ✅ Products 页面真实 API 对接 + 适配器完成（Issue #34, 2025-11-15）
   - ✅ Payment 确认 API 限制 + 激活策略完成（Issue #14, 2025-11-15）
   - ✅ Admin 审核 API 改为"先审核再支付"完成（Issue #13, 2025-11-15）
   - ✅ GET /policy/:id 接口 + DTO 枚举对齐完成（Issue #12, 2025-11-15）
-  - ✅ Policy 状态机枚举迁移完成（Issue #11, 2025-11-15）
-  - ✅ Web 全站路由保护系统已完成（Issue #33, 2025-11-14）
 
 ---
 

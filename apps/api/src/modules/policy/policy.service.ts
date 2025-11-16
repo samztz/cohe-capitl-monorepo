@@ -2,13 +2,14 @@
  * Policy Service
  *
  * Business logic for managing insurance policies.
- * Handles policy creation, SKU validation, and duplicate prevention.
+ * Handles policy creation, SKU validation, and contract signing.
+ * Users can purchase multiple policies for the same product.
  */
 
 import {
   BadRequestException,
-  ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { PolicyStatus } from 'generated/prisma/enums';
@@ -28,6 +29,7 @@ export interface Policy {
   skuId: string;
   walletAddress: Address;
   premiumAmt: string; // Decimal as string for JSON serialization
+  coverageAmt: string; // Decimal as string for JSON serialization
   status: string;
   contractHash?: string;
   startAt?: Date;
@@ -44,6 +46,8 @@ export interface CreatePolicyInput {
   skuId: string;
   userId: string;
   walletAddress: Address;
+  premiumAmt: string; // User-specified premium amount
+  coverageAmt: string; // User-specified coverage amount
 }
 
 /**
@@ -78,6 +82,8 @@ export interface CountdownResult {
 
 @Injectable()
 export class PolicyService {
+  private readonly logger = new Logger(PolicyService.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   /**
@@ -96,10 +102,11 @@ export class PolicyService {
    * @param input - Policy creation data
    * @returns Created policy with ID
    * @throws NotFoundException if SKU not found or inactive
-   * @throws ConflictException if policy already exists for this wallet+SKU
+   *
+   * Note: Users can purchase multiple policies for the same SKU
    */
   async createPolicy(input: CreatePolicyInput): Promise<Policy> {
-    const { skuId, userId, walletAddress } = input;
+    const { skuId, userId, walletAddress, premiumAmt, coverageAmt } = input;
 
     // Normalize wallet address to lowercase
     const normalizedAddress = walletAddress.toLowerCase() as Address;
@@ -117,14 +124,27 @@ export class PolicyService {
       throw new NotFoundException(`SKU ${skuId} is not active`);
     }
 
+    // Validate amounts are positive numbers
+    const premium = parseFloat(premiumAmt);
+    const coverage = parseFloat(coverageAmt);
+
+    if (isNaN(premium) || premium <= 0) {
+      throw new BadRequestException('Premium amount must be a positive number');
+    }
+
+    if (isNaN(coverage) || coverage <= 0) {
+      throw new BadRequestException('Coverage amount must be a positive number');
+    }
+
     try {
-      // Create policy with SKU's premium amount
+      // Create policy with user-specified amounts
       const policy = await this.prisma.policy.create({
         data: {
           userId,
           skuId,
           walletAddress: normalizedAddress,
-          premiumAmt: sku.premiumAmt,
+          premiumAmt: premiumAmt,
+          coverageAmt: coverageAmt,
           status: PolicyStatus.DRAFT,
         },
       });
@@ -135,6 +155,7 @@ export class PolicyService {
         skuId: policy.skuId,
         walletAddress: policy.walletAddress as Address,
         premiumAmt: policy.premiumAmt.toString(),
+        coverageAmt: policy.coverageAmt.toString(),
         status: policy.status,
         contractHash: policy.contractHash || undefined,
         startAt: policy.startAt || undefined,
@@ -144,12 +165,13 @@ export class PolicyService {
         updatedAt: policy.updatedAt,
       };
     } catch (error: any) {
-      // Handle Prisma unique constraint violation
-      if (error.code === 'P2002') {
-        throw new ConflictException(
-          `Policy already exists for wallet ${normalizedAddress} and SKU ${skuId}`,
-        );
-      }
+      // Log and re-throw any errors
+      this.logger.error('Failed to create policy', {
+        error: error.message,
+        code: error.code,
+        userId,
+        skuId,
+      });
       throw error;
     }
   }
@@ -221,6 +243,37 @@ export class PolicyService {
   }
 
   /**
+   * Get user policies
+   *
+   * Retrieves all policies for a specific user, ordered by creation date (newest first).
+   *
+   * @param userId - User UUID
+   * @returns Array of policy objects with safe fields
+   */
+  async getUserPolicies(userId: string): Promise<Policy[]> {
+    const policies = await this.prisma.policy.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return policies.map((policy) => ({
+      id: policy.id,
+      userId: policy.userId,
+      skuId: policy.skuId,
+      walletAddress: policy.walletAddress as Address,
+      premiumAmt: policy.premiumAmt.toString(),
+      coverageAmt: policy.coverageAmt.toString(),
+      status: policy.status,
+      contractHash: policy.contractHash || undefined,
+      startAt: policy.startAt || undefined,
+      endAt: policy.endAt || undefined,
+      paymentDeadline: policy.paymentDeadline || undefined,
+      createdAt: policy.createdAt,
+      updatedAt: policy.updatedAt,
+    }));
+  }
+
+  /**
    * Get policy by ID
    *
    * Retrieves a policy by its UUID, returning safe fields for API response.
@@ -245,6 +298,7 @@ export class PolicyService {
       skuId: policy.skuId,
       walletAddress: policy.walletAddress as Address,
       premiumAmt: policy.premiumAmt.toString(),
+      coverageAmt: policy.coverageAmt.toString(),
       status: policy.status,
       contractHash: policy.contractHash || undefined,
       startAt: policy.startAt || undefined,

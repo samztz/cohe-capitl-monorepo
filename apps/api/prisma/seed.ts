@@ -18,9 +18,9 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('🌱 Starting database seed...');
 
-  // Seed SKU: BSC USDT Protection Plan
+  // Seed SKU: YULILY SHIELD INSURANCE
   const bscSkuData = {
-    name: 'BSC USDT Protection Plan',
+    name: 'YULILY SHIELD INSURANCE',
     chainId: 56, // BSC Mainnet
     tokenAddress: '0x55d398326f99059fF775485246999027B3197955', // USDT on BSC
     termDays: 90,

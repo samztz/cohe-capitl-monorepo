@@ -74,6 +74,7 @@ export const zhTW: Translation = {
     dashboard: '儀表板',
     allPolicies: '所有保單',
     reviewQueue: '審核隊列',
+    settings: '設置',
     logout: '登出',
   },
   policyDetail: {
@@ -127,5 +128,21 @@ export const zhTW: Translation = {
   policiesPage: {
     title: '所有保單',
     description: '查看和管理所有保單申請',
+  },
+  settingsPage: {
+    title: '設置',
+    description: '配置系統設置',
+    treasury: '金庫設置',
+    treasuryDescription: '配置用於接收保險費的錢包地址',
+    treasuryAddress: '金庫地址',
+    treasuryAddressPlaceholder: '0x...',
+    currentAddress: '當前地址',
+    notConfigured: '未配置',
+    update: '更新地址',
+    updating: '更新中...',
+    updateSuccess: '金庫地址更新成功',
+    updateError: '更新金庫地址失敗',
+    invalidAddress: '無效的以太坊地址格式',
+    addressRequired: '金庫地址為必填項',
   },
 }

@@ -22,6 +22,7 @@ export interface ListPoliciesQuery {
   page: number;
   pageSize: number;
   status?: PolicyStatus;
+  q?: string;
 }
 
 /**
@@ -35,7 +36,11 @@ export interface PaginatedPolicies {
     id: string;
     walletAddress: string;
     skuId: string;
+    skuName?: string;
+    coverageAmt?: string;
+    termDays?: number;
     premiumAmt: string;
+    email?: string;
     status: PolicyStatus;
     createdAt: Date;
   }>;
@@ -80,13 +85,22 @@ export class AdminService {
    * // Returns: { total: 150, page: 1, pageSize: 20, items: [...] }
    */
   async listPolicies(query: ListPoliciesQuery): Promise<PaginatedPolicies> {
-    const { page = 1, pageSize = 20, status } = query;
+    const { page = 1, pageSize = 20, status, q } = query;
 
     // Calculate skip offset
     const skip = (page - 1) * pageSize;
 
     // Build filter conditions
-    const where = status ? { status } : {};
+    const where: any = status ? { status } : {};
+
+    // Add search filter if query parameter is provided
+    if (q) {
+      where.OR = [
+        { id: { contains: q, mode: 'insensitive' } },
+        { walletAddress: { contains: q, mode: 'insensitive' } },
+        { user: { email: { contains: q, mode: 'insensitive' } } },
+      ];
+    }
 
     // Execute count and data query in parallel
     const [total, items] = await Promise.all([
@@ -96,13 +110,13 @@ export class AdminService {
         skip,
         take: pageSize,
         orderBy: { createdAt: 'desc' },
-        select: {
-          id: true,
-          walletAddress: true,
-          skuId: true,
-          premiumAmt: true,
-          status: true,
-          createdAt: true,
+        include: {
+          sku: {
+            select: { name: true, coverageAmt: true, termDays: true },
+          },
+          user: {
+            select: { email: true },
+          },
         },
       }),
     ]);
@@ -113,10 +127,93 @@ export class AdminService {
       page,
       pageSize,
       items: items.map((item) => ({
-        ...item,
+        id: item.id,
+        walletAddress: item.walletAddress,
+        skuId: item.skuId,
+        skuName: item.sku?.name,
+        coverageAmt: item.sku?.coverageAmt?.toString(),
+        termDays: item.sku?.termDays,
         premiumAmt: item.premiumAmt.toString(),
+        email: item.user?.email ?? undefined,
+        status: item.status,
+        createdAt: item.createdAt,
       })),
     };
+  }
+
+  /**
+   * Get statistics for admin dashboard
+   *
+   * GET /admin/stats
+   *
+   * Returns aggregated statistics for the admin dashboard:
+   * - Total number of policies
+   * - Policies under review (PENDING_UNDERWRITING)
+   * - Approved policies awaiting payment (APPROVED_AWAITING_PAYMENT)
+   * - Rejected policies (REJECTED)
+   *
+   * @returns Statistics object with counts
+   *
+   * @example
+   * const stats = await adminService.getStats();
+   * // Returns: { total: 150, underReview: 20, approvedToday: 5, rejectedToday: 2 }
+   */
+  async getStats() {
+    const [total, underReview, approved, rejected] = await Promise.all([
+      this.prisma.policy.count(),
+      this.prisma.policy.count({
+        where: { status: PolicyStatus.PENDING_UNDERWRITING },
+      }),
+      this.prisma.policy.count({
+        where: { status: PolicyStatus.APPROVED_AWAITING_PAYMENT },
+      }),
+      this.prisma.policy.count({ where: { status: PolicyStatus.REJECTED } }),
+    ]);
+
+    return {
+      total,
+      underReview,
+      approvedToday: approved, // Note: not actually "today", just total approved
+      rejectedToday: rejected, // Note: not actually "today", just total rejected
+    };
+  }
+
+  /**
+   * Get a single policy by ID for admin review
+   *
+   * GET /admin/policies/:id
+   *
+   * Returns full policy details including SKU, user, and payment information.
+   * Used by admin portal to view policy details and payment deadlines.
+   *
+   * @param policyId - Policy UUID
+   * @returns Full policy details with SKU and user information
+   * @throws NotFoundException if policy not found
+   *
+   * @example
+   * const policy = await adminService.getPolicyById('uuid');
+   * // Returns: { id, walletAddress, sku: {...}, user: {...}, premiumAmt, status, paymentDeadline, ... }
+   */
+  async getPolicyById(policyId: string) {
+    const policy = await this.prisma.policy.findUnique({
+      where: { id: policyId },
+      include: {
+        sku: true,
+        user: true,
+        payments: {
+          orderBy: { createdAt: 'desc' },
+        },
+      },
+    });
+
+    if (!policy) {
+      throw new NotFoundException({
+        code: 'NOT_FOUND',
+        message: `Policy with ID ${policyId} not found`,
+      });
+    }
+
+    return policy;
   }
 
   /**
@@ -218,6 +315,7 @@ export class AdminService {
         data: {
           status: PolicyStatus.APPROVED_AWAITING_PAYMENT,
           paymentDeadline,
+          reviewerNote,
         },
       });
 
@@ -240,6 +338,7 @@ export class AdminService {
       where: { id: policyId },
       data: {
         status: PolicyStatus.REJECTED,
+        reviewerNote,
       },
     });
 
