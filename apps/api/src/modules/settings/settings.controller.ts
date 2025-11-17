@@ -6,13 +6,13 @@
 
 import { Body, Controller, Get, Put, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../auth/jwt.guard';
+import { AdminGuard } from '../auth/admin.guard';
 import { SettingsService } from './settings.service';
 import { UpdateTreasuryDto } from './dto/update-treasury.dto';
 
 @ApiTags('Admin Settings')
 @Controller('admin/settings')
-@UseGuards(JwtAuthGuard)
+@UseGuards(AdminGuard)
 @ApiBearerAuth()
 export class SettingsController {
   constructor(private readonly settingsService: SettingsService) {}

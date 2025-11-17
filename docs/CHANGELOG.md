@@ -4,6 +4,456 @@
 
 ---
 
+## [2025-11-16] - 🔓 修复 Admin 认证 & 公开 Treasury 接口 ✅ 完成
+
+### ✅ Fixed - Admin Settings 401 Unauthorized Error
+
+**问题 1**:
+Admin 管理后台访问 `/admin/settings/treasury` 时报错 401 Unauthorized。
+
+**原因**:
+- Admin 应用使用 mock token (`demo-admin-token`)
+- 后端原本使用 `JwtAuthGuard`，需要真实的 JWT token 和 User 表中的记录
+
+**问题 2**:
+普通用户的支付页面也访问 `/admin/settings/treasury`，同样报错 401。
+
+**解决方案**:
+1. 创建 `AdminGuard` 用于 Admin 端点的简单 token 验证
+2. 创建公开的 Treasury 地址查询接口供普通用户使用
+
+**实现细节**:
+
+#### 1. **新增 AdminGuard (apps/api/src/modules/auth/admin.guard.ts)**
+
+简单的 Admin 认证 Guard，用于开发/演示环境：
+```typescript
+@Injectable()
+export class AdminGuard implements CanActivate {
+  canActivate(context: ExecutionContext): boolean {
+    const request = context.switchToHttp().getRequest();
+    const authHeader = request.headers['authorization'];
+    const [type, token] = authHeader.split(' ');
+
+    // 验证 token 是否匹配环境变量或默认值
+    const validAdminToken = process.env.ADMIN_TOKEN || 'demo-admin-token';
+    if (token !== validAdminToken) {
+      throw new UnauthorizedException('Invalid admin token');
+    }
+    return true;
+  }
+}
+```
+
+**⚠️ 安全提示**: 这仅用于演示环境！生产环境应使用:
+- 独立的 Admin JWT 认证
+- 基于角色的访问控制 (RBAC)
+- 多因素认证 (MFA)
+
+#### 2. **更新 Admin 端点使用 AdminGuard**
+
+**AdminController** (`apps/api/src/modules/admin/admin.controller.ts`):
+```typescript
+@ApiTags('Admin')
+@Controller('admin')
+@UseGuards(AdminGuard)  // 改用 AdminGuard
+@ApiBearerAuth()
+export class AdminController { ... }
+```
+
+**SettingsController** (`apps/api/src/modules/settings/settings.controller.ts`):
+```typescript
+@ApiTags('Admin Settings')
+@Controller('admin/settings')
+@UseGuards(AdminGuard)  // 改用 AdminGuard
+@ApiBearerAuth()
+export class SettingsController { ... }
+```
+
+#### 3. **新增公开 Settings Controller**
+
+**PublicSettingsController** (`apps/api/src/modules/settings/public-settings.controller.ts`):
+```typescript
+@ApiTags('Public Settings')
+@Controller('settings')
+export class PublicSettingsController {
+  @Get('treasury-address')
+  @ApiOperation({ summary: 'Get treasury address (public)' })
+  async getTreasuryAddress(): Promise<{ address: string | null }> {
+    const address = await this.settingsService.getTreasuryAddress();
+    return { address };
+  }
+}
+```
+
+**特点**:
+- 无 `@UseGuards(JwtAuthGuard)` - 不需要认证
+- 使用 `/settings/treasury-address` 路径（不在 `/admin` 前缀下）
+- 只读取功能，无安全风险
+
+#### 4. **注册新 Controller**
+
+**SettingsModule** (`apps/api/src/modules/settings/settings.module.ts`):
+```typescript
+@Module({
+  imports: [PrismaModule],
+  controllers: [SettingsController, PublicSettingsController], // 添加 PublicSettingsController
+  providers: [SettingsService],
+  exports: [SettingsService],
+})
+```
+
+#### 5. **前端更新 API 路径**
+
+**PolicyPaymentPage** (`apps/web/src/app/policy/payment/[policyId]/page.tsx:105`):
+```typescript
+// 修改前: '/admin/settings/treasury' (需要认证)
+// 修改后: '/settings/treasury-address' (公开)
+const treasuryResponse = await apiClient.get<TreasurySettings>('/settings/treasury-address')
+```
+
+**相关文件**:
+```
+apps/api/src/modules/auth/admin.guard.ts (NEW)
+apps/api/src/modules/settings/public-settings.controller.ts (NEW)
+apps/api/src/modules/settings/settings.controller.ts (MODIFIED)
+apps/api/src/modules/settings/settings.module.ts (MODIFIED)
+apps/api/src/modules/admin/admin.controller.ts (MODIFIED)
+apps/web/src/app/policy/payment/[policyId]/page.tsx (MODIFIED)
+apps/api/.env.example (MODIFIED)
+```
+
+**测试验证**:
+```bash
+# 1. 公开接口 - 无需认证 ✅
+curl http://localhost:3001/settings/treasury-address
+# => {"address":"0x8626f6940E2eb28930eFb4CeF49B2d1F2C9C1199"}
+# HTTP 200 OK
+
+# 2. Admin 接口 - 使用 demo-admin-token ✅
+curl -H "Authorization: Bearer demo-admin-token" \
+  http://localhost:3001/admin/settings/treasury
+# => {"address":"0x8626f6940E2eb28930eFb4CeF49B2d1F2C9C1199"}
+# HTTP 200 OK
+
+# 3. Admin 接口 - 无 token 时拒绝 ✅
+curl http://localhost:3001/admin/settings/treasury
+# => {"message":"No authorization header","error":"Unauthorized","statusCode":401}
+# HTTP 401 Unauthorized
+
+# 4. Admin PUT 接口 - 使用 token 可以更新 ✅
+curl -X PUT -H "Authorization: Bearer demo-admin-token" \
+  -H "Content-Type: application/json" \
+  -d '{"address":"0x8626f6940E2eb28930eFb4CeF49B2d1F2C9C1199"}' \
+  http://localhost:3001/admin/settings/treasury
+# => {"success":true,"address":"0x8626f6940e2eb28930efb4cef49b2d1f2c9c1199"}
+# HTTP 200 OK
+
+# 5. Admin stats 接口 ✅
+curl -H "Authorization: Bearer demo-admin-token" \
+  http://localhost:3001/admin/stats
+# => {"total":9,"underReview":1,"approvedToday":4,"rejectedToday":1}
+# HTTP 200 OK
+
+# 6. 前端构建成功 ✅
+pnpm build
+# => ✓ Compiled successfully
+```
+
+**注意事项**:
+- ✅ Admin 后台现在可以正常访问设置页面
+- ✅ Admin Guard 使用简单的 token 验证（开发/演示用）
+- ✅ Treasury 地址通过公开接口提供给普通用户
+- ✅ API 语义清晰：`/settings/*` 公开，`/admin/*` 需要 admin token
+- ⚠️ **生产环境需要替换 AdminGuard 为真实的 JWT 认证 + RBAC**
+
+**环境变量配置** (apps/api/.env):
+```bash
+# Admin Authentication (可选，默认为 demo-admin-token)
+ADMIN_TOKEN=demo-admin-token
+```
+
+---
+
+## [2025-11-16] - 🏷️ 添加 tokenSymbol 字段 & BSC Testnet SKU ✅ 完成
+
+### ✅ Added - tokenSymbol Field to SKU Model & Testnet Product
+
+**功能**:
+1. 在 SKU 模型中添加 `tokenSymbol` 字段（例如 "USDT", "USDC", "BNB"）
+2. 通过 `/products` API 返回 tokenSymbol 给前端使用
+3. 新增测试网 SKU: "YULILY SHIELD TESTNET" (BSC Testnet, chainId 97)
+
+**实现细节**:
+
+#### 1. **数据库 Schema 更新**
+
+**Prisma Schema** (`apps/api/prisma/schema.prisma`):
+```prisma
+model Sku {
+  id           String   @id @default(uuid())
+  name         String
+  chainId      Int
+  tokenAddress String
+  tokenSymbol  String   // NEW: Token symbol (e.g., "USDT", "USDC", "BNB")
+  termDays     Int      @default(90)
+  premiumAmt   Decimal  @db.Decimal(38, 18)
+  coverageAmt  Decimal  @db.Decimal(38, 18)
+  termsUrl     String
+  status       String   @default("active")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  policies     Policy[]
+}
+```
+
+**数据库迁移** (通过 seed.ts 自动应用):
+- 添加 `tokenSymbol` 列为 nullable
+- 为现有行设置默认值 "USDT"
+- 设置 NOT NULL 约束
+
+#### 2. **后端 API 更新**
+
+**ProductResponseDto** (`apps/api/src/modules/products/dto/product-response.dto.ts`):
+```typescript
+@ApiProperty({
+  description: 'Token symbol (e.g., USDT, USDC, BNB)',
+  example: 'USDT',
+  pattern: '^[A-Z]{2,10}$',
+})
+tokenSymbol!: string;
+```
+
+#### 3. **Seed 数据更新** (`apps/api/prisma/seed.ts`)
+
+**SKU 1 - BSC Mainnet (已存在，更新)**:
+```typescript
+{
+  id: 'bsc-usdt-plan-seed',
+  name: 'YULILY SHIELD INSURANCE',
+  chainId: 56,
+  tokenAddress: '0x55d398326f99059fF775485246999027B3197955',
+  tokenSymbol: 'USDT',
+  termDays: 90,
+  premiumAmt: '100.0',
+  coverageAmt: '10000.0',
+  termsUrl: 'https://example.com/terms/yulily-shield',
+  status: 'active',
+}
+```
+
+**SKU 2 - BSC Testnet (新增)**:
+```typescript
+{
+  id: 'bsc-testnet-usdt-plan-seed',
+  name: 'YULILY SHIELD TESTNET',
+  chainId: 97,
+  tokenAddress: '0x337610d27c682E347C9cD60BD4b3b107C9d34dDd',
+  tokenSymbol: 'USDT',
+  termDays: 90,
+  premiumAmt: '100.0',
+  coverageAmt: '10000.0',
+  termsUrl: 'https://example.com/terms/yulily-shield-testnet',
+  status: 'active',
+}
+```
+
+**Migration Helper Function** (内置于 seed.ts):
+```typescript
+async function ensureTokenSymbolColumn() {
+  // Adds tokenSymbol column if not exists
+  // Sets default values for existing rows
+  // Sets NOT NULL constraint
+}
+```
+
+#### 4. **前端类型更新**
+
+**BackendSku Interface** (`apps/web/src/types/index.ts`):
+```typescript
+export interface BackendSku {
+  id: string;
+  name: string;
+  chainId: number;
+  tokenAddress: string;
+  tokenSymbol: string; // NEW
+  decimals: number;
+  premiumAmt: string;
+  coverageAmt: string;
+  termDays: number;
+  status: string;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+}
+```
+
+**Product Interface** (`apps/web/src/types/index.ts`):
+```typescript
+export interface Product {
+  // ... existing fields
+  tokenSymbol?: string; // NEW
+}
+```
+
+**mapProduct Utility** (`apps/web/src/utils/index.ts`):
+```typescript
+export function mapProduct(sku: BackendSku): Product {
+  return {
+    // ... existing mappings
+    tokenSymbol: sku.tokenSymbol, // NEW
+  };
+}
+```
+
+**相关文件**:
+```
+# Database
+apps/api/prisma/schema.prisma (新增 tokenSymbol 字段)
+apps/api/prisma/migrations/20251116_add_token_symbol/migration.sql (迁移 SQL)
+apps/api/prisma/seed.ts (迁移逻辑 + 测试网 SKU)
+
+# Backend
+apps/api/src/modules/products/dto/product-response.dto.ts (DTO 更新)
+
+# Frontend
+apps/web/src/types/index.ts (类型定义)
+apps/web/src/utils/index.ts (映射函数)
+```
+
+**测试验证**:
+```bash
+# 1. Run seed to apply migration and create SKUs
+pnpm --filter api seed
+# ✅ 成功：两个 SKU 创建/更新，tokenSymbol 列已添加
+
+# 2. Verify /products API
+curl http://localhost:3001/products | jq '.'
+# ✅ 返回:
+# [
+#   {
+#     "id": "bsc-usdt-plan-seed",
+#     "name": "YULILY SHIELD INSURANCE",
+#     "chainId": 56,
+#     "tokenSymbol": "USDT",  <-- ✅
+#     ...
+#   },
+#   {
+#     "id": "bsc-testnet-usdt-plan-seed",
+#     "name": "YULILY SHIELD TESTNET",
+#     "chainId": 97,  <-- ✅ BSC Testnet
+#     "tokenSymbol": "USDT",  <-- ✅
+#     ...
+#   }
+# ]
+
+# 3. Build verification
+pnpm --filter api build   # ✅ 成功
+pnpm --filter web build   # ✅ 成功
+```
+
+**注意事项**:
+- ⚠️ BSC Testnet USDT 地址 `0x337610d27c682E347C9cD60BD4b3b107C9d34dDd` 是占位符，需要验证实际地址
+- 可以在 `.env` 中配置测试网代币地址
+- tokenSymbol 字段建议使用大写字母（USDT, USDC, BNB）
+- 前端现在可以直接使用 `product.tokenSymbol` 而无需通过 tokenAddress 推断
+
+**构建验证**:
+```bash
+pnpm --filter api build   # ✅ 成功
+pnpm --filter web build   # ✅ 成功
+```
+
+---
+
+## [2025-11-16] - 🔧 修复保单金额计算精度问题 ✅ 完成
+
+### ✅ Fixed - Insurance Amount/Cost Calculation Precision
+
+**问题**: 当 Insurance Amount < 1 时，Insurance Cost 始终显示为 0，无法正确计算小数值的保费
+
+**根本原因**:
+- 双向绑定计算中使用了 `Math.round(amount * premiumRate * 100) / 100`
+- 这会将小于 0.005 的结果四舍五入为 0
+- 例如：amount = 0.5, premiumRate = 0.01 → cost = 0.005 → Math.round(0.005 * 100) / 100 = 0
+
+**修复方案**: 移除 floor/round 操作，使用精确的小数计算
+
+**实现细节**:
+
+#### 1. **计算逻辑修复** (`apps/web/src/app/policy/form/[productId]/page.tsx`)
+
+**修复前**:
+```typescript
+// Amount → Cost 计算
+const calculatedCost = Math.round(amount * premiumRate * 100) / 100
+// Cost → Amount 计算
+const calculatedAmount = Math.round((cost / premiumRate) * 100) / 100
+```
+
+**修复后**:
+```typescript
+// Amount → Cost 计算
+const calculatedCost = amount * premiumRate
+const formattedCost = parseFloat(calculatedCost.toFixed(6))
+
+// Cost → Amount 计算
+const calculatedAmount = cost / premiumRate
+const formattedAmount = parseFloat(calculatedAmount.toFixed(6))
+```
+
+#### 2. **显示逻辑修复** (Overview 部分)
+
+**修复前**:
+```typescript
+// Insurance Amount 显示
+{`${Math.floor(parseFloat(watchedAmount)).toLocaleString()} ${tokenSymbol}`}
+// Insurance Cost 显示
+{`${Math.floor(parseFloat(watchedCost)).toLocaleString()} ${tokenSymbol}`}
+```
+
+**修复后**:
+```typescript
+// Insurance Amount 显示
+{`${parseFloat(parseFloat(watchedAmount).toFixed(6)).toLocaleString()} ${tokenSymbol}`}
+// Insurance Cost 显示
+{`${parseFloat(parseFloat(watchedCost).toFixed(6)).toLocaleString()} ${tokenSymbol}`}
+```
+
+**技术决策**:
+- 使用 `toFixed(6)` 保留 6 位小数精度（足够处理 USDT 等代币）
+- 使用 `parseFloat()` 移除尾随零（0.100000 → 0.1）
+- 保持双向绑定实时计算的准确性
+
+**相关文件**:
+```
+apps/web/src/app/policy/form/[productId]/page.tsx
+- Line 136-139: Amount → Cost 计算
+- Line 151-154: Cost → Amount 计算
+- Line 424: Insurance Amount 显示
+- Line 438: Insurance Cost 显示
+```
+
+**测试案例**:
+```
+输入 Insurance Amount = 0.5
+Premium Rate = 0.01 (1%)
+预期 Insurance Cost = 0.005 ✅
+
+输入 Insurance Cost = 0.01
+Premium Rate = 0.01
+预期 Insurance Amount = 1 ✅
+
+输入 Insurance Amount = 0.123456789
+预期显示 = 0.123457 (6位小数) ✅
+```
+
+**构建验证**:
+```bash
+pnpm --filter web build  # ✅ 成功
+```
+
+---
+
 ## [2025-11-16] - 💰 保单金额字段重构 - 用户自定义保费与保额 ✅ 完成
 
 ### ✅ Fixed - Policy Amount Design Flaw

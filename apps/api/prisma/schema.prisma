@@ -42,6 +42,7 @@ model Sku {
   name         String
   chainId      Int
   tokenAddress String
+  tokenSymbol  String   // Token symbol (e.g., "USDT", "USDC", "BNB")
   termDays     Int      @default(90)
   premiumAmt   Decimal  @db.Decimal(38, 18)
   coverageAmt  Decimal  @db.Decimal(38, 18)

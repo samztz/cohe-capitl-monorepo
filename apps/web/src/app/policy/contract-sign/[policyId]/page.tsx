@@ -32,6 +32,18 @@ interface PolicyResponse {
   contractHash?: string
 }
 
+// Product/SKU response type
+interface ProductResponse {
+  id: string
+  name: string
+  chainId: number
+  tokenAddress: string
+  tokenSymbol: string
+  premiumAmt: string
+  coverageAmt: string
+  termDays: number
+}
+
 // Contract sign response type
 interface ContractSignResponse {
   contractHash: string
@@ -67,6 +79,18 @@ export default function ContractSignPage() {
       const response = await apiClient.get<PolicyResponse>(`${API_ENDPOINTS.POLICIES}/${policyId}`)
       return response.data
     },
+    retry: 1,
+  })
+
+  // Fetch product details (to get chain and token info)
+  const { data: product, isLoading: isProductLoading } = useQuery({
+    queryKey: ['product', policy?.skuId],
+    queryFn: async () => {
+      if (!policy?.skuId) return null
+      const response = await apiClient.get<ProductResponse[]>(API_ENDPOINTS.PRODUCTS)
+      return response.data.find(p => p.id === policy.skuId) || null
+    },
+    enabled: !!policy?.skuId,
     retry: 1,
   })
 
@@ -155,8 +179,15 @@ export default function ContractSignPage() {
     }
   }, [policy, user, walletProvider, agreed, policyId, coverageFromQuery, periodFromQuery, symbolFromQuery, router])
 
+  // Helper function to get chain name
+  const getChainName = (chainId: number) => {
+    if (chainId === 56) return 'BSC Mainnet'
+    if (chainId === 97) return 'BSC Testnet'
+    return `Chain ${chainId}`
+  }
+
   // Loading skeleton
-  if (isChecking || isPolicyLoading) {
+  if (isChecking || isPolicyLoading || isProductLoading) {
     return (
       <div className="min-h-screen bg-[#050816] flex flex-col">
         {/* Header Skeleton */}
@@ -339,6 +370,33 @@ export default function ContractSignPage() {
 
       {/* Content - Max width container for mobile-first design */}
       <div className="flex-1 px-4 pb-6 overflow-y-auto max-w-md mx-auto w-full">
+        {/* Network and Token Info Alert */}
+        {product && (
+          <div className="bg-[#FECF4C] rounded-xl p-4 mb-4 border-2 border-[#FECF4C]">
+            <h3 className="text-[#111827] font-bold text-sm mb-2 flex items-center gap-2">
+              <span className="text-lg">⚠️</span>
+              <span>Important: Network & Token Information</span>
+            </h3>
+            <div className="space-y-2 text-xs text-[#111827]">
+              <div className="flex items-start gap-2">
+                <span className="font-bold min-w-[60px]">Network:</span>
+                <span className="font-semibold">{getChainName(product.chainId)} (Chain ID: {product.chainId})</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="font-bold min-w-[60px]">Token:</span>
+                <span className="font-semibold">{product.tokenSymbol}</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="font-bold min-w-[60px]">Contract:</span>
+                <span className="font-mono text-[10px] break-all">{product.tokenAddress}</span>
+              </div>
+            </div>
+            <p className="text-[#111827] text-xs mt-3 font-medium">
+              💡 Please ensure your wallet is connected to <span className="font-bold">{getChainName(product.chainId)}</span> before signing.
+            </p>
+          </div>
+        )}
+
         {/* Contract Content Box */}
         <div className="bg-[#2D3748] rounded-xl p-6 mb-4 h-[400px] overflow-y-auto border border-[#374151]">
           <h2 className="text-white text-lg font-bold mb-4 text-center">Insurance Contract</h2>
@@ -350,11 +408,11 @@ export default function ContractSignPage() {
             </div>
             <div className="flex justify-between">
               <span className="text-[#9CA3AF]">Coverage Amount:</span>
-              <span className="text-white">{parseFloat(coverageFromQuery).toLocaleString()} {symbolFromQuery}</span>
+              <span className="text-white">{parseFloat(coverageFromQuery).toLocaleString()} {product?.tokenSymbol || symbolFromQuery}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-[#9CA3AF]">Premium:</span>
-              <span className="text-white">{parseFloat(policy?.premiumAmt || premiumFromQuery).toLocaleString()} {symbolFromQuery}</span>
+              <span className="text-white">{parseFloat(policy?.premiumAmt || premiumFromQuery).toLocaleString()} {product?.tokenSymbol || symbolFromQuery}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-[#9CA3AF]">Term:</span>

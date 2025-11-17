@@ -33,6 +33,7 @@ interface Product {
   name: string
   chainId: number
   tokenAddress: string
+  tokenSymbol: string
   premiumAmt: string
   coverageAmt: string
   termDays: number
@@ -40,6 +41,13 @@ interface Product {
 
 interface TreasurySettings {
   address: string
+}
+
+// Helper function to get chain name
+function getChainName(chainId: number) {
+  if (chainId === 56) return 'BSC Mainnet'
+  if (chainId === 97) return 'BSC Testnet'
+  return `Chain ${chainId}`
 }
 
 export default function PolicyPaymentPage() {
@@ -94,7 +102,7 @@ export default function PolicyPaymentPage() {
 
       // Load treasury address (prioritize API, fallback to env)
       try {
-        const treasuryResponse = await apiClient.get<TreasurySettings>('/admin/settings/treasury')
+        const treasuryResponse = await apiClient.get<TreasurySettings>('/settings/treasury-address')
         const treasury = treasuryResponse.data
         if (treasury.address) {
           setTreasuryAddress(treasury.address)
@@ -290,6 +298,53 @@ export default function PolicyPaymentPage() {
         </div>
       )}
 
+      {/* Network and Payment Info Alert */}
+      {product && treasuryAddress && (
+        <div className="bg-amber-50 border-2 border-amber-400 rounded-lg p-5 space-y-3">
+          <h3 className="text-amber-900 font-bold text-lg flex items-center gap-2">
+            <span className="text-xl">⚠️</span>
+            <span>Important: Payment Instructions</span>
+          </h3>
+          <div className="space-y-2 text-sm text-amber-900">
+            <div className="flex items-start gap-2">
+              <span className="font-bold min-w-[100px]">Network:</span>
+              <span className="font-semibold">{getChainName(product.chainId)} (Chain ID: {product.chainId})</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="font-bold min-w-[100px]">Token:</span>
+              <span className="font-semibold">{product.tokenSymbol}</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="font-bold min-w-[100px]">Token Contract:</span>
+              <div className="flex-1">
+                <code className="text-xs bg-amber-100 px-2 py-1 rounded break-all">{product.tokenAddress}</code>
+              </div>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="font-bold min-w-[100px]">Send To:</span>
+              <div className="flex-1">
+                <code className="text-xs bg-amber-100 px-2 py-1 rounded break-all">{treasuryAddress}</code>
+              </div>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="font-bold min-w-[100px]">Amount:</span>
+              <span className="font-semibold text-lg">{policy.premiumAmt} {product.tokenSymbol}</span>
+            </div>
+          </div>
+          <div className="bg-amber-100 rounded p-3 mt-3">
+            <p className="text-amber-900 text-sm font-medium">
+              💡 <span className="font-bold">Please ensure:</span>
+            </p>
+            <ul className="list-disc list-inside text-amber-900 text-xs mt-2 space-y-1 ml-2">
+              <li>Your wallet is connected to <span className="font-bold">{getChainName(product.chainId)}</span></li>
+              <li>You send exactly <span className="font-bold">{policy.premiumAmt} {product.tokenSymbol}</span></li>
+              <li>You send to the correct treasury address above</li>
+              <li>You paste the transaction hash below after payment</li>
+            </ul>
+          </div>
+        </div>
+      )}
+
       <div className="bg-white border rounded-lg p-6 space-y-4">
         <h2 className="text-xl font-semibold">Payment Details</h2>
         <div className="grid grid-cols-2 gap-4">
@@ -299,11 +354,11 @@ export default function PolicyPaymentPage() {
           </div>
           <div>
             <div className="text-sm text-gray-600">Premium Amount</div>
-            <div className="font-medium text-lg">{policy.premiumAmt} USDT</div>
+            <div className="font-medium text-lg">{policy.premiumAmt} {product.tokenSymbol}</div>
           </div>
           <div>
             <div className="text-sm text-gray-600">Coverage</div>
-            <div className="font-medium">{product.coverageAmt} USDT</div>
+            <div className="font-medium">{product.coverageAmt} {product.tokenSymbol}</div>
           </div>
           <div>
             <div className="text-sm text-gray-600">Term</div>

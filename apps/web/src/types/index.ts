@@ -8,6 +8,7 @@ export interface BackendSku {
   name: string;
   chainId: number;
   tokenAddress: string;
+  tokenSymbol: string; // Token symbol (e.g., "USDT", "USDC")
   decimals: number;
   premiumAmt: string;  // Backend field name
   coverageAmt: string; // Backend field name
@@ -26,6 +27,7 @@ export interface Product {
   premiumAmount: string;  // Mapped from premiumAmt
   termDays: number;
   tokenAddress?: string;
+  tokenSymbol?: string; // Token symbol (e.g., "USDT", "USDC")
   chainId?: number;
   decimals?: number;
   status?: string;

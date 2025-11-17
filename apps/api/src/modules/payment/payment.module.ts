@@ -7,12 +7,13 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { PrismaModule } from '../prisma/prisma.module';
+import { SettingsModule } from '../settings/settings.module';
 import { PaymentController } from './payment.controller';
 import { PaymentService } from './payment.service';
 import { BlockchainService } from './blockchain.service';
 
 @Module({
-  imports: [PrismaModule, ConfigModule],
+  imports: [PrismaModule, ConfigModule, SettingsModule],
   controllers: [PaymentController],
   providers: [PaymentService, BlockchainService],
   exports: [PaymentService],

@@ -82,6 +82,7 @@ export function mapProduct(sku: BackendSku): Product {
     termDays: sku.termDays,
     chainId: sku.chainId,
     tokenAddress: sku.tokenAddress,
+    tokenSymbol: sku.tokenSymbol,
     decimals: sku.decimals,
     status: sku.status,
     isActive: sku.status === 'active',

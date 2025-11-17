@@ -156,10 +156,21 @@ export class PaymentController {
 
     const { policyId, txHash } = parsed.data;
 
-    // Confirm payment with on-chain verification
-    return this.paymentService.confirmPayment({
-      policyId,
-      txHash,
-    });
+    try {
+      // Confirm payment with on-chain verification
+      return await this.paymentService.confirmPayment({
+        policyId,
+        txHash,
+      });
+    } catch (error) {
+      // Log detailed error for debugging
+      console.error('[PaymentController] Error confirming payment:', {
+        policyId,
+        txHash,
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      throw error;
+    }
   }
 }

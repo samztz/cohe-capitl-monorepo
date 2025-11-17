@@ -14,6 +14,7 @@ import {
 import { PolicyStatus } from 'generated/prisma/enums';
 import { PrismaService } from '../prisma/prisma.service';
 import { BlockchainService } from './blockchain.service';
+import { SettingsService } from '../settings/settings.service';
 
 /**
  * Payment entity with string amounts for JSON serialization
@@ -47,6 +48,7 @@ export class PaymentService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly blockchain: BlockchainService,
+    private readonly settings: SettingsService,
   ) {}
 
   /**
@@ -126,20 +128,41 @@ export class PaymentService {
       };
     }
 
+    // Get treasury address from database/settings
+    const treasuryAddress = await this.settings.getTreasuryAddress();
+    if (!treasuryAddress) {
+      throw new BadRequestException({
+        code: 'TREASURY_NOT_CONFIGURED',
+        message: 'Treasury address is not configured',
+      });
+    }
+
     // Verify transaction on-chain
     this.logger.log(
-      `Verifying transaction ${txHash} for policy ${policyId}...`,
+      `Verifying transaction ${txHash} for policy ${policyId} on chain ${sku.chainId}...`,
+    );
+
+    // Convert premiumAmt to wei (18 decimals)
+    // premiumAmt is stored as Decimal, e.g., "0.05" -> "50000000000000000"
+    const premiumAmtWei = BigInt(
+      Math.floor(parseFloat(policy.premiumAmt.toString()) * 1e18),
+    ).toString();
+
+    this.logger.log(
+      `Expected payment: ${policy.premiumAmt} tokens (${premiumAmtWei} wei) from ${policy.walletAddress} to treasury ${treasuryAddress}`,
     );
 
     const verifiedTransfer = await this.blockchain.verifyTransfer(
       txHash,
+      sku.chainId,
       sku.tokenAddress,
       policy.walletAddress,
-      policy.premiumAmt.toString(),
+      premiumAmtWei,
+      treasuryAddress,
     );
 
     this.logger.log(
-      `Transaction verified: ${verifiedTransfer.amount} tokens from ${verifiedTransfer.from}`,
+      `Transaction verified: ${verifiedTransfer.amount} wei from ${verifiedTransfer.from}`,
     );
 
     // Upsert payment record

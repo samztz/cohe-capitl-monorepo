@@ -13,6 +13,7 @@ import {
   Param,
   Patch,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -21,8 +22,10 @@ import {
   ApiQuery,
   ApiParam,
   ApiBody,
+  ApiBearerAuth,
 } from '@nestjs/swagger';
 import { z } from 'zod';
+import { AdminGuard } from '../auth/admin.guard';
 import { AdminService } from './admin.service';
 import { ListAdminPoliciesQuery } from './dto/list-admin-policies.query';
 import { ReviewPolicyDto } from './dto/review-policy.dto';
@@ -54,6 +57,8 @@ const UuidSchema = z.string().uuid({ message: 'Invalid UUID format' });
  */
 @ApiTags('Admin')
 @Controller('admin')
+@UseGuards(AdminGuard)
+@ApiBearerAuth()
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
 

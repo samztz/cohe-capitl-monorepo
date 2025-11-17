@@ -31,6 +31,13 @@ export class ProductResponseDto {
   tokenAddress!: string;
 
   @ApiProperty({
+    description: 'Token symbol (e.g., USDT, USDC, BNB)',
+    example: 'USDT',
+    pattern: '^[A-Z]{2,10}$',
+  })
+  tokenSymbol!: string;
+
+  @ApiProperty({
     description: 'Token decimals',
     example: 18,
   })

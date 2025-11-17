@@ -8,9 +8,42 @@
 import { join } from 'path';
 
 // Dynamically load Prisma Client from custom output directory
-const { PrismaClient } = require(join(__dirname, '../generated/prisma'));
+const { PrismaClient } = require(join(__dirname, '../generated/prisma/client'));
 
 const prisma = new PrismaClient();
+
+/**
+ * Ensure tokenSymbol column exists in Sku table
+ */
+async function ensureTokenSymbolColumn() {
+  try {
+    console.log('🔧 Ensuring tokenSymbol column exists...');
+
+    // Add column if not exists
+    await prisma.$executeRawUnsafe(
+      'ALTER TABLE "Sku" ADD COLUMN IF NOT EXISTS "tokenSymbol" TEXT'
+    );
+
+    // Set default values for existing rows
+    await prisma.$executeRawUnsafe(
+      `UPDATE "Sku" SET "tokenSymbol" = 'USDT' WHERE "tokenSymbol" IS NULL`
+    );
+
+    // Make column NOT NULL (will fail silently if already NOT NULL)
+    try {
+      await prisma.$executeRawUnsafe(
+        'ALTER TABLE "Sku" ALTER COLUMN "tokenSymbol" SET NOT NULL'
+      );
+    } catch (e) {
+      // Column might already be NOT NULL
+      console.log('   (tokenSymbol column already has NOT NULL constraint)');
+    }
+
+    console.log('✅ tokenSymbol column ready');
+  } catch (error) {
+    console.error('⚠️  Error ensuring tokenSymbol column:', error);
+  }
+}
 
 /**
  * Seed database with initial SKU data
@@ -18,36 +51,71 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('🌱 Starting database seed...');
 
-  // Seed SKU: YULILY SHIELD INSURANCE
-  const bscSkuData = {
+  // Ensure tokenSymbol column exists
+  await ensureTokenSymbolColumn();
+
+  // Seed SKU 1: YULILY SHIELD INSURANCE (BSC Mainnet)
+  const bscMainnetSkuData = {
     name: 'YULILY SHIELD INSURANCE',
     chainId: 56, // BSC Mainnet
-    tokenAddress: '0x55d398326f99059fF775485246999027B3197955', // USDT on BSC
+    tokenAddress: '0x55d398326f99059fF775485246999027B3197955', // USDT on BSC Mainnet
+    tokenSymbol: 'USDT',
     termDays: 90,
     premiumAmt: '100.0', // 100 USDT premium
     coverageAmt: '10000.0', // 10,000 USDT coverage
-    termsUrl: 'https://example.com/terms/bsc-usdt-protection',
+    termsUrl: 'https://example.com/terms/yulily-shield',
     status: 'active',
   };
 
-  const bscSku = await prisma.sku.upsert({
+  const bscMainnetSku = await prisma.sku.upsert({
     where: {
-      // Use a composite unique constraint or create one based on name
-      // For now, we'll check if it exists by fetching first
-      id: 'bsc-usdt-plan-seed', // Temporary ID for upsert demo
+      id: 'bsc-usdt-plan-seed',
     },
-    update: bscSkuData,
+    update: bscMainnetSkuData,
     create: {
       id: 'bsc-usdt-plan-seed',
-      ...bscSkuData,
+      ...bscMainnetSkuData,
     },
   });
 
-  console.log('✅ Created/Updated SKU:', {
-    id: bscSku.id,
-    name: bscSku.name,
-    chainId: bscSku.chainId,
-    status: bscSku.status,
+  console.log('✅ Created/Updated SKU (BSC Mainnet):', {
+    id: bscMainnetSku.id,
+    name: bscMainnetSku.name,
+    chainId: bscMainnetSku.chainId,
+    tokenSymbol: bscMainnetSku.tokenSymbol,
+    status: bscMainnetSku.status,
+  });
+
+  // Seed SKU 2: YULILY SHIELD TESTNET (BSC Testnet)
+  const bscTestnetSkuData = {
+    name: 'YULILY SHIELD TESTNET',
+    chainId: 97, // BSC Testnet
+    tokenAddress: '0x0', // Native tBNB (not ERC20)
+    tokenSymbol: 'tBNB',
+    termDays: 90,
+    premiumAmt: '100.0', // 100 tBNB premium
+    coverageAmt: '10000.0', // 10,000 tBNB coverage
+    termsUrl: 'https://example.com/terms/yulily-shield-testnet',
+    status: 'active',
+  };
+
+  const bscTestnetSku = await prisma.sku.upsert({
+    where: {
+      id: 'bsc-testnet-usdt-plan-seed',
+    },
+    update: bscTestnetSkuData,
+    create: {
+      id: 'bsc-testnet-usdt-plan-seed',
+      ...bscTestnetSkuData,
+    },
+  });
+
+  console.log('✅ Created/Updated SKU (BSC Testnet):', {
+    id: bscTestnetSku.id,
+    name: bscTestnetSku.name,
+    chainId: bscTestnetSku.chainId,
+    tokenSymbol: bscTestnetSku.tokenSymbol,
+    status: bscTestnetSku.status,
   });
 
   console.log('🌱 Seed completed successfully!');

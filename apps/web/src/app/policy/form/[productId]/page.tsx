@@ -15,14 +15,19 @@ import * as Types from '@/types'
 import * as Utils from '@/utils'
 import { useState, useEffect } from 'react'
 
-// Token symbol mapping (simple version)
-const getTokenSymbol = (tokenAddress: string): string => {
-  // BSC USDT address
-  if (tokenAddress.toLowerCase() === '0x55d398326f99059fF775485246999027B3197955'.toLowerCase()) {
-    return 'USDT'
+// Token logo mapping based on tokenSymbol from SKU
+const getTokenLogo = (tokenSymbol: string): string => {
+  const symbol = tokenSymbol.toUpperCase()
+  switch (symbol) {
+    case 'USDT':
+      return '/assets/usdt.svg'
+    case 'BNB':
+      return '/assets/bnb.svg'
+    case 'TBNB':
+      return '/assets/bnb.svg'
+    default:
+      return '/assets/usdt.svg' // Default to USDT logo
   }
-  // Default to USDT
-  return 'USDT'
 }
 
 export default function PolicyFormPage() {
@@ -62,7 +67,8 @@ export default function PolicyFormPage() {
 
   // Calculate max coverage and token symbol
   const maxCoverage = product ? parseFloat(product.coverageAmount) : parseFloat(coverageFromQuery) || 8000000
-  const tokenSymbol = product?.tokenAddress ? getTokenSymbol(product.tokenAddress) : 'USDT'
+  const tokenSymbol = product?.tokenSymbol || 'USDT'
+  const tokenLogo = getTokenLogo(tokenSymbol)
 
   // Calculate premium rate (premium / coverage)
   const premiumRate = product
@@ -133,8 +139,10 @@ export default function PolicyFormPage() {
     if (lastEditedField === 'amount') {
       const amount = parseFloat(watchedAmount)
       if (!isNaN(amount) && amount > 0 && premiumRate > 0) {
-        const calculatedCost = Math.round(amount * premiumRate * 100) / 100
-        setValue('insuranceCost', String(calculatedCost), { shouldValidate: true })
+        const calculatedCost = amount * premiumRate
+        // Keep precision to 6 decimal places, then trim unnecessary zeros
+        const formattedCost = parseFloat(calculatedCost.toFixed(6))
+        setValue('insuranceCost', String(formattedCost), { shouldValidate: true })
       } else {
         setValue('insuranceCost', '0', { shouldValidate: true })
       }
@@ -146,8 +154,10 @@ export default function PolicyFormPage() {
     if (lastEditedField === 'cost') {
       const cost = parseFloat(watchedCost)
       if (!isNaN(cost) && cost > 0 && premiumRate > 0) {
-        const calculatedAmount = Math.round((cost / premiumRate) * 100) / 100
-        setValue('insuranceAmount', String(calculatedAmount), { shouldValidate: true })
+        const calculatedAmount = cost / premiumRate
+        // Keep precision to 6 decimal places, then trim unnecessary zeros
+        const formattedAmount = parseFloat(calculatedAmount.toFixed(6))
+        setValue('insuranceAmount', String(formattedAmount), { shouldValidate: true })
       } else {
         setValue('insuranceAmount', '', { shouldValidate: true })
       }
@@ -253,41 +263,41 @@ export default function PolicyFormPage() {
   return (
     <div className="min-h-screen bg-[#050816] flex flex-col">
       {/* Header */}
-      <header className="bg-[#050816] px-4 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-2">
+      <header className="bg-[#050816] px-4 sm:px-6 lg:px-8 py-4 sm:py-5 lg:py-6 flex items-center justify-between">
+        <div className="flex items-center gap-2 sm:gap-3">
           <Image
             src="/assets/cohe-capitl-app-logo.png"
             alt="Cohe Capital Logo"
-            width={32}
-            height={32}
-            className="w-8 h-8"
+            width={40}
+            height={40}
+            className="w-8 h-8 sm:w-10 sm:h-10"
           />
-          <span className="text-white text-sm font-semibold tracking-[1.5px] uppercase">
+          <span className="text-white text-sm sm:text-base lg:text-lg font-semibold tracking-[1.5px] uppercase">
             COHE.CAPITL
           </span>
         </div>
-        <div className="bg-[#FECF4C] text-[#111827] px-4 py-1.5 rounded-full text-xs font-semibold">
+        <div className="bg-[#FECF4C] text-[#111827] px-3 sm:px-4 lg:px-5 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-semibold">
           {user?.address ? Utils.formatAddress(user.address) : '0x...'}
         </div>
       </header>
 
       {/* Back Button */}
-      <div className="px-4 py-3">
-        <Link href="/products" className="text-white text-xs uppercase tracking-[1.5px] flex items-center gap-1 hover:opacity-80">
+      <div className="px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
+        <Link href="/products" className="text-white text-xs sm:text-sm uppercase tracking-[1.5px] flex items-center gap-1 sm:gap-1.5 hover:opacity-80">
           &lt; BACK
         </Link>
       </div>
 
-      {/* Content - Max width container for mobile-first design */}
-      <div className="flex-1 px-4 pb-6 overflow-y-auto max-w-md mx-auto w-full">
+      {/* Content - Responsive container */}
+      <div className="flex-1 w-full sm:max-w-[640px] lg:max-w-[960px] mx-auto px-5 sm:px-6 lg:px-8 py-6 sm:py-12 lg:py-16 pb-6 sm:pb-8 lg:pb-12 overflow-y-auto lg:mt-0">
         {/* Title */}
-        <h1 className="text-white text-lg font-bold mb-2">
+        <h1 className="text-white text-xl sm:text-2xl lg:text-3xl font-bold mb-3 sm:mb-4 lg:mb-6">
           {product?.name || productNameFromQuery || 'YULILY SHIELD INSURANCE'}
         </h1>
 
         {/* Description */}
-        <div className="text-[#9CA3AF] text-[10px] mb-4 leading-relaxed">
-          <p className="mb-1.5">
+        <div className="text-[#9CA3AF] text-sm sm:text-base lg:text-[17px] mb-6 sm:mb-8 leading-relaxed">
+          <p className="mb-2 sm:mb-3">
             A Coinbase Custody Cover claim is valid if Coinbase Custody incurs a loss due to Coin of 10% or more are passed on to all users OR if Coinbase Custody ceases to operate without prior notice and withdrawals are halted continuously for 100 days or more. Members who purchase Coinbase Custody Cover can claim...
           </p>
           <a href="mailto:cohe@gmail.com" className="text-[#FECF4C] underline">
@@ -297,10 +307,10 @@ export default function PolicyFormPage() {
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-2.5 mb-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 sm:space-y-5 mb-6 sm:mb-8">
           {/* Wallet Address Card (Read-only, auto-filled from auth) */}
-          <div className="bg-[#111827] rounded-xl px-4 py-3 border border-[#1F2937]">
-            <label className="text-[#9CA3AF] text-xs uppercase tracking-[1.5px] block mb-1.5">
+          <div className="bg-[#111827] rounded-xl px-5 sm:px-6 lg:px-8 py-5 sm:py-5 lg:py-6 border border-[#1F2937] shadow-sm">
+            <label className="text-[#9CA3AF] text-sm sm:text-base uppercase tracking-[1.5px] block mb-3 sm:mb-3">
               Insurance Wallet Address
             </label>
             <input
@@ -309,24 +319,24 @@ export default function PolicyFormPage() {
               placeholder="Enter wallet address"
               readOnly
               disabled
-              className="w-full bg-transparent text-white text-sm font-medium border-none p-0 cursor-not-allowed focus:outline-none"
+              className="w-full h-12 sm:h-14 bg-transparent text-white text-lg sm:text-xl lg:text-2xl font-medium border-none px-0 cursor-not-allowed focus:outline-none"
             />
             {errors.walletAddress && (
-              <p className="text-red-500 text-xs mt-1">{errors.walletAddress.message}</p>
+              <p className="text-red-500 text-sm mt-2">{errors.walletAddress.message}</p>
             )}
           </div>
 
           {/* Insurance Amount Card (User editable) */}
-          <div className="bg-[#111827] rounded-xl px-4 py-3 border border-[#1F2937]">
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="text-[#9CA3AF] text-xs uppercase tracking-[1.5px]">
+          <div className="bg-[#111827] rounded-xl px-5 sm:px-6 lg:px-8 py-5 sm:py-5 lg:py-6 border border-[#1F2937] shadow-sm">
+            <div className="flex items-center justify-between mb-3 sm:mb-3">
+              <label className="text-[#9CA3AF] text-sm sm:text-base uppercase tracking-[1.5px]">
                 Insurance Amount
               </label>
-              <span className="text-[#6B7280] text-[10px]">
+              <span className="text-[#6B7280] text-xs sm:text-sm">
                 Max: {maxCoverage.toLocaleString()} {tokenSymbol}
               </span>
             </div>
-            <div className="relative">
+            <div className="relative h-12 sm:h-14 flex items-center">
               <input
                 {...register('insuranceAmount')}
                 type="number"
@@ -336,30 +346,36 @@ export default function PolicyFormPage() {
                   setLastEditedField('amount')
                   register('insuranceAmount').onChange(e)
                 }}
-                className="w-full bg-transparent text-white text-2xl font-semibold border-none p-0 pr-8 focus:outline-none placeholder-[#374151] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                className="w-full h-full bg-transparent text-white text-2xl sm:text-3xl lg:text-4xl font-semibold border-none p-0 pr-12 sm:pr-14 focus:outline-none placeholder-[#374151] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
               />
               <div className="absolute right-0 top-1/2 -translate-y-1/2">
-                <div className="w-6 h-6 rounded-full bg-[#FECF4C] flex items-center justify-center">
-                  <span className="text-[#111827] text-xs font-bold">$</span>
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white flex items-center justify-center">
+                  <Image
+                    src={tokenLogo}
+                    alt={tokenSymbol}
+                    width={32}
+                    height={32}
+                    className="w-6 h-6 sm:w-7 sm:h-7"
+                  />
                 </div>
               </div>
             </div>
             {errors.insuranceAmount && (
-              <p className="text-red-500 text-xs mt-1">{errors.insuranceAmount.message}</p>
+              <p className="text-red-500 text-sm mt-2">{errors.insuranceAmount.message}</p>
             )}
           </div>
 
           {/* Insurance Cost Card (User editable - bidirectional binding) */}
-          <div className="bg-[#111827] rounded-xl px-4 py-3 border border-[#1F2937]">
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="text-[#9CA3AF] text-xs uppercase tracking-[1.5px]">
-                Insurance Cost
+          <div className="bg-[#111827] rounded-xl px-5 sm:px-6 lg:px-8 py-5 sm:py-5 lg:py-6 border border-[#1F2937] shadow-sm">
+            <div className="flex items-center justify-between mb-3 sm:mb-3">
+              <label className="text-[#9CA3AF] text-sm sm:text-base uppercase tracking-[1.5px]">
+                Premiem Amount
               </label>
-              <span className="text-[#6B7280] text-[10px]">
+              <span className="text-[#6B7280] text-xs sm:text-sm">
                 Bidirectional
               </span>
             </div>
-            <div className="relative">
+            <div className="relative h-12 sm:h-14 flex items-center">
               <input
                 {...register('insuranceCost')}
                 type="number"
@@ -369,68 +385,75 @@ export default function PolicyFormPage() {
                   setLastEditedField('cost')
                   register('insuranceCost').onChange(e)
                 }}
-                className="w-full bg-transparent text-white text-2xl font-semibold border-none p-0 pr-8 focus:outline-none placeholder-[#374151] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                className="w-full h-full bg-transparent text-white text-2xl sm:text-3xl lg:text-4xl font-semibold border-none p-0 pr-12 sm:pr-14 focus:outline-none placeholder-[#374151] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
               />
               <div className="absolute right-0 top-1/2 -translate-y-1/2">
-                <div className="w-6 h-6 rounded-full bg-[#FECF4C] flex items-center justify-center">
-                  <span className="text-[#111827] text-xs font-bold">$</span>
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white flex items-center justify-center">
+                  <Image
+                    src={tokenLogo}
+                    alt={tokenSymbol}
+                    width={32}
+                    height={32}
+                    className="w-6 h-6 sm:w-7 sm:h-7"
+                  />
                 </div>
               </div>
             </div>
             {errors.insuranceCost && (
-              <p className="text-red-500 text-xs mt-1">{errors.insuranceCost.message}</p>
+              <p className="text-red-500 text-sm mt-2">{errors.insuranceCost.message}</p>
             )}
           </div>
 
           {/* Insurance Period Card (Read-only display) */}
-          <div className="bg-[#111827] rounded-xl px-4 py-3 border border-[#1F2937]">
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="text-[#9CA3AF] text-xs uppercase tracking-[1.5px]">
+          <div className="bg-[#111827] rounded-xl px-5 sm:px-6 lg:px-8 py-5 sm:py-5 lg:py-6 border border-[#1F2937] shadow-sm">
+            <div className="flex items-center justify-between mb-3 sm:mb-3">
+              <label className="text-[#9CA3AF] text-sm sm:text-base uppercase tracking-[1.5px]">
                 Insurance Period
               </label>
-              <span className="text-[#6B7280] text-[10px]">Days</span>
+              <span className="text-[#6B7280] text-xs sm:text-sm">Days</span>
             </div>
-            <div className="text-white text-2xl font-semibold">
+            <div className="text-white text-2xl sm:text-3xl lg:text-4xl font-semibold h-12 sm:h-14 flex items-center">
               {watchedPeriod}
             </div>
           </div>
         </form>
 
         {/* Overview Section - Real-time sync with form */}
-        <div className="mb-4">
-          <h2 className="text-white text-sm font-semibold mb-2.5">Overview</h2>
-          <div className="bg-[#111827] rounded-xl p-4 space-y-2.5 border border-[#1F2937]">
-            <div className="flex items-center justify-between pb-2.5 border-b border-[#1F2937]">
-              <span className="text-[#9CA3AF] text-xs">Listing</span>
-              <div className="flex items-center gap-1.5">
+        <div className="mb-6 sm:mb-8">
+          <h2 className="text-white text-lg sm:text-xl font-semibold mb-3 sm:mb-4">Overview</h2>
+          <div className="bg-[#111827] rounded-xl px-4 sm:px-6 lg:px-8 py-4 sm:py-5 lg:py-6 space-y-3 sm:space-y-4 border border-[#1F2937] shadow-sm">
+            <div className="flex items-center justify-between pb-3 sm:pb-4 border-b border-[#1F2937]">
+              <span className="text-[#9CA3AF] text-sm sm:text-base">Listing</span>
+              <div className="flex items-center gap-2">
                 <Image
                   src="/assets/cohe-capitl-app-logo.png"
                   alt="Logo"
-                  width={14}
-                  height={14}
+                  width={16}
+                  height={16}
+                  className="w-4 h-4 sm:w-5 sm:h-5"
                 />
-                <span className="text-white text-xs font-semibold">COHE.CAPITL</span>
+                <span className="text-white text-sm sm:text-base font-semibold">COHE.CAPITL</span>
               </div>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-[#9CA3AF] text-xs">Insurance Amount</span>
-              <span className="text-white text-xs font-semibold">
+              <span className="text-[#9CA3AF] text-sm sm:text-base">Insurance Amount</span>
+              <span className="text-white text-sm sm:text-base lg:text-lg font-semibold">
                 {watchedAmount && !isNaN(parseFloat(watchedAmount)) && parseFloat(watchedAmount) > 0
-                  ? `${Math.floor(parseFloat(watchedAmount)).toLocaleString()} ${tokenSymbol}`
+                  ? `${parseFloat(parseFloat(watchedAmount).toFixed(6)).toLocaleString()} ${tokenSymbol}`
                   : `0 ${tokenSymbol}`}
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-[#9CA3AF] text-xs">Insurance Period</span>
-              <span className="text-white text-xs font-semibold">
+              <span className="text-[#9CA3AF] text-sm sm:text-base">Insurance Period</span>
+              <span className="text-white text-sm sm:text-base lg:text-lg font-semibold">
                 2025-09-16 - 2026-05-03
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-[#9CA3AF] text-xs">Insurance Cost</span>
-              <span className="text-white text-xs font-semibold">
+              <span className="text-[#9CA3AF] text-sm sm:text-base">Insurance Cost</span>
+              <span className="text-white text-sm sm:text-base lg:text-lg font-semibold">
                 {watchedCost && !isNaN(parseFloat(watchedCost)) && parseFloat(watchedCost) > 0
-                  ? `${Math.floor(parseFloat(watchedCost)).toLocaleString()} ${tokenSymbol}`
+                  ? `${parseFloat(parseFloat(watchedCost).toFixed(6)).toLocaleString()} ${tokenSymbol}`
                   : `0 ${tokenSymbol}`}
               </span>
             </div>
@@ -438,36 +461,36 @@ export default function PolicyFormPage() {
         </div>
 
         {/* Terms & Conditions */}
-        <div className="mb-4">
-          <h2 className="text-white text-sm font-semibold mb-2.5">Terms & Conditions</h2>
-          <div className="bg-[#111827] rounded-xl p-4 space-y-2.5 text-[10px] border border-[#1F2937]">
-            <p className="text-white font-semibold mb-1">
+        <div className="mb-6 sm:mb-8">
+          <h2 className="text-white text-lg sm:text-xl font-semibold mb-3 sm:mb-4">Terms & Conditions</h2>
+          <div className="bg-[#111827] rounded-xl px-4 sm:px-6 lg:px-8 py-4 sm:py-5 lg:py-6 space-y-3 sm:space-y-4 text-sm sm:text-base lg:text-[17px] border border-[#1F2937] shadow-sm">
+            <p className="text-white font-semibold mb-2">
               COHE Capitl insurance protects against a loss of funds due to:
             </p>
-            <div className="space-y-1.5">
-              <div className="flex items-start gap-2">
-                <div className="w-2 h-2 rounded-full bg-green-500 mt-1 flex-shrink-0" />
+            <div className="space-y-2 sm:space-y-2.5">
+              <div className="flex items-start gap-2.5 sm:gap-3">
+                <div className="w-2 h-2 rounded-full bg-green-500 mt-1.5 flex-shrink-0" />
                 <span className="text-[#9CA3AF] leading-relaxed">Smart Contract Exploits, Hacks</span>
               </div>
-              <div className="flex items-start gap-2">
-                <div className="w-2 h-2 rounded-full bg-green-500 mt-1 flex-shrink-0" />
+              <div className="flex items-start gap-2.5 sm:gap-3">
+                <div className="w-2 h-2 rounded-full bg-green-500 mt-1.5 flex-shrink-0" />
                 <span className="text-[#9CA3AF] leading-relaxed">Oracle Failure</span>
               </div>
-              <div className="flex items-start gap-2">
-                <div className="w-2 h-2 rounded-full bg-green-500 mt-1 flex-shrink-0" />
+              <div className="flex items-start gap-2.5 sm:gap-3">
+                <div className="w-2 h-2 rounded-full bg-green-500 mt-1.5 flex-shrink-0" />
                 <span className="text-[#9CA3AF] leading-relaxed">Governance Takeovers</span>
               </div>
             </div>
-            <p className="text-white font-semibold mt-2.5 mb-1">
+            <p className="text-white font-semibold mt-4 sm:mt-5 mb-2">
               COHE Capitl Insurance has these exclusions, including but limited to
             </p>
-            <div className="space-y-1.5">
-              <div className="flex items-start gap-2">
-                <div className="w-2 h-2 rounded-full bg-red-500 mt-1 flex-shrink-0" />
+            <div className="space-y-2 sm:space-y-2.5">
+              <div className="flex items-start gap-2.5 sm:gap-3">
+                <div className="w-2 h-2 rounded-full bg-red-500 mt-1.5 flex-shrink-0" />
                 <span className="text-[#9CA3AF] leading-relaxed">A Loss Of Value Of Any Asset (i.e., Depeg Event)</span>
               </div>
-              <div className="flex items-start gap-2">
-                <div className="w-2 h-2 rounded-full bg-red-500 mt-1 flex-shrink-0" />
+              <div className="flex items-start gap-2.5 sm:gap-3">
+                <div className="w-2 h-2 rounded-full bg-red-500 mt-1.5 flex-shrink-0" />
                 <span className="text-[#9CA3AF] leading-relaxed">Losses Due To Phishing, Private Key Security Breaches, Malware, Etc</span>
               </div>
             </div>
@@ -475,19 +498,19 @@ export default function PolicyFormPage() {
         </div>
 
         {/* Filing a claim */}
-        <div className="mb-5">
-          <h2 className="text-white text-sm font-semibold mb-2.5">Filing a claim</h2>
-          <div className="bg-[#111827] rounded-xl p-4 space-y-1.5 text-[10px] border border-[#1F2937]">
-            <div className="flex items-start gap-2">
-              <div className="w-2 h-2 rounded-full bg-[#9CA3AF] mt-1 flex-shrink-0" />
+        <div className="mb-8 sm:mb-10 lg:mb-12">
+          <h2 className="text-white text-lg sm:text-xl font-semibold mb-3 sm:mb-4">Filing a claim</h2>
+          <div className="bg-[#111827] rounded-xl px-4 sm:px-6 lg:px-8 py-4 sm:py-5 lg:py-6 space-y-2 sm:space-y-2.5 text-sm sm:text-base lg:text-[17px] border border-[#1F2937] shadow-sm">
+            <div className="flex items-start gap-2.5 sm:gap-3">
+              <div className="w-2 h-2 rounded-full bg-[#9CA3AF] mt-1.5 flex-shrink-0" />
               <span className="text-[#9CA3AF] leading-relaxed">You Must Provide Proof Of Loss When Submitting Your Claim</span>
             </div>
-            <div className="flex items-start gap-2">
-              <div className="w-2 h-2 rounded-full bg-[#9CA3AF] mt-1 flex-shrink-0" />
+            <div className="flex items-start gap-2.5 sm:gap-3">
+              <div className="w-2 h-2 rounded-full bg-[#9CA3AF] mt-1.5 flex-shrink-0" />
               <span className="text-[#9CA3AF] leading-relaxed">You Must Provide Proof Of Loss When Submitting Your Claim</span>
             </div>
           </div>
-          <p className="text-[#6B7280] text-[9px] mt-2 italic leading-relaxed">
+          <p className="text-[#6B7280] text-xs sm:text-sm mt-3 sm:mt-4 italic leading-relaxed">
             This cover is not a contract of insurance. Cover is provided on a discretionary basis with Nexus Mutual members having the final say on which claims are paid.
           </p>
         </div>
@@ -496,7 +519,7 @@ export default function PolicyFormPage() {
         <button
           onClick={handleSubmit(onSubmit)}
           disabled={isSubmitting || Object.keys(errors).length > 0}
-          className={`w-full py-3.5 rounded-xl font-semibold text-sm transition-all ${
+          className={`w-full h-12 sm:h-14 rounded-xl font-semibold text-base sm:text-lg transition-all ${
             isSubmitting || Object.keys(errors).length > 0
               ? 'bg-[#374151] text-[#6B7280] cursor-not-allowed'
               : 'bg-[#FECF4C] text-[#111827] hover:brightness-110 shadow-[0_4px_16px_rgba(254,207,76,0.45)]'
