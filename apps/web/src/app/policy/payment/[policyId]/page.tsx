@@ -18,6 +18,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { useAppKit, useAppKitAccount, useAppKitNetwork } from '@reown/appkit/react'
 import { buildPaymentAsset, validatePaymentAmount, getChainDisplayName } from '@/pay/assets'
 import { apiClient } from '@/lib/apiClient'
+import { useTranslations } from '@/store/localeStore'
 
 interface Policy {
   id: string
@@ -54,6 +55,7 @@ export default function PolicyPaymentPage() {
   const params = useParams()
   const router = useRouter()
   const policyId = params.policyId as string
+  const t = useTranslations()
 
   // AppKit hooks
   const { address: connectedAddress, isConnected } = useAppKitAccount()
@@ -96,7 +98,7 @@ export default function PolicyPaymentPage() {
       const products = productsResponse.data
       const product = products.find(p => p.id === policyData.skuId)
       if (!product) {
-        throw new Error('Product not found')
+        throw new Error(t.payment.productNotFoundError)
       }
       setProduct(product)
 
@@ -107,7 +109,7 @@ export default function PolicyPaymentPage() {
         if (treasury.address) {
           setTreasuryAddress(treasury.address)
         } else {
-          throw new Error('No treasury address in database')
+          throw new Error(t.payment.noTreasuryInDbError)
         }
       } catch (err) {
         console.warn('[Payment] Failed to load treasury from API:', err)
@@ -115,11 +117,11 @@ export default function PolicyPaymentPage() {
         if (envTreasury) {
           setTreasuryAddress(envTreasury)
         } else {
-          throw new Error('No treasury address configured')
+          throw new Error(t.payment.noTreasuryConfiguredError)
         }
       }
     } catch (err: any) {
-      setError(err.message || 'Failed to load payment data')
+      setError(err.message || t.payment.failedToLoadDataError)
     } finally {
       setLoading(false)
     }
@@ -136,7 +138,7 @@ export default function PolicyPaymentPage() {
     if (txHash && /^0x[a-fA-F0-9]{64}$/.test(txHash)) {
       await confirmPayment(txHash)
     } else {
-      setError('Payment completed! Please paste your transaction hash below to complete activation.')
+      setError(t.payment.pasteTransactionHashInstruction)
       setTimeout(() => {
         document.getElementById('manual-confirm')?.scrollIntoView({ behavior: 'smooth' })
       }, 500)
@@ -155,7 +157,7 @@ export default function PolicyPaymentPage() {
         router.replace(`/policy/detail/${policyId}`)
       }, 2000)
     } catch (err: any) {
-      setConfirmError(err.response?.data?.message || err.message || 'Confirmation failed')
+      setConfirmError(err.response?.data?.message || err.message || t.payment.confirmationFailedError)
     } finally {
       setConfirming(false)
     }
@@ -165,7 +167,7 @@ export default function PolicyPaymentPage() {
     const trimmed = manualTxHash.trim()
 
     if (!/^0x[a-fA-F0-9]{64}$/.test(trimmed)) {
-      setConfirmError('Invalid transaction hash format')
+      setConfirmError(t.payment.invalidTxHashError)
       return
     }
 
@@ -174,7 +176,7 @@ export default function PolicyPaymentPage() {
 
   async function handlePayWithExchange() {
     if (!policy || !product || !treasuryAddress) {
-      setError('Payment data not loaded')
+      setError(t.payment.notLoaded)
       return
     }
 
@@ -205,7 +207,10 @@ export default function PolicyPaymentPage() {
 
       // Show instruction to user
       setError(
-        `Please send ${policy.premiumAmt} USDT to ${treasuryAddress} and paste the transaction hash below to activate your policy.`
+        t.payment.sendAmountInstruction
+          .replace('{amount}', policy.premiumAmt)
+          .replace('{symbol}', 'USDT')
+          .replace('{address}', treasuryAddress)
       )
 
       // Scroll to manual confirmation
@@ -215,34 +220,34 @@ export default function PolicyPaymentPage() {
     } catch (err: any) {
       console.error('[Payment] Pay error:', err)
       setPayError(err)
-      setError(err.message || 'Failed to open payment modal')
+      setError(err.message || t.payment.openModalFailed)
       setIsPayPending(false)
     }
   }
 
   function canPay(): { allowed: boolean; reason?: string } {
-    if (!policy) return { allowed: false, reason: 'Loading...' }
+    if (!policy) return { allowed: false, reason: t.common.loading }
 
     if (policy.status !== 'APPROVED_AWAITING_PAYMENT') {
-      return { allowed: false, reason: 'Policy is not awaiting payment' }
+      return { allowed: false, reason: t.payment.policyNotAwaitingPayment }
     }
 
     if (policy.paymentDeadline) {
       const deadline = new Date(policy.paymentDeadline)
       if (Date.now() > deadline.getTime()) {
-        return { allowed: false, reason: 'Payment deadline has passed' }
+        return { allowed: false, reason: t.payment.paymentDeadlinePassed }
       }
     }
 
     if (!isConnected) {
-      return { allowed: false, reason: 'Please connect your wallet' }
+      return { allowed: false, reason: t.payment.pleaseConnectWallet }
     }
 
-    const expectedChainId = parseInt(process.env.NEXT_PUBLIC_CHAIN_ID || '56')
-    if (chainId !== expectedChainId) {
+    // Use product's chainId instead of hardcoded environment variable
+    if (product && chainId !== product.chainId) {
       return {
         allowed: false,
-        reason: `Please switch to ${getChainDisplayName(expectedChainId)} network`,
+        reason: t.payment.pleaseSwitchNetwork.replace('{network}', getChainDisplayName(product.chainId)),
       }
     }
 
@@ -267,13 +272,13 @@ export default function PolicyPaymentPage() {
     return (
       <div className="container mx-auto max-w-2xl py-8">
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-800">
-          {error || 'Failed to load payment data'}
+          {error || t.payment.failedToLoadDataError}
         </div>
         <button
           onClick={() => router.back()}
           className="mt-4 px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
         >
-          Go Back
+          {t.payment.goBack}
         </button>
       </div>
     )
@@ -282,8 +287,8 @@ export default function PolicyPaymentPage() {
   return (
     <div className="container mx-auto max-w-2xl py-8 space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Complete Payment</h1>
-        <p className="text-gray-600">Policy ID: {policyId}</p>
+        <h1 className="text-3xl font-bold">{t.payment.completePaymentTitle}</h1>
+        <p className="text-gray-600">{t.payment.policyIdPrefix} {policyId}</p>
       </div>
 
       {error && (
@@ -294,7 +299,7 @@ export default function PolicyPaymentPage() {
 
       {confirmSuccess && (
         <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-green-800">
-          ✅ Payment confirmed! Redirecting...
+          ✅ {t.payment.paymentConfirmedRedirecting}
         </div>
       )}
 
@@ -303,31 +308,31 @@ export default function PolicyPaymentPage() {
         <div className="bg-amber-50 border-2 border-amber-400 rounded-lg p-5 space-y-3">
           <h3 className="text-amber-900 font-bold text-lg flex items-center gap-2">
             <span className="text-xl">⚠️</span>
-            <span>Important: Payment Instructions</span>
+            <span>{t.payment.paymentInstructionsTitle}</span>
           </h3>
           <div className="space-y-2 text-sm text-amber-900">
             <div className="flex items-start gap-2">
-              <span className="font-bold min-w-[100px]">Network:</span>
+              <span className="font-bold min-w-[100px]">{t.payment.networkLabel}</span>
               <span className="font-semibold">{getChainName(product.chainId)} (Chain ID: {product.chainId})</span>
             </div>
             <div className="flex items-start gap-2">
-              <span className="font-bold min-w-[100px]">Token:</span>
+              <span className="font-bold min-w-[100px]">{t.payment.tokenLabel}</span>
               <span className="font-semibold">{product.tokenSymbol}</span>
             </div>
             <div className="flex items-start gap-2">
-              <span className="font-bold min-w-[100px]">Token Contract:</span>
+              <span className="font-bold min-w-[100px]">{t.payment.tokenContractLabel}</span>
               <div className="flex-1">
                 <code className="text-xs bg-amber-100 px-2 py-1 rounded break-all">{product.tokenAddress}</code>
               </div>
             </div>
             <div className="flex items-start gap-2">
-              <span className="font-bold min-w-[100px]">Send To:</span>
+              <span className="font-bold min-w-[100px]">{t.payment.sendToLabel}</span>
               <div className="flex-1">
                 <code className="text-xs bg-amber-100 px-2 py-1 rounded break-all">{treasuryAddress}</code>
               </div>
             </div>
             <div className="flex items-start gap-2">
-              <span className="font-bold min-w-[100px]">Amount:</span>
+              <span className="font-bold min-w-[100px]">{t.payment.amountLabel}</span>
               <span className="font-semibold text-lg">{policy.premiumAmt} {product.tokenSymbol}</span>
             </div>
           </div>
@@ -346,29 +351,29 @@ export default function PolicyPaymentPage() {
       )}
 
       <div className="bg-white border rounded-lg p-6 space-y-4">
-        <h2 className="text-xl font-semibold">Payment Details</h2>
+        <h2 className="text-xl font-semibold">{t.payment.paymentDetailsTitle}</h2>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <div className="text-sm text-gray-600">Product</div>
+            <div className="text-sm text-gray-600">{t.payment.productLabel}</div>
             <div className="font-medium">{product.name}</div>
           </div>
           <div>
-            <div className="text-sm text-gray-600">Premium Amount</div>
+            <div className="text-sm text-gray-600">{t.payment.premiumAmountLabel}</div>
             <div className="font-medium text-lg">{policy.premiumAmt} {product.tokenSymbol}</div>
           </div>
           <div>
-            <div className="text-sm text-gray-600">Coverage</div>
+            <div className="text-sm text-gray-600">{t.payment.coverageLabel}</div>
             <div className="font-medium">{product.coverageAmt} {product.tokenSymbol}</div>
           </div>
           <div>
-            <div className="text-sm text-gray-600">Term</div>
-            <div className="font-medium">{product.termDays} days</div>
+            <div className="text-sm text-gray-600">{t.payment.termLabel}</div>
+            <div className="font-medium">{product.termDays} {t.payment.days}</div>
           </div>
         </div>
 
         {policy.paymentDeadline && (
           <div className="text-sm text-gray-600">
-            ⏰ Payment deadline: {new Date(policy.paymentDeadline).toLocaleString()}
+            ⏰ {t.payment.paymentDeadlinePrefix} {new Date(policy.paymentDeadline).toLocaleString()}
           </div>
         )}
 
@@ -380,39 +385,39 @@ export default function PolicyPaymentPage() {
       </div>
 
       <div className="bg-white border rounded-lg p-6 space-y-4">
-        <h2 className="text-xl font-semibold">Pay with Exchange</h2>
-        <p className="text-sm text-gray-600">Use Reown AppKit Pay to complete your payment securely</p>
+        <h2 className="text-xl font-semibold">{t.payment.payWithExchangeTitle}</h2>
+        <p className="text-sm text-gray-600">{t.payment.payWithExchangeSubtitle}</p>
 
         <button
           onClick={handlePayWithExchange}
           disabled={!paymentCheck.allowed || isPayPending || confirmSuccess}
           className="w-full py-3 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed font-medium"
         >
-          {isPayPending ? '⏳ Processing Payment...' : '💳 Pay with Exchange'}
+          {isPayPending ? t.payment.processingPayment : t.payment.payWithExchangeButton}
         </button>
 
         {isPaySuccess && (
           <div className="bg-green-50 border border-green-200 rounded p-3 text-green-800">
-            ✅ Payment initiated! Confirming...
+            ✅ {t.payment.paymentInitiatedConfirming}
           </div>
         )}
 
         {payError && (
           <div className="bg-red-50 border border-red-200 rounded p-3 text-red-800">
-            ❌ {payError.message || 'Payment error'}
+            ❌ {payError.message || t.payment.paymentError}
           </div>
         )}
       </div>
 
       <div id="manual-confirm" className="bg-white border rounded-lg p-6 space-y-4">
-        <h2 className="text-xl font-semibold">Manual Confirmation</h2>
+        <h2 className="text-xl font-semibold">{t.payment.manualConfirmationTitle}</h2>
         <p className="text-sm text-gray-600">
-          If you completed payment outside this interface, paste your transaction hash here
+          {t.payment.manualConfirmationSubtitle}
         </p>
 
         <div>
           <label htmlFor="txhash" className="block text-sm font-medium mb-2">
-            Transaction Hash
+            {t.payment.transactionHashLabel}
           </label>
           <input
             id="txhash"
@@ -436,13 +441,13 @@ export default function PolicyPaymentPage() {
           disabled={!manualTxHash.trim() || confirming || confirmSuccess}
           className="w-full py-2 px-4 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:bg-gray-100 disabled:cursor-not-allowed"
         >
-          {confirming ? '⏳ Confirming...' : 'Confirm Payment'}
+          {confirming ? t.payment.confirming : t.payment.confirmPaymentButton}
         </button>
       </div>
 
       <div className="text-sm text-gray-600 space-y-2">
-        <p>💡 Tip: After successful payment, your policy will be activated automatically.</p>
-        <p>🔒 Security: All payments are processed through Reown AppKit Pay's secure infrastructure.</p>
+        <p>💡 {t.payment.tip}</p>
+        <p>🔒 {t.payment.securityNote}</p>
       </div>
     </div>
   )

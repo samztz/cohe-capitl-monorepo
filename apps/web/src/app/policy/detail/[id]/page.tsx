@@ -7,6 +7,7 @@ import Image from 'next/image'
 import { useRequireAuth } from '@/hooks/useRequireAuth'
 import { apiClient } from '@/lib/apiClient'
 import { useAuthStore } from '@/store/authStore'
+import { useTranslations } from '@/store/localeStore'
 
 interface Policy {
   id: string
@@ -33,30 +34,13 @@ interface Product {
   termDays: number
 }
 
-// Map backend status to display label
-const getStatusLabel = (status: string) => {
-  switch (status) {
-    case 'ACTIVE':
-      return 'Active'
-    case 'PENDING_UNDERWRITING':
-    case 'DRAFT':
-      return 'Pending Review'
-    case 'APPROVED_AWAITING_PAYMENT':
-      return 'Awaiting Payment'
-    case 'EXPIRED':
-    case 'EXPIRED_UNPAID':
-      return 'Expired'
-    case 'REJECTED':
-      return 'Rejected'
-    default:
-      return status
-  }
-}
+// Status label function moved to component to use t
 
 export default function PolicyDetailPage() {
   // Protected route - require authentication
   const { isChecking } = useRequireAuth()
   const user = useAuthStore((state) => state.user)
+  const t = useTranslations()
 
   const params = useParams()
   const router = useRouter()
@@ -67,6 +51,25 @@ export default function PolicyDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string>('')
   const [daysRemaining, setDaysRemaining] = useState<number | null>(null)
+
+  // Get status display text
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'ACTIVE':
+        return t.policies.active
+      case 'PENDING_UNDERWRITING':
+        return t.policies.pending
+      case 'APPROVED_AWAITING_PAYMENT':
+        return t.policies.awaitingPayment
+      case 'EXPIRED':
+      case 'EXPIRED_UNPAID':
+        return t.policies.expired
+      case 'REJECTED':
+        return t.policies.rejected
+      default:
+        return status
+    }
+  }
 
   useEffect(() => {
     if (!isChecking && user && policyId) {
@@ -99,7 +102,7 @@ export default function PolicyDetailPage() {
       }
     } catch (err: any) {
       console.error('[Policy Detail] Load error:', err)
-      setError(err.response?.data?.message || 'Failed to load policy details')
+      setError(err.response?.data?.message || t.policyDetail.errorLoadingTitle)
     } finally {
       setLoading(false)
     }
@@ -110,7 +113,6 @@ export default function PolicyDetailPage() {
       case 'ACTIVE':
         return 'bg-green-500/20 text-green-500'
       case 'PENDING_UNDERWRITING':
-      case 'DRAFT':
         return 'bg-yellow-500/20 text-yellow-500'
       case 'APPROVED_AWAITING_PAYMENT':
         return 'bg-blue-500/20 text-blue-500'
@@ -129,7 +131,7 @@ export default function PolicyDetailPage() {
       <div className="min-h-screen bg-[#0F111A] flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 border-4 border-[#FFD54F] border-t-transparent rounded-full animate-spin" />
-          <p className="text-[#9CA3AF] text-sm font-medium">Checking auth...</p>
+          <p className="text-[#9CA3AF] text-sm font-medium">{t.common.checkingAuth}</p>
         </div>
       </div>
     )
@@ -140,7 +142,7 @@ export default function PolicyDetailPage() {
       <div className="min-h-screen bg-[#0F111A] flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 border-4 border-[#FFD54F] border-t-transparent rounded-full animate-spin" />
-          <p className="text-[#9CA3AF] text-sm font-medium">Loading policy...</p>
+          <p className="text-[#9CA3AF] text-sm font-medium">{t.policyDetail.loading}</p>
         </div>
       </div>
     )
@@ -170,16 +172,16 @@ export default function PolicyDetailPage() {
         <div className="flex-1 flex items-center justify-center px-5">
           <div className="text-center">
             <h1 className="text-white text-xl font-bold mb-2">
-              {error ? 'Error Loading Policy' : 'Policy Not Found'}
+              {error ? t.policyDetail.errorLoadingTitle : t.policyDetail.notFoundTitle}
             </h1>
             <p className="text-[#9CA3AF] text-sm mb-4">
-              {error || "The policy you're looking for doesn't exist."}
+              {error || t.policyDetail.notFoundSubtitle}
             </p>
             <Link
               href="/my-policies"
               className="inline-block bg-[#FFD54F] text-[#0F111A] px-6 py-2 rounded-lg font-semibold text-sm hover:brightness-110 transition-all"
             >
-              Back to My Policies
+              {t.policyDetail.backToMyPolicies}
             </Link>
           </div>
         </div>
@@ -214,7 +216,7 @@ export default function PolicyDetailPage() {
           href="/my-policies"
           className="text-white text-sm flex items-center gap-2 hover:opacity-80"
         >
-          &lt; BACK
+          &lt; {t.common.backUpper}
         </Link>
       </div>
 
@@ -224,29 +226,29 @@ export default function PolicyDetailPage() {
         <div className="mb-6">
           <div className="flex items-start justify-between mb-2">
             <h1 className="text-white text-2xl font-bold flex-1">
-              {product?.name || 'Insurance Policy'}
+              {product?.name || t.policyDetail.productFallbackName}
             </h1>
             <div className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(policy.status)}`}>
               {getStatusLabel(policy.status)}
             </div>
           </div>
-          <p className="text-[#9CA3AF] text-sm">Policy #{policy.id.slice(0, 8)}...</p>
+          <p className="text-[#9CA3AF] text-sm break-all">{t.policyDetail.policyIdPrefix}{policy.id}</p>
         </div>
 
         {/* Coverage Overview Card */}
         <div className="bg-[#1A1D2E] rounded-lg p-6 border border-[#374151] mb-6">
-          <h2 className="text-white text-lg font-semibold mb-4">Coverage Overview</h2>
+          <h2 className="text-white text-lg font-semibold mb-4">{t.policyDetail.coverageOverview}</h2>
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <span className="text-[#9CA3AF] text-sm">Coverage Amount</span>
+              <span className="text-[#9CA3AF] text-sm">{t.policyDetail.coverageAmount}</span>
               <span className="text-white text-lg font-bold">{policy?.coverageAmt || '0'} USDT</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-[#9CA3AF] text-sm">Premium Paid</span>
+              <span className="text-[#9CA3AF] text-sm">{t.policyDetail.premiumPaid}</span>
               <span className="text-white text-sm font-semibold">{policy.premiumAmt} USDT</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-[#9CA3AF] text-sm">Blockchain</span>
+              <span className="text-[#9CA3AF] text-sm">{t.policyDetail.blockchain}</span>
               <span className="text-white text-sm font-semibold">
                 {product?.chainId === 56 ? 'BSC' : product?.chainId === 97 ? 'BSC Testnet' : `Chain ${product?.chainId}`}
               </span>
@@ -257,16 +259,16 @@ export default function PolicyDetailPage() {
         {/* Period Information */}
         {policy.startAt && policy.endAt && (
           <div className="bg-[#1A1D2E] rounded-lg p-6 border border-[#374151] mb-6">
-            <h2 className="text-white text-lg font-semibold mb-4">Coverage Period</h2>
+            <h2 className="text-white text-lg font-semibold mb-4">{t.policyDetail.coveragePeriod}</h2>
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <span className="text-[#9CA3AF] text-sm">Start Date</span>
+                <span className="text-[#9CA3AF] text-sm">{t.policyDetail.startDate}</span>
                 <span className="text-white text-sm font-semibold">
                   {new Date(policy.startAt).toLocaleDateString()}
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-[#9CA3AF] text-sm">End Date</span>
+                <span className="text-[#9CA3AF] text-sm">{t.policyDetail.endDate}</span>
                 <span className="text-white text-sm font-semibold">
                   {new Date(policy.endAt).toLocaleDateString()}
                 </span>
@@ -274,8 +276,8 @@ export default function PolicyDetailPage() {
               {policy.status === 'ACTIVE' && daysRemaining !== null && (
                 <>
                   <div className="flex items-center justify-between">
-                    <span className="text-[#9CA3AF] text-sm">Days Remaining</span>
-                    <span className="text-[#FFD54F] text-sm font-semibold">{daysRemaining} days</span>
+                    <span className="text-[#9CA3AF] text-sm">{t.policyDetail.daysRemaining}</span>
+                    <span className="text-[#FFD54F] text-sm font-semibold">{daysRemaining} {t.policyDetail.days}</span>
                   </div>
                   <div className="mt-2">
                     <div className="w-full bg-[#374151] h-2 rounded-full overflow-hidden">
@@ -295,20 +297,20 @@ export default function PolicyDetailPage() {
 
         {/* Transaction Information */}
         <div className="bg-[#1A1D2E] rounded-lg p-6 border border-[#374151] mb-6">
-          <h2 className="text-white text-lg font-semibold mb-4">Transaction Details</h2>
+          <h2 className="text-white text-lg font-semibold mb-4">{t.policyDetail.txDetails}</h2>
           <div className="space-y-3">
             <div>
-              <div className="text-[#9CA3AF] text-xs mb-1">Wallet Address</div>
+              <div className="text-[#9CA3AF] text-xs mb-1">{t.policyDetail.walletAddress}</div>
               <div className="text-white text-sm font-mono break-all">{policy.walletAddress}</div>
             </div>
             {policy.contractHash && (
               <div>
-                <div className="text-[#9CA3AF] text-xs mb-1">Contract Hash</div>
+                <div className="text-[#9CA3AF] text-xs mb-1">{t.policyDetail.contractHash}</div>
                 <div className="text-white text-sm font-mono break-all">{policy.contractHash}</div>
               </div>
             )}
             <div>
-              <div className="text-[#9CA3AF] text-xs mb-1">Created At</div>
+              <div className="text-[#9CA3AF] text-xs mb-1">{t.policyDetail.createdAt}</div>
               <div className="text-white text-sm">
                 {new Date(policy.createdAt).toLocaleString()}
               </div>
@@ -334,10 +336,9 @@ export default function PolicyDetailPage() {
                 />
               </svg>
               <div>
-                <h3 className="text-yellow-500 text-sm font-semibold mb-1">Pending Review</h3>
+                <h3 className="text-yellow-500 text-sm font-semibold mb-1">{t.policyDetail.pendingTitle}</h3>
                 <p className="text-yellow-500/80 text-xs">
-                  Your policy is currently under review. We'll notify you once it's approved and
-                  active.
+                  {t.policyDetail.pendingMessage}
                 </p>
               </div>
             </div>
@@ -361,13 +362,13 @@ export default function PolicyDetailPage() {
                 />
               </svg>
               <div>
-                <h3 className="text-blue-500 text-sm font-semibold mb-1">Awaiting Payment</h3>
+                <h3 className="text-blue-500 text-sm font-semibold mb-1">{t.policyDetail.awaitingPaymentTitle}</h3>
                 <p className="text-blue-500/80 text-xs mb-2">
-                  Your policy has been approved! Please complete the payment to activate your coverage.
+                  {t.policyDetail.awaitingPaymentMessage}
                 </p>
                 {policy.paymentDeadline && (
                   <p className="text-blue-500/60 text-xs">
-                    Payment deadline: {new Date(policy.paymentDeadline).toLocaleString()}
+                    {t.policyDetail.paymentDeadlinePrefix}{new Date(policy.paymentDeadline).toLocaleString()}
                   </p>
                 )}
               </div>
@@ -392,9 +393,9 @@ export default function PolicyDetailPage() {
                 />
               </svg>
               <div>
-                <h3 className="text-gray-500 text-sm font-semibold mb-1">Policy Expired</h3>
+                <h3 className="text-gray-500 text-sm font-semibold mb-1">{t.policyDetail.expiredTitle}</h3>
                 <p className="text-gray-500/80 text-xs">
-                  This policy has expired. You can purchase a new policy to continue coverage.
+                  {t.policyDetail.expiredMessage}
                 </p>
               </div>
             </div>
@@ -418,9 +419,9 @@ export default function PolicyDetailPage() {
                 />
               </svg>
               <div>
-                <h3 className="text-red-500 text-sm font-semibold mb-1">Policy Rejected</h3>
+                <h3 className="text-red-500 text-sm font-semibold mb-1">{t.policyDetail.rejectedTitle}</h3>
                 <p className="text-red-500/80 text-xs">
-                  This policy was not approved. Please contact support for more information.
+                  {t.policyDetail.rejectedMessage}
                 </p>
               </div>
             </div>
@@ -430,7 +431,7 @@ export default function PolicyDetailPage() {
         {/* Contract Document */}
         {policy.contractHash && (
           <div className="bg-[#1A1D2E] rounded-lg p-6 border border-[#374151] mb-6">
-            <h2 className="text-white text-lg font-semibold mb-4">Policy Contract</h2>
+            <h2 className="text-white text-lg font-semibold mb-4">{t.policyDetail.contractTitle}</h2>
             <button className="w-full bg-[#2D3748] text-white px-4 py-3 rounded-lg border border-[#374151] hover:bg-[#374151] transition-all flex items-center justify-center gap-2">
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path
@@ -440,7 +441,7 @@ export default function PolicyDetailPage() {
                   d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                 />
               </svg>
-              <span className="text-sm font-semibold">Download Contract (PDF)</span>
+              <span className="text-sm font-semibold">{t.policyDetail.downloadContract}</span>
             </button>
           </div>
         )}
@@ -449,10 +450,10 @@ export default function PolicyDetailPage() {
         {policy.status === 'ACTIVE' && (
           <div className="space-y-3">
             <button className="w-full bg-[#FFD54F] text-[#0F111A] px-6 py-4 rounded-lg font-semibold text-sm hover:brightness-110 transition-all">
-              File a Claim
+              {t.policyDetail.fileClaim}
             </button>
             <button className="w-full bg-[#1A1D2E] text-white px-6 py-4 rounded-lg font-semibold text-sm border border-[#374151] hover:bg-[#2D3748] transition-all">
-              Contact Support
+              {t.policyDetail.contactSupport}
             </button>
           </div>
         )}
@@ -462,7 +463,7 @@ export default function PolicyDetailPage() {
             href={`/policy/payment/${policy.id}`}
             className="block w-full bg-[#FFD54F] text-[#0F111A] px-6 py-4 rounded-lg font-semibold text-sm hover:brightness-110 transition-all text-center"
           >
-            Complete Payment
+            {t.policyDetail.completePayment}
           </Link>
         )}
 
@@ -471,13 +472,13 @@ export default function PolicyDetailPage() {
             href="/products"
             className="block w-full bg-[#FFD54F] text-[#0F111A] px-6 py-4 rounded-lg font-semibold text-sm hover:brightness-110 transition-all text-center"
           >
-            Purchase New Policy
+            {t.policyDetail.purchaseNew}
           </Link>
         )}
 
-        {(policy.status === 'PENDING_UNDERWRITING' || policy.status === 'DRAFT') && (
+        {policy.status === 'PENDING_UNDERWRITING' && (
           <button className="w-full bg-[#1A1D2E] text-white px-6 py-4 rounded-lg font-semibold text-sm border border-[#374151] hover:bg-[#2D3748] transition-all">
-            Contact Support
+            {t.policyDetail.contactSupport}
           </button>
         )}
       </div>

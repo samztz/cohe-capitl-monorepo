@@ -321,7 +321,7 @@ export class PolicyController {
    *   "skuId": "bsc-usdt-plan-seed",
    *   "walletAddress": "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
    *   "premiumAmt": "100.0",
-   *   "status": "DRAFT",
+   *   "status": "PENDING_UNDERWRITING",
    *   "createdAt": "2025-01-01T00:00:00.000Z",
    *   "updatedAt": "2025-01-01T00:00:00.000Z"
    * }

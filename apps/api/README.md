@@ -207,8 +207,7 @@ Swagger UI provides:
 
 ```prisma
 enum PolicyStatus {
-  DRAFT                      // 草稿状态（创建保单后）
-  PENDING_UNDERWRITING       // 待审核（签署合同后）
+  PENDING_UNDERWRITING       // 待审核（创建保单并签署合同后）
   APPROVED_AWAITING_PAYMENT  // 审核通过，等待支付
   ACTIVE                     // 生效中
   REJECTED                   // 审核拒绝
@@ -222,7 +221,7 @@ model Policy {
   skuId           String
   walletAddress   String
   premiumAmt      Decimal       @db.Decimal(38, 18)
-  status          PolicyStatus  @default(DRAFT)
+  status          PolicyStatus  @default(PENDING_UNDERWRITING)
   contractHash    String?
   userSig         String?
   paymentDeadline DateTime?     // 支付截止时间（审核通过时设置）
@@ -246,9 +245,7 @@ model Policy {
 
 ```mermaid
 stateDiagram-v2
-    [*] --> DRAFT: 用户创建保单
-
-    DRAFT --> PENDING_UNDERWRITING: 签署合同
+    [*] --> PENDING_UNDERWRITING: 用户创建保单并签署合同
 
     PENDING_UNDERWRITING --> APPROVED_AWAITING_PAYMENT: Admin 审核通过<br/>(设置 paymentDeadline)
     PENDING_UNDERWRITING --> REJECTED: Admin 审核拒绝
@@ -267,8 +264,7 @@ stateDiagram-v2
 
 | 状态 | 触发条件 | 业务含义 | 可执行操作 |
 |------|---------|---------|-----------|
-| **DRAFT** | 用户调用 `POST /policy` | 保单草稿，未签署 | 用户可签署合同 |
-| **PENDING_UNDERWRITING** | 用户签署合同 | 等待 Admin 审核 | Admin 可审核（通过/拒绝） |
+| **PENDING_UNDERWRITING** | 用户创建保单并签署合同 | 等待 Admin 审核 | Admin 可审核（通过/拒绝） |
 | **APPROVED_AWAITING_PAYMENT** | Admin 审核通过 | 等待用户支付，设置 `paymentDeadline` | 用户需在截止时间前支付 |
 | **ACTIVE** | 用户完成支付 | 保单生效，设置 `startAt`、`endAt` | 可查看倒计时、提交理赔 |
 | **REJECTED** | Admin 审核拒绝 | 保单被拒绝 | 终态，无法再操作 |
@@ -597,13 +593,12 @@ sequenceDiagram
 ```
 
 **状态流转**（已更新为枚举）：
-1. **DRAFT** - 保单刚创建，未签署合同
-2. **PENDING_UNDERWRITING** - 已签署合同，等待人工审核
-3. **APPROVED_AWAITING_PAYMENT** - 审核通过，等待支付
-4. **ACTIVE** - 支付完成，保单生效
-5. **REJECTED** - 审核拒绝
-6. **EXPIRED_UNPAID** - 超过支付期限
-7. **EXPIRED** - 保障期结束
+1. **PENDING_UNDERWRITING** - 保单创建并签署合同，等待人工审核
+2. **APPROVED_AWAITING_PAYMENT** - 审核通过，等待支付
+3. **ACTIVE** - 支付完成，保单生效
+4. **REJECTED** - 审核拒绝
+5. **EXPIRED_UNPAID** - 超过支付期限
+6. **EXPIRED** - 保障期结束
 
 详见上方 [🔄 保单状态机](#-保单状态机先审核再支付) 章节
 

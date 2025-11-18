@@ -12,9 +12,7 @@ import { useAuthStore } from '@/store/authStore'
 import { apiClient } from '@/lib/apiClient'
 import { API_ENDPOINTS } from '@/api/client'
 import * as Utils from '@/utils'
-
-// Environment configuration
-const EXPECTED_CHAIN_ID = parseInt(process.env.NEXT_PUBLIC_CHAIN_ID || '97', 10)
+import { useTranslations } from '@/store/localeStore'
 
 // Policy response type (from GET /policy/:id)
 interface PolicyResponse {
@@ -23,7 +21,7 @@ interface PolicyResponse {
   skuId: string
   walletAddress: string
   premiumAmt: string
-  status: 'DRAFT' | 'PENDING_UNDERWRITING' | 'APPROVED_AWAITING_PAYMENT' | 'ACTIVE' | 'REJECTED' | 'EXPIRED_UNPAID' | 'EXPIRED'
+  status: 'PENDING_UNDERWRITING' | 'APPROVED_AWAITING_PAYMENT' | 'ACTIVE' | 'REJECTED' | 'EXPIRED_UNPAID' | 'EXPIRED'
   paymentDeadline?: string
   startAt?: string
   endAt?: string
@@ -54,6 +52,7 @@ export default function ContractSignPage() {
   const { isChecking } = useRequireAuth()
   const user = useAuthStore((state) => state.user)
   const { walletProvider } = useAppKitProvider('eip155')
+  const t = useTranslations()
 
   const router = useRouter()
   const params = useParams()
@@ -108,7 +107,7 @@ export default function ContractSignPage() {
 
   // Handle contract signing
   const handleSign = useCallback(async () => {
-    if (!policy || !user || !walletProvider || !agreed) return
+    if (!policy || !product || !user || !walletProvider || !agreed) return
 
     setIsSigning(true)
     setSignError(null)
@@ -122,8 +121,17 @@ export default function ContractSignPage() {
       const chainId = Number(network.chainId)
       setCurrentChainId(chainId)
 
-      if (chainId !== EXPECTED_CHAIN_ID) {
-        throw new Error(`Please switch to ${EXPECTED_CHAIN_ID === 97 ? 'BSC Testnet' : 'BSC Mainnet'} (Chain ID: ${EXPECTED_CHAIN_ID})`)
+      // Use product's chainId instead of hardcoded environment variable
+      const expectedChainId = product.chainId
+      console.log(`Expected Chain ID: ${expectedChainId}`)
+      console.log(`Current Chain ID: ${chainId}`)
+
+      if (chainId !== expectedChainId) {
+        throw new Error(
+          t.contractSign.switchChainError
+            .replace('{chain}', getChainName(expectedChainId))
+            .replace('{chainId}', expectedChainId.toString())
+        )
       }
 
       // Step 2: Construct contract payload (canonical order)
@@ -162,13 +170,13 @@ export default function ContractSignPage() {
       console.error('[ContractSign] Signing failed:', err)
 
       // User-friendly error messages
-      let errorMessage = 'Contract signing failed. Please try again.'
+      let errorMessage = t.contractSign.signFailedError
       if (err.code === 4001 || err.message?.includes('rejected') || err.message?.includes('denied')) {
-        errorMessage = 'Signature request was cancelled'
+        errorMessage = t.contractSign.signCancelledError
       } else if (err.message?.includes('chain') || err.message?.includes('Chain')) {
         errorMessage = err.message
       } else if (err.message?.includes('network') || err.message?.includes('fetch')) {
-        errorMessage = 'Network error. Please check your connection'
+        errorMessage = t.contractSign.networkError
       } else if (err.response?.data?.message) {
         errorMessage = err.response.data.message
       }
@@ -177,7 +185,7 @@ export default function ContractSignPage() {
     } finally {
       setIsSigning(false)
     }
-  }, [policy, user, walletProvider, agreed, policyId, coverageFromQuery, periodFromQuery, symbolFromQuery, router])
+  }, [policy, product, user, walletProvider, agreed, policyId, coverageFromQuery, periodFromQuery, symbolFromQuery, router, t])
 
   // Helper function to get chain name
   const getChainName = (chainId: number) => {
@@ -241,12 +249,12 @@ export default function ContractSignPage() {
 
         <div className="flex-1 flex items-center justify-center px-4">
           <div className="bg-[#111827] rounded-xl p-6 border border-[#1F2937] max-w-md w-full">
-            <p className="text-red-500 text-center mb-4">Failed to load policy</p>
+            <p className="text-red-500 text-center mb-4">{t.contractSign.failedToLoadPolicy}</p>
             <Link
               href="/my-policies"
               className="block text-center px-4 py-3 bg-[#FECF4C] text-[#111827] rounded-xl hover:brightness-110 transition-all font-semibold text-sm"
             >
-              Back to My Policies
+              {t.contractSign.backToMyPolicies}
             </Link>
           </div>
         </div>
@@ -254,43 +262,43 @@ export default function ContractSignPage() {
     )
   }
 
-  // Non-DRAFT status - show status page
-  if (policy && policy.status !== 'DRAFT') {
+  // Show status page if contract already signed (has contractHash)
+  if (policy && policy.contractHash) {
     const statusMessages = {
       PENDING_UNDERWRITING: {
-        title: 'Contract Signed',
-        message: 'Your policy has been signed and is awaiting review',
-        buttonText: 'View Details',
+        title: t.contractSign.statusContractSigned,
+        message: t.contractSign.statusPendingMessage,
+        buttonText: t.contractSign.viewDetails,
         buttonLink: `/policy/detail/${policyId}`,
       },
       APPROVED_AWAITING_PAYMENT: {
-        title: 'Approved',
-        message: 'Your policy has been approved. Please proceed to payment',
-        buttonText: 'Go to Payment',
+        title: t.contractSign.statusApproved,
+        message: t.contractSign.statusApprovedMessage,
+        buttonText: t.contractSign.goToPayment,
         buttonLink: `/policy/payment/${policyId}`,
       },
       ACTIVE: {
-        title: 'Active Policy',
-        message: 'This policy is already active',
-        buttonText: 'View Details',
+        title: t.contractSign.statusActive,
+        message: t.contractSign.statusActiveMessage,
+        buttonText: t.contractSign.viewDetails,
         buttonLink: `/policy/detail/${policyId}`,
       },
       REJECTED: {
-        title: 'Policy Rejected',
-        message: 'This policy has been rejected',
-        buttonText: 'View Details',
+        title: t.contractSign.statusRejected,
+        message: t.contractSign.statusRejectedMessage,
+        buttonText: t.contractSign.viewDetails,
         buttonLink: `/policy/detail/${policyId}`,
       },
       EXPIRED_UNPAID: {
-        title: 'Expired (Unpaid)',
-        message: 'This policy has expired without payment',
-        buttonText: 'View Details',
+        title: t.contractSign.statusExpiredUnpaid,
+        message: t.contractSign.statusExpiredUnpaidMessage,
+        buttonText: t.contractSign.viewDetails,
         buttonLink: `/policy/detail/${policyId}`,
       },
       EXPIRED: {
-        title: 'Expired',
-        message: 'This policy has expired',
-        buttonText: 'View Details',
+        title: t.contractSign.statusExpired,
+        message: t.contractSign.statusExpiredMessage,
+        buttonText: t.contractSign.viewDetails,
         buttonLink: `/policy/detail/${policyId}`,
       },
     }
@@ -333,8 +341,9 @@ export default function ContractSignPage() {
     )
   }
 
-  // DRAFT status - show signing page
-  const isChainCorrect = currentChainId === null || currentChainId === EXPECTED_CHAIN_ID
+  // PENDING_UNDERWRITING without contractHash - show signing page
+  const expectedChainId = product?.chainId
+  const isChainCorrect = !expectedChainId || currentChainId === null || currentChainId === expectedChainId
   const canSign = agreed && isChainCorrect && !isSigning
 
   return (
@@ -364,7 +373,7 @@ export default function ContractSignPage() {
           onClick={() => router.back()}
           className="text-white text-xs uppercase tracking-[1.5px] flex items-center gap-1 hover:opacity-80"
         >
-          &lt; BACK
+          &lt; {t.common.backUpper}
         </button>
       </div>
 
@@ -375,69 +384,67 @@ export default function ContractSignPage() {
           <div className="bg-[#FECF4C] rounded-xl p-4 mb-4 border-2 border-[#FECF4C]">
             <h3 className="text-[#111827] font-bold text-sm mb-2 flex items-center gap-2">
               <span className="text-lg">⚠️</span>
-              <span>Important: Network & Token Information</span>
+              <span>{t.contractSign.importantNetworkTitle}</span>
             </h3>
             <div className="space-y-2 text-xs text-[#111827]">
               <div className="flex items-start gap-2">
-                <span className="font-bold min-w-[60px]">Network:</span>
+                <span className="font-bold min-w-[60px]">{t.contractSign.networkLabel}</span>
                 <span className="font-semibold">{getChainName(product.chainId)} (Chain ID: {product.chainId})</span>
               </div>
               <div className="flex items-start gap-2">
-                <span className="font-bold min-w-[60px]">Token:</span>
+                <span className="font-bold min-w-[60px]">{t.contractSign.tokenLabel}</span>
                 <span className="font-semibold">{product.tokenSymbol}</span>
               </div>
               <div className="flex items-start gap-2">
-                <span className="font-bold min-w-[60px]">Contract:</span>
+                <span className="font-bold min-w-[60px]">{t.contractSign.contractLabel}</span>
                 <span className="font-mono text-[10px] break-all">{product.tokenAddress}</span>
               </div>
             </div>
             <p className="text-[#111827] text-xs mt-3 font-medium">
-              💡 Please ensure your wallet is connected to <span className="font-bold">{getChainName(product.chainId)}</span> before signing.
+              💡 {t.contractSign.ensureWalletConnected.replace('{chain}', getChainName(product.chainId))}
             </p>
           </div>
         )}
 
         {/* Contract Content Box */}
         <div className="bg-[#2D3748] rounded-xl p-6 mb-4 h-[400px] overflow-y-auto border border-[#374151]">
-          <h2 className="text-white text-lg font-bold mb-4 text-center">Insurance Contract</h2>
+          <h2 className="text-white text-lg font-bold mb-4 text-center">{t.contractSign.contractTitle}</h2>
 
           <div className="space-y-3 text-sm">
             <div className="flex justify-between">
-              <span className="text-[#9CA3AF]">Policy ID:</span>
+              <span className="text-[#9CA3AF]">{t.contractSign.policyIdLabel}</span>
               <span className="text-white font-mono text-xs">{policy?.id.slice(0, 8)}...</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-[#9CA3AF]">Coverage Amount:</span>
+              <span className="text-[#9CA3AF]">{t.contractSign.coverageAmountLabel}</span>
               <span className="text-white">{parseFloat(coverageFromQuery).toLocaleString()} {product?.tokenSymbol || symbolFromQuery}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-[#9CA3AF]">Premium:</span>
+              <span className="text-[#9CA3AF]">{t.contractSign.premiumLabel}</span>
               <span className="text-white">{parseFloat(policy?.premiumAmt || premiumFromQuery).toLocaleString()} {product?.tokenSymbol || symbolFromQuery}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-[#9CA3AF]">Term:</span>
-              <span className="text-white">{periodFromQuery} days</span>
+              <span className="text-[#9CA3AF]">{t.contractSign.termLabel}</span>
+              <span className="text-white">{periodFromQuery} {t.contractSign.days}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-[#9CA3AF]">Wallet Address:</span>
+              <span className="text-[#9CA3AF]">{t.contractSign.walletAddressLabel}</span>
               <span className="text-white font-mono text-xs">{user?.address ? Utils.formatAddress(user.address) : ''}</span>
             </div>
           </div>
 
           <div className="mt-6 pt-6 border-t border-[#374151]">
             <p className="text-[#9CA3AF] text-xs leading-relaxed">
-              By signing this contract, you agree to the terms and conditions of the insurance policy.
-              This includes coverage terms, premium payment obligations, and claim procedures.
-              The contract will be cryptographically signed using your wallet and recorded on the blockchain.
+              {t.contractSign.contractTermsText}
             </p>
           </div>
         </div>
 
         {/* Chain warning */}
-        {!isChainCorrect && currentChainId !== null && (
+        {!isChainCorrect && currentChainId !== null && expectedChainId && (
           <div className="bg-red-500/10 border border-red-500/50 rounded-xl p-3 mb-4">
             <p className="text-red-500 text-xs text-center">
-              Please switch to {EXPECTED_CHAIN_ID === 97 ? 'BSC Testnet' : 'BSC Mainnet'} (Chain ID: {EXPECTED_CHAIN_ID})
+              {t.contractSign.switchChainWarning.replace('{chain}', getChainName(expectedChainId)).replace('{chainId}', expectedChainId.toString())}
             </p>
           </div>
         )}
@@ -450,7 +457,7 @@ export default function ContractSignPage() {
               onClick={() => setSignError(null)}
               className="w-full mt-2 text-red-500 text-xs hover:underline"
             >
-              Dismiss
+              {t.contractSign.dismiss}
             </button>
           </div>
         )}
@@ -464,7 +471,7 @@ export default function ContractSignPage() {
               : 'bg-transparent border-[#5B7C4F] text-[#5B7C4F]'
           }`}
         >
-          Have Read And Confirmed {agreed ? '✓' : ''}
+          {t.contractSign.haveReadConfirmed} {agreed ? '✓' : ''}
         </button>
 
         {/* Sign Button */}
@@ -477,7 +484,7 @@ export default function ContractSignPage() {
               : 'bg-[#374151] text-[#6B7280] cursor-not-allowed'
           }`}
         >
-          {isSigning ? 'Signing Contract...' : 'Sign Contract'}
+          {isSigning ? t.contractSign.signingContract : t.contractSign.signContract}
         </button>
       </div>
     </div>

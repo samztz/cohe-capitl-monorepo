@@ -15,7 +15,6 @@ datasource db {
 }
 
 enum PolicyStatus {
-  DRAFT
   PENDING_UNDERWRITING
   APPROVED_AWAITING_PAYMENT
   ACTIVE
@@ -65,7 +64,7 @@ model Policy {
   walletAddress   String
   premiumAmt      Decimal       @db.Decimal(38, 18)  // User-input premium amount
   coverageAmt     Decimal       @db.Decimal(38, 18)  // User-input coverage amount
-  status          PolicyStatus  @default(DRAFT)
+  status          PolicyStatus  @default(PENDING_UNDERWRITING)
   contractHash    String?
   userSig         String?
   paymentDeadline DateTime?     // Deadline for payment after approval (set when APPROVED_AWAITING_PAYMENT)

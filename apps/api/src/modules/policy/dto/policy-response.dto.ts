@@ -44,14 +44,13 @@ export class PolicyResponseDto {
   @ApiProperty({
     description:
       'Policy status - supports "Review then Pay" workflow\n\n' +
-      '- DRAFT: Initial state after policy creation\n' +
-      '- PENDING_UNDERWRITING: User signed contract, awaiting admin review\n' +
+      '- PENDING_UNDERWRITING: Initial state after policy creation and contract signing, awaiting admin review\n' +
       '- APPROVED_AWAITING_PAYMENT: Admin approved, awaiting payment before paymentDeadline\n' +
       '- ACTIVE: Payment received, policy active from startAt to endAt\n' +
       '- REJECTED: Admin rejected during review\n' +
       '- EXPIRED_UNPAID: Payment not received before paymentDeadline\n' +
       '- EXPIRED: Policy expired after endAt',
-    example: PolicyStatus.DRAFT,
+    example: PolicyStatus.PENDING_UNDERWRITING,
     enum: PolicyStatus,
   })
   status!: PolicyStatus;

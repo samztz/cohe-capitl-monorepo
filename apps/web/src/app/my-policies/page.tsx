@@ -7,6 +7,7 @@ import BottomNav from '@/components/BottomNav'
 import { useRequireAuth } from '@/hooks/useRequireAuth'
 import { apiClient } from '@/lib/apiClient'
 import { useAuthStore } from '@/store/authStore'
+import { useTranslations } from '@/store/localeStore'
 
 interface Policy {
   id: string
@@ -35,33 +36,12 @@ interface Product {
 
 type PolicyStatus = 'all' | 'ACTIVE' | 'PENDING_UNDERWRITING' | 'EXPIRED' | 'APPROVED_AWAITING_PAYMENT'
 
-// Map backend status to display label
-const getStatusLabel = (status: string) => {
-  switch (status) {
-    case 'ACTIVE':
-      return 'Active'
-    case 'PENDING_UNDERWRITING':
-    case 'DRAFT':
-      return 'Pending'
-    case 'APPROVED_AWAITING_PAYMENT':
-      return 'Awaiting Payment'
-    case 'EXPIRED':
-    case 'EXPIRED_UNPAID':
-      return 'Expired'
-    case 'REJECTED':
-      return 'Rejected'
-    default:
-      return status
-  }
-}
-
 // Map backend status to filter category
 const getFilterCategory = (status: string): PolicyStatus => {
   switch (status) {
     case 'ACTIVE':
       return 'ACTIVE'
     case 'PENDING_UNDERWRITING':
-    case 'DRAFT':
       return 'PENDING_UNDERWRITING'
     case 'APPROVED_AWAITING_PAYMENT':
       return 'APPROVED_AWAITING_PAYMENT'
@@ -78,12 +58,32 @@ export default function MyPoliciesPage() {
   // Protected route - require authentication
   const { isChecking } = useRequireAuth()
   const user = useAuthStore((state) => state.user)
+  const t = useTranslations()
 
   const [policies, setPolicies] = useState<Policy[]>([])
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string>('')
   const [selectedStatus, setSelectedStatus] = useState<PolicyStatus>('all')
+
+  // Map backend status to display label
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'ACTIVE':
+        return t.policies.active
+      case 'PENDING_UNDERWRITING':
+        return t.policies.pending
+      case 'APPROVED_AWAITING_PAYMENT':
+        return t.policies.awaitingPayment
+      case 'EXPIRED':
+      case 'EXPIRED_UNPAID':
+        return t.policies.expired
+      case 'REJECTED':
+        return t.policies.rejected
+      default:
+        return status
+    }
+  }
 
   useEffect(() => {
     if (!isChecking && user) {
@@ -100,7 +100,7 @@ export default function MyPoliciesPage() {
       setPolicies(response.data)
     } catch (err: any) {
       console.error('[My Policies] Load error:', err)
-      setError(err.response?.data?.message || 'Failed to load policies')
+      setError(err.response?.data?.message || t.policies.loadFailed)
     } finally {
       setLoading(false)
     }
@@ -140,7 +140,7 @@ export default function MyPoliciesPage() {
     all: policies.length,
     ACTIVE: policies.filter((p) => p.status === 'ACTIVE').length,
     PENDING_UNDERWRITING: policies.filter(
-      (p) => p.status === 'PENDING_UNDERWRITING' || p.status === 'DRAFT'
+      (p) => p.status === 'PENDING_UNDERWRITING'
     ).length,
     APPROVED_AWAITING_PAYMENT: policies.filter((p) => p.status === 'APPROVED_AWAITING_PAYMENT').length,
     EXPIRED: policies.filter(
@@ -155,7 +155,7 @@ export default function MyPoliciesPage() {
       <div className="min-h-screen bg-[#0F111A] flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 border-4 border-[#FFD54F] border-t-transparent rounded-full animate-spin" />
-          <p className="text-[#9CA3AF] text-sm font-medium">Checking auth...</p>
+          <p className="text-[#9CA3AF] text-sm font-medium">{t.common.checkingAuth}</p>
         </div>
       </div>
     )
@@ -168,7 +168,7 @@ export default function MyPoliciesPage() {
         <div className="flex items-center gap-2">
           <Image
             src="/assets/cohe-capitl-app-logo.png"
-            alt="Cohe Capital Logo"
+            alt={t.common.coheLogoAlt}
             width={32}
             height={32}
             className="w-8 h-8"
@@ -186,9 +186,9 @@ export default function MyPoliciesPage() {
       <div className="flex-1 px-5 pt-4">
         {/* Title */}
         <div className="mb-6">
-          <h1 className="text-white text-2xl font-bold mb-1">My Policies</h1>
+          <h1 className="text-white text-2xl font-bold mb-1">{t.policies.myPolicies}</h1>
           <p className="text-[#9CA3AF] text-sm">
-            View and manage your insurance policies
+            {t.policies.myPoliciesSubtitle}
           </p>
         </div>
 
@@ -200,13 +200,13 @@ export default function MyPoliciesPage() {
               onClick={loadPolicies}
               className="mt-2 text-red-500 text-xs font-semibold underline"
             >
-              Retry
+              {t.common.retry}
             </button>
           </div>
         )}
 
         {/* Status Filters */}
-        <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+        <div className="flex flex-wrap gap-2 mb-6">
           <button
             onClick={() => setSelectedStatus('all')}
             className={`px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition-all ${
@@ -215,7 +215,7 @@ export default function MyPoliciesPage() {
                 : 'bg-[#1A1D2E] text-[#9CA3AF] border border-[#374151]'
             }`}
           >
-            All ({statusCounts.all})
+            {t.policies.all} ({statusCounts.all})
           </button>
           <button
             onClick={() => setSelectedStatus('ACTIVE')}
@@ -225,7 +225,7 @@ export default function MyPoliciesPage() {
                 : 'bg-[#1A1D2E] text-[#9CA3AF] border border-[#374151]'
             }`}
           >
-            Active ({statusCounts.ACTIVE})
+            {t.policies.active} ({statusCounts.ACTIVE})
           </button>
           <button
             onClick={() => setSelectedStatus('PENDING_UNDERWRITING')}
@@ -235,7 +235,7 @@ export default function MyPoliciesPage() {
                 : 'bg-[#1A1D2E] text-[#9CA3AF] border border-[#374151]'
             }`}
           >
-            Pending ({statusCounts.PENDING_UNDERWRITING})
+            {t.policies.pending} ({statusCounts.PENDING_UNDERWRITING})
           </button>
           <button
             onClick={() => setSelectedStatus('APPROVED_AWAITING_PAYMENT')}
@@ -245,7 +245,7 @@ export default function MyPoliciesPage() {
                 : 'bg-[#1A1D2E] text-[#9CA3AF] border border-[#374151]'
             }`}
           >
-            Awaiting Payment ({statusCounts.APPROVED_AWAITING_PAYMENT})
+            {t.policies.awaitingPayment} ({statusCounts.APPROVED_AWAITING_PAYMENT})
           </button>
           <button
             onClick={() => setSelectedStatus('EXPIRED')}
@@ -255,7 +255,7 @@ export default function MyPoliciesPage() {
                 : 'bg-[#1A1D2E] text-[#9CA3AF] border border-[#374151]'
             }`}
           >
-            Ended ({statusCounts.EXPIRED})
+            {t.policies.ended} ({statusCounts.EXPIRED})
           </button>
         </div>
 
@@ -294,16 +294,15 @@ export default function MyPoliciesPage() {
                       <h3 className="text-white text-base font-semibold mb-1">
                         {getProductName(policy.skuId)}
                       </h3>
-                      <p className="text-[#9CA3AF] text-xs">
-                        ID: #{policy.id.slice(0, 8)}...
+                      <p className="text-[#9CA3AF] text-xs break-all">
+                        {t.policies.idPrefix}{policy.id}
                       </p>
                     </div>
                     <div
                       className={`px-3 py-1 rounded-full text-xs font-semibold ${
                         policy.status === 'ACTIVE'
                           ? 'bg-green-500/20 text-green-500'
-                          : policy.status === 'PENDING_UNDERWRITING' ||
-                            policy.status === 'DRAFT'
+                          : policy.status === 'PENDING_UNDERWRITING'
                           ? 'bg-yellow-500/20 text-yellow-500'
                           : policy.status === 'APPROVED_AWAITING_PAYMENT'
                           ? 'bg-blue-500/20 text-blue-500'
@@ -317,13 +316,13 @@ export default function MyPoliciesPage() {
                   {/* Details */}
                   <div className="grid grid-cols-2 gap-3 mb-3">
                     <div>
-                      <div className="text-[#9CA3AF] text-xs mb-1">Coverage</div>
+                      <div className="text-[#9CA3AF] text-xs mb-1">{t.policies.coverage}</div>
                       <div className="text-white text-sm font-semibold">
                         {policy.coverageAmt} USDT
                       </div>
                     </div>
                     <div>
-                      <div className="text-[#9CA3AF] text-xs mb-1">Premium</div>
+                      <div className="text-[#9CA3AF] text-xs mb-1">{t.policies.premium}</div>
                       <div className="text-white text-sm font-semibold">
                         {policy.premiumAmt} USDT
                       </div>
@@ -333,7 +332,7 @@ export default function MyPoliciesPage() {
                   {/* Period */}
                   {policy.startAt && policy.endAt && (
                     <div className="mb-2">
-                      <div className="text-[#9CA3AF] text-xs mb-1">Period</div>
+                      <div className="text-[#9CA3AF] text-xs mb-1">{t.policies.period}</div>
                       <div className="text-white text-xs">
                         {new Date(policy.startAt).toLocaleDateString()} -{' '}
                         {new Date(policy.endAt).toLocaleDateString()}
@@ -345,9 +344,9 @@ export default function MyPoliciesPage() {
                   {policy.status === 'ACTIVE' && daysRemaining !== null && (
                     <div className="mt-3">
                       <div className="flex items-center justify-between mb-1">
-                        <span className="text-[#9CA3AF] text-xs">Time Remaining</span>
+                        <span className="text-[#9CA3AF] text-xs">{t.policies.timeRemaining}</span>
                         <span className="text-[#FFD54F] text-xs font-semibold">
-                          {daysRemaining} days
+                          {daysRemaining} {t.common.days}
                         </span>
                       </div>
                       <div className="w-full bg-[#374151] h-2 rounded-full overflow-hidden">
@@ -364,7 +363,7 @@ export default function MyPoliciesPage() {
                   {/* View Details Arrow */}
                   <div className="mt-3 flex items-center justify-end">
                     <span className="text-[#FFD54F] text-xs font-semibold flex items-center gap-1">
-                      View Details
+                      {t.policies.viewDetails}
                       <svg
                         className="w-4 h-4"
                         fill="none"
@@ -404,18 +403,18 @@ export default function MyPoliciesPage() {
                 />
               </svg>
             </div>
-            <h3 className="text-white text-lg font-semibold mb-2">No Policies Found</h3>
+            <h3 className="text-white text-lg font-semibold mb-2">{t.policies.emptyTitle}</h3>
             <p className="text-[#9CA3AF] text-sm mb-4">
               {selectedStatus === 'all'
-                ? "You don't have any policies yet"
-                : `No ${getStatusLabel(selectedStatus)} policies`}
+                ? t.policies.emptyNone
+                : t.policies.emptyNoneWithFilter.replace('{status}', getStatusLabel(selectedStatus))}
             </p>
             {selectedStatus === 'all' && (
               <Link
                 href="/products"
                 className="inline-block bg-[#FFD54F] text-[#0F111A] px-6 py-2 rounded-lg font-semibold text-sm hover:brightness-110 transition-all"
               >
-                Browse Products
+                {t.common.browseProducts}
               </Link>
             )}
           </div>

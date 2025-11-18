@@ -138,6 +138,7 @@ export class PolicyService {
 
     try {
       // Create policy with user-specified amounts
+      // Policy is created directly in PENDING_UNDERWRITING status (awaiting contract signature)
       const policy = await this.prisma.policy.create({
         data: {
           userId,
@@ -145,7 +146,7 @@ export class PolicyService {
           walletAddress: normalizedAddress,
           premiumAmt: premiumAmt,
           coverageAmt: coverageAmt,
-          status: PolicyStatus.DRAFT,
+          status: PolicyStatus.PENDING_UNDERWRITING,
         },
       });
 
@@ -214,10 +215,10 @@ export class PolicyService {
       );
     }
 
-    // Verify policy status - can only sign DRAFT policies
-    if (policy.status !== PolicyStatus.DRAFT) {
+    // Verify policy status - can only sign policies in PENDING_UNDERWRITING status
+    if (policy.status !== PolicyStatus.PENDING_UNDERWRITING) {
       throw new BadRequestException(
-        `Policy status is "${policy.status}" - can only sign policies in "DRAFT" status`,
+        `Policy status is "${policy.status}" - can only sign policies in "PENDING_UNDERWRITING" status`,
       );
     }
 

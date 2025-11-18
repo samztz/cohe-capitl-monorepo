@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
-import { useAppKit, useAppKitAccount } from '@reown/appkit/react'
+import { useAppKit, useAppKitAccount, useDisconnect } from '@reown/appkit/react'
 import { useAuthStore } from '@/store/authStore'
 import { resetAuth } from '@/lib/resetAuth'
 import { useTranslations, useLocaleStore, useCurrentLocale } from '@/store/localeStore'
@@ -13,6 +13,7 @@ import BottomNav from '@/components/BottomNav'
 export default function SettingsPage() {
   const router = useRouter()
   const { close } = useAppKit()
+  const { disconnect } = useDisconnect()
   const { address } = useAppKitAccount()
   const { user, logout: logoutStore } = useAuthStore()
 
@@ -43,15 +44,21 @@ export default function SettingsPage() {
       setShowConfirmDialog(false)
       console.log('[SettingsPage] Starting disconnect process...')
 
-      // Call resetAuth to clear all storage and disconnect wallet
+      // Step 1: Disconnect wallet via AppKit (calls WalletConnect disconnect)
+      console.log('[SettingsPage] Disconnecting AppKit wallet...')
+      await disconnect()
+
+      // Step 2: Clear all storage and WalletConnect cache
+      console.log('[SettingsPage] Clearing storage and cache...')
       const result = await resetAuth({ close })
 
-      // Clear auth store
+      // Step 3: Clear auth store
+      console.log('[SettingsPage] Clearing auth store...')
       logoutStore()
 
       console.log('[SettingsPage] Disconnect successful:', result)
 
-      // Redirect to connect page
+      // Step 4: Redirect to connect page
       router.push('/auth/connect')
     } catch (error) {
       console.error('[SettingsPage] Disconnect error:', error)

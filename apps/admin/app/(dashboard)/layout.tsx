@@ -8,8 +8,9 @@ import { isAuthed, logout, getUser } from '@/lib/auth'
 import { Button } from '@/components/ui/button'
 import { Toaster } from '@/components/ui/toaster'
 import { LanguageSwitcher } from '@/components/LanguageSwitcher'
+import { MobileNav } from '@/components/MobileNav'
 import { useLocaleStore } from '@/src/store/localeStore'
-import { LayoutDashboard, FileText, ClipboardCheck, Settings, LogOut } from 'lucide-react'
+import { LayoutDashboard, FileText, ClipboardCheck, Settings, LogOut, Menu } from 'lucide-react'
 import Link from 'next/link'
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -17,6 +18,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const router = useRouter()
   const pathname = usePathname()
   const [mounted, setMounted] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   useEffect(() => {
     setMounted(true)
@@ -56,10 +58,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <div className="mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex h-16 justify-between items-center">
               <div className="flex items-center space-x-8">
+                {/* Hamburger Button (Mobile Only) */}
+                <button
+                  onClick={() => setMobileMenuOpen(true)}
+                  className="max-[1000px]:inline-flex min-[1000px]:hidden items-center justify-center p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-gray-500"
+                  aria-controls="mobile-menu"
+                  aria-expanded={mobileMenuOpen}
+                  aria-label="Open main menu"
+                >
+                  <Menu className="h-6 w-6" />
+                </button>
+
                 <div className="flex-shrink-0">
                   <h1 className="text-xl font-bold">Cohe Capital</h1>
                 </div>
-                <div className="hidden md:flex space-x-4">
+
+                {/* Desktop Navigation */}
+                <div className="min-[1000px]:flex max-[1000px]:hidden space-x-4">
                   {navigation.map((item) => {
                     const Icon = item.icon
                     const isActive = pathname === item.href
@@ -80,7 +95,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   })}
                 </div>
               </div>
-              <div className="flex items-center space-x-4">
+
+              {/* Desktop Right Side */}
+              <div className="min-[1000px]:flex max-[1000px]:hidden items-center space-x-4">
                 <LanguageSwitcher />
                 <span className="text-sm text-gray-600">{user?.email}</span>
                 <Button variant="ghost" size="sm" onClick={handleLogout}>
@@ -88,9 +105,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   {t.navigation.logout}
                 </Button>
               </div>
+
+              {/* Mobile Right Side - Only Language Switcher */}
+              <div className="max-[1000px]:flex min-[1000px]:hidden items-center">
+                <LanguageSwitcher />
+              </div>
             </div>
           </div>
         </nav>
+
+        {/* Mobile Navigation Drawer */}
+        <MobileNav
+          open={mobileMenuOpen}
+          onOpenChange={setMobileMenuOpen}
+          navigation={navigation}
+          userEmail={user?.email}
+          onLogout={handleLogout}
+        />
 
         {/* Main Content */}
         <main className="py-6">

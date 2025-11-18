@@ -4,6 +4,136 @@
 
 ---
 
+## [2025-11-17] - 🗑️ 移除 DRAFT 状态 - 优化 Policy 状态机 ✅ 完成
+
+### ✅ Removed - PolicyStatus.DRAFT 枚举值
+
+**功能**: 移除 Policy 状态机中不必要的 DRAFT 状态
+
+**业务逻辑变更**:
+- **原流程**: Policy 创建 → DRAFT → 签署合同 → PENDING_UNDERWRITING → 审核 → ...
+- **新流程**: Policy 创建并签署合同 → PENDING_UNDERWRITING → 审核 → ...
+- 创建 Policy 时直接进入 `PENDING_UNDERWRITING` 状态，不再有 DRAFT 中间状态
+- 合同签署逻辑保持不变，只是状态校验从 DRAFT 改为 PENDING_UNDERWRITING
+
+**实现细节**:
+
+#### 1. **数据库层 - Schema & Migration**
+
+**Prisma Schema** (`apps/api/prisma/schema.prisma`):
+```prisma
+enum PolicyStatus {
+  // DRAFT 已移除
+  PENDING_UNDERWRITING       // 新的初始状态
+  APPROVED_AWAITING_PAYMENT
+  ACTIVE
+  REJECTED
+  EXPIRED_UNPAID
+  EXPIRED
+}
+
+model Policy {
+  status PolicyStatus @default(PENDING_UNDERWRITING)  // 默认值从 DRAFT 改为 PENDING_UNDERWRITING
+  // ...
+}
+```
+
+**数据库迁移** (`apps/api/prisma/migrations/20251117000000_remove_draft_status/migration.sql`):
+```sql
+-- Step 1: 将所有 DRAFT 状态的 Policy 迁移到 PENDING_UNDERWRITING
+UPDATE "Policy"
+SET status = 'PENDING_UNDERWRITING'
+WHERE status = 'DRAFT';
+
+-- Step 2: 创建新枚举（不包含 DRAFT）
+CREATE TYPE "PolicyStatus_new" AS ENUM (
+  'PENDING_UNDERWRITING',
+  'APPROVED_AWAITING_PAYMENT',
+  'ACTIVE',
+  'REJECTED',
+  'EXPIRED_UNPAID',
+  'EXPIRED'
+);
+
+-- Step 3: 更新 Policy 表使用新枚举
+ALTER TABLE "Policy"
+  ALTER COLUMN "status" DROP DEFAULT,
+  ALTER COLUMN "status" TYPE "PolicyStatus_new" USING ("status"::text::"PolicyStatus_new"),
+  ALTER COLUMN "status" SET DEFAULT 'PENDING_UNDERWRITING'::"PolicyStatus_new";
+
+-- Step 4: 删除旧枚举，重命名新枚举
+DROP TYPE "PolicyStatus";
+ALTER TYPE "PolicyStatus_new" RENAME TO "PolicyStatus";
+```
+
+#### 2. **后端 API - Service & Controller**
+
+**Policy Service** (`apps/api/src/modules/policy/policy.service.ts`):
+- Line 149: Policy 创建默认状态从 `PolicyStatus.DRAFT` 改为 `PolicyStatus.PENDING_UNDERWRITING`
+- Line 219: 合同签署状态校验从 `DRAFT` 改为 `PENDING_UNDERWRITING`
+
+**Policy Response DTO** (`apps/api/src/modules/policy/dto/policy-response.dto.ts`):
+- Line 47-53: 移除 DRAFT 状态说明，更新为 "PENDING_UNDERWRITING: Initial state after policy creation and contract signing"
+- Line 53: Swagger 示例从 `PolicyStatus.DRAFT` 改为 `PolicyStatus.PENDING_UNDERWRITING`
+
+**Policy Controller** (`apps/api/src/modules/policy/policy.controller.ts`):
+- Line 324: Swagger 文档示例状态从 `"DRAFT"` 改为 `"PENDING_UNDERWRITING"`
+
+**README** (`apps/api/README.md`):
+- Line 210: 枚举定义移除 DRAFT，注释更新为 "PENDING_UNDERWRITING // 待审核（创建保单并签署合同后）"
+- Line 224: 默认值从 `@default(DRAFT)` 改为 `@default(PENDING_UNDERWRITING)`
+- Line 248-261: 状态机流程图移除 DRAFT 节点
+- Line 267: 状态说明表移除 DRAFT 行
+- Line 596-601: 状态流转说明移除 DRAFT 步骤
+
+#### 3. **前端 Web - 状态逻辑更新**
+
+**Contract Sign Page** (`apps/web/src/app/policy/contract-sign/[policyId]/page.tsx`):
+- Line 24: TypeScript interface 从类型中移除 `'DRAFT'`
+- Line 266: 判断逻辑从 `policy.status !== 'DRAFT'` 改为 `policy.contractHash`（根据是否已签署判断）
+- Line 344: 注释从 "DRAFT status" 改为 "PENDING_UNDERWRITING without contractHash"
+
+**My Policies Page** (`apps/web/src/app/my-policies/page.tsx`):
+- Line 45: 移除 `case 'DRAFT'`
+- Line 76: 移除 `case 'DRAFT'`
+- Line 143: 状态筛选条件移除 `|| p.status === 'DRAFT'`
+- Line 305-306: UI 样式判断移除 `|| policy.status === 'DRAFT'`
+
+**Policy Detail Page** (`apps/web/src/app/policy/detail/[id]/page.tsx`):
+- Line 61: 移除 `case 'DRAFT'`
+- Line 117: 移除 `case 'DRAFT'`
+- Line 479: 按钮显示条件从 `|| policy.status === 'DRAFT'` 改为仅 `policy.status === 'PENDING_UNDERWRITING'`
+
+**Dashboard Page** (`apps/web/src/app/dashboard/page.tsx`):
+- Line 121-122: 移除 `case 'DRAFT'` 和对应的翻译
+- Line 141-142: 移除 DRAFT 样式类
+
+**相关文件**:
+```
+apps/api/prisma/schema.prisma
+apps/api/prisma/migrations/20251117000000_remove_draft_status/migration.sql
+apps/api/src/modules/policy/policy.service.ts
+apps/api/src/modules/policy/policy.controller.ts
+apps/api/src/modules/policy/dto/policy-response.dto.ts
+apps/api/README.md
+apps/web/src/app/policy/contract-sign/[policyId]/page.tsx
+apps/web/src/app/my-policies/page.tsx
+apps/web/src/app/policy/detail/[id]/page.tsx
+apps/web/src/app/dashboard/page.tsx
+```
+
+**测试结果**:
+- ✅ 后端 dev 服务启动成功，0 errors
+- ✅ 前端 build 成功，所有页面编译通过
+
+**注意事项**:
+- 数据库迁移已创建但未自动应用，需手动运行: `pnpm --filter api prisma:migrate:dev`
+- 迁移会将现有 DRAFT 状态的 Policy 自动转换为 PENDING_UNDERWRITING
+- 前端逻辑已更新为根据 `contractHash` 判断是否已签署，而非状态值
+- 此变更不影响现有 API 接口，仅改变内部状态流转逻辑
+
+---
+
 ## [2025-11-16] - 🔓 修复 Admin 认证 & 公开 Treasury 接口 ✅ 完成
 
 ### ✅ Fixed - Admin Settings 401 Unauthorized Error

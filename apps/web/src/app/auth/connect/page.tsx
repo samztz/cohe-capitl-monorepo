@@ -50,10 +50,15 @@ export default function ConnectPage() {
    */
   useEffect(() => {
     if (!authStoreLoading && isAuthenticated && user) {
-      console.log('[ConnectPage] User already authenticated, redirecting to dashboard:', user.address)
+      console.log('[ConnectPage] User already authenticated, closing modal and redirecting to dashboard:', user.address)
+
+      // Close AppKit modal before redirecting
+      close().catch(err => console.warn('[ConnectPage] Error closing modal before redirect:', err))
+
+      // Redirect to dashboard
       router.replace('/dashboard')
     }
-  }, [authStoreLoading, isAuthenticated, user, router])
+  }, [authStoreLoading, isAuthenticated, user, router, close])
 
   /**
    * Effect 2: Enforce binary state - disconnect stale wallet connections
@@ -121,20 +126,20 @@ export default function ConnectPage() {
         setLocalError(null)
         clearError()
 
-        // Check network
-        const targetChainId = parseInt(process.env.NEXT_PUBLIC_CHAIN_ID || '97', 10)
-        if (chainId !== targetChainId) {
-          const targetNetworkName = targetChainId === 97 ? 'BSC Testnet' : 'BNB Smart Chain Mainnet'
-          const errorMsg = t.errors.switchNetwork.replace('{network}', targetNetworkName)
-          setLocalError(errorMsg)
+        // TODO: Check network
+        // const targetChainId = parseInt(process.env.NEXT_PUBLIC_CHAIN_ID || '97', 10)
+        // if (chainId !== targetChainId) {
+        //   const targetNetworkName = targetChainId === 97 ? 'BSC Testnet' : 'BNB Smart Chain Mainnet' : 'BNB Smart Chain';
+        //   const errorMsg = t.errors.switchNetwork.replace('{network}', targetNetworkName)
+        //   setLocalError(errorMsg)
 
-          // Disconnect wallet and reset flag
-          console.log('[ConnectPage] Wrong network, disconnecting wallet...')
-          isUserInitiatedFlow.current = false
-          await close()
-          setIsConnecting(false)
-          return
-        }
+        //   // Disconnect wallet and reset flag
+        //   console.log('[ConnectPage] Wrong network, disconnecting wallet...')
+        //   isUserInitiatedFlow.current = false
+        //   await close()
+        //   setIsConnecting(false)
+        //   return
+        // }
 
         // Start SIWE login
         const success = await login()

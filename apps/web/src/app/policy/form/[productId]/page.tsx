@@ -14,6 +14,7 @@ import { API_ENDPOINTS } from '@/api/client'
 import * as Types from '@/types'
 import * as Utils from '@/utils'
 import { useState, useEffect } from 'react'
+import { useTranslations } from '@/store/localeStore'
 
 // Token logo mapping based on tokenSymbol from SKU
 const getTokenLogo = (tokenSymbol: string): string => {
@@ -35,6 +36,7 @@ export default function PolicyFormPage() {
   const { isChecking } = useRequireAuth()
   const user = useAuthStore((state) => state.user)
   const isAuthLoading = useAuthStore((state) => state.isLoading)
+  const t = useTranslations()
 
   const router = useRouter()
   const params = useParams()
@@ -83,24 +85,24 @@ export default function PolicyFormPage() {
   const formSchema = z.object({
     walletAddress: z
       .string()
-      .regex(/^0x[a-fA-F0-9]{40}$/, 'Invalid wallet address format'),
+      .regex(/^0x[a-fA-F0-9]{40}$/, t.policyForm.invalidWalletFormat),
     insuranceAmount: z
       .string()
       .refine((val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0, {
-        message: 'Please enter a valid amount',
+        message: t.policyForm.pleaseEnterValidAmount,
       })
       .refine((val) => parseFloat(val) <= maxCoverage, {
-        message: `Exceeds maximum coverage of ${maxCoverage.toLocaleString()} ${tokenSymbol}`,
+        message: t.policyForm.exceedsMaxCoverage.replace('{max}', maxCoverage.toLocaleString()).replace('{symbol}', tokenSymbol),
       }),
     insuranceCost: z
       .string()
       .refine((val) => !isNaN(parseFloat(val)) && parseFloat(val) >= 0, {
-        message: 'Please enter a valid cost',
+        message: t.policyForm.pleaseEnterValidCost,
       }),
     insurancePeriodDays: z
       .string()
       .refine((val) => periodOptions.map(String).includes(val), {
-        message: 'Invalid insurance period',
+        message: t.policyForm.invalidPeriod,
       }),
   })
 
@@ -178,7 +180,7 @@ export default function PolicyFormPage() {
       console.log('[PolicyForm] User:', user)
 
       if (!token) {
-        throw new Error('No authentication token found. Please log in again.')
+        throw new Error(t.policyForm.noTokenError)
       }
 
       // Create policy via POST /policy with user-specified amounts
@@ -201,7 +203,7 @@ export default function PolicyFormPage() {
       router.push(`/policy/contract-sign/${policyId}?${queryParams.toString()}`)
     } catch (error: any) {
       console.error('Failed to create policy:', error)
-      alert(error?.response?.data?.message || 'Failed to create policy. Please try again.')
+      alert(error?.response?.data?.message || t.policyForm.createPolicyError)
     } finally {
       setIsSubmitting(false)
     }
@@ -284,7 +286,7 @@ export default function PolicyFormPage() {
       {/* Back Button */}
       <div className="px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
         <Link href="/products" className="text-white text-xs sm:text-sm uppercase tracking-[1.5px] flex items-center gap-1 sm:gap-1.5 hover:opacity-80">
-          &lt; BACK
+          &lt; {t.common.backUpper}
         </Link>
       </div>
 
@@ -311,12 +313,12 @@ export default function PolicyFormPage() {
           {/* Wallet Address Card (Read-only, auto-filled from auth) */}
           <div className="bg-[#111827] rounded-xl px-5 sm:px-6 lg:px-8 py-5 sm:py-5 lg:py-6 border border-[#1F2937] shadow-sm">
             <label className="text-[#9CA3AF] text-sm sm:text-base uppercase tracking-[1.5px] block mb-3 sm:mb-3">
-              Insurance Wallet Address
+              {t.policyForm.walletAddressLabel}
             </label>
             <input
               {...register('walletAddress')}
               type="text"
-              placeholder="Enter wallet address"
+              placeholder={t.policyForm.walletAddressPlaceholder}
               readOnly
               disabled
               className="w-full h-12 sm:h-14 bg-transparent text-white text-lg sm:text-xl lg:text-2xl font-medium border-none px-0 cursor-not-allowed focus:outline-none"
@@ -330,10 +332,10 @@ export default function PolicyFormPage() {
           <div className="bg-[#111827] rounded-xl px-5 sm:px-6 lg:px-8 py-5 sm:py-5 lg:py-6 border border-[#1F2937] shadow-sm">
             <div className="flex items-center justify-between mb-3 sm:mb-3">
               <label className="text-[#9CA3AF] text-sm sm:text-base uppercase tracking-[1.5px]">
-                Insurance Amount
+                {t.policyForm.amountLabel}
               </label>
               <span className="text-[#6B7280] text-xs sm:text-sm">
-                Max: {maxCoverage.toLocaleString()} {tokenSymbol}
+                {t.policyForm.maxCoveragePrefix} {maxCoverage.toLocaleString()} {tokenSymbol}
               </span>
             </div>
             <div className="relative h-12 sm:h-14 flex items-center">
@@ -369,10 +371,10 @@ export default function PolicyFormPage() {
           <div className="bg-[#111827] rounded-xl px-5 sm:px-6 lg:px-8 py-5 sm:py-5 lg:py-6 border border-[#1F2937] shadow-sm">
             <div className="flex items-center justify-between mb-3 sm:mb-3">
               <label className="text-[#9CA3AF] text-sm sm:text-base uppercase tracking-[1.5px]">
-                Premiem Amount
+                {t.policyForm.costLabel}
               </label>
               <span className="text-[#6B7280] text-xs sm:text-sm">
-                Bidirectional
+                {t.policyForm.bidirectional}
               </span>
             </div>
             <div className="relative h-12 sm:h-14 flex items-center">
@@ -408,9 +410,9 @@ export default function PolicyFormPage() {
           <div className="bg-[#111827] rounded-xl px-5 sm:px-6 lg:px-8 py-5 sm:py-5 lg:py-6 border border-[#1F2937] shadow-sm">
             <div className="flex items-center justify-between mb-3 sm:mb-3">
               <label className="text-[#9CA3AF] text-sm sm:text-base uppercase tracking-[1.5px]">
-                Insurance Period
+                {t.policyForm.periodLabel}
               </label>
-              <span className="text-[#6B7280] text-xs sm:text-sm">Days</span>
+              <span className="text-[#6B7280] text-xs sm:text-sm">{t.policyForm.days}</span>
             </div>
             <div className="text-white text-2xl sm:text-3xl lg:text-4xl font-semibold h-12 sm:h-14 flex items-center">
               {watchedPeriod}
@@ -420,10 +422,10 @@ export default function PolicyFormPage() {
 
         {/* Overview Section - Real-time sync with form */}
         <div className="mb-6 sm:mb-8">
-          <h2 className="text-white text-lg sm:text-xl font-semibold mb-3 sm:mb-4">Overview</h2>
+          <h2 className="text-white text-lg sm:text-xl font-semibold mb-3 sm:mb-4">{t.policyForm.overviewTitle}</h2>
           <div className="bg-[#111827] rounded-xl px-4 sm:px-6 lg:px-8 py-4 sm:py-5 lg:py-6 space-y-3 sm:space-y-4 border border-[#1F2937] shadow-sm">
             <div className="flex items-center justify-between pb-3 sm:pb-4 border-b border-[#1F2937]">
-              <span className="text-[#9CA3AF] text-sm sm:text-base">Listing</span>
+              <span className="text-[#9CA3AF] text-sm sm:text-base">{t.policyForm.listing}</span>
               <div className="flex items-center gap-2">
                 <Image
                   src="/assets/cohe-capitl-app-logo.png"
@@ -436,7 +438,7 @@ export default function PolicyFormPage() {
               </div>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-[#9CA3AF] text-sm sm:text-base">Insurance Amount</span>
+              <span className="text-[#9CA3AF] text-sm sm:text-base">{t.policyForm.amountLabel}</span>
               <span className="text-white text-sm sm:text-base lg:text-lg font-semibold">
                 {watchedAmount && !isNaN(parseFloat(watchedAmount)) && parseFloat(watchedAmount) > 0
                   ? `${parseFloat(parseFloat(watchedAmount).toFixed(6)).toLocaleString()} ${tokenSymbol}`
@@ -444,13 +446,13 @@ export default function PolicyFormPage() {
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-[#9CA3AF] text-sm sm:text-base">Insurance Period</span>
+              <span className="text-[#9CA3AF] text-sm sm:text-base">{t.policyForm.periodLabel}</span>
               <span className="text-white text-sm sm:text-base lg:text-lg font-semibold">
                 2025-09-16 - 2026-05-03
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-[#9CA3AF] text-sm sm:text-base">Insurance Cost</span>
+              <span className="text-[#9CA3AF] text-sm sm:text-base">{t.policyForm.costLabel}</span>
               <span className="text-white text-sm sm:text-base lg:text-lg font-semibold">
                 {watchedCost && !isNaN(parseFloat(watchedCost)) && parseFloat(watchedCost) > 0
                   ? `${parseFloat(parseFloat(watchedCost).toFixed(6)).toLocaleString()} ${tokenSymbol}`
@@ -462,7 +464,7 @@ export default function PolicyFormPage() {
 
         {/* Terms & Conditions */}
         <div className="mb-6 sm:mb-8">
-          <h2 className="text-white text-lg sm:text-xl font-semibold mb-3 sm:mb-4">Terms & Conditions</h2>
+          <h2 className="text-white text-lg sm:text-xl font-semibold mb-3 sm:mb-4">{t.policyForm.termsTitle}</h2>
           <div className="bg-[#111827] rounded-xl px-4 sm:px-6 lg:px-8 py-4 sm:py-5 lg:py-6 space-y-3 sm:space-y-4 text-sm sm:text-base lg:text-[17px] border border-[#1F2937] shadow-sm">
             <p className="text-white font-semibold mb-2">
               COHE Capitl insurance protects against a loss of funds due to:
@@ -499,7 +501,7 @@ export default function PolicyFormPage() {
 
         {/* Filing a claim */}
         <div className="mb-8 sm:mb-10 lg:mb-12">
-          <h2 className="text-white text-lg sm:text-xl font-semibold mb-3 sm:mb-4">Filing a claim</h2>
+          <h2 className="text-white text-lg sm:text-xl font-semibold mb-3 sm:mb-4">{t.policyForm.filingTitle}</h2>
           <div className="bg-[#111827] rounded-xl px-4 sm:px-6 lg:px-8 py-4 sm:py-5 lg:py-6 space-y-2 sm:space-y-2.5 text-sm sm:text-base lg:text-[17px] border border-[#1F2937] shadow-sm">
             <div className="flex items-start gap-2.5 sm:gap-3">
               <div className="w-2 h-2 rounded-full bg-[#9CA3AF] mt-1.5 flex-shrink-0" />
@@ -525,7 +527,7 @@ export default function PolicyFormPage() {
               : 'bg-[#FECF4C] text-[#111827] hover:brightness-110 shadow-[0_4px_16px_rgba(254,207,76,0.45)]'
           }`}
         >
-          {isSubmitting ? 'Creating Policy...' : 'Confirm Insurance'}
+          {isSubmitting ? t.policyForm.creatingPolicy : t.policyForm.confirmButton}
         </button>
       </div>
     </div>

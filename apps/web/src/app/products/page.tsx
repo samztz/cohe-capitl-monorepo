@@ -9,10 +9,12 @@ import Link from 'next/link'
 import Image from 'next/image'
 import BottomNav from '@/components/BottomNav'
 import { useRequireAuth } from '@/hooks/useRequireAuth'
+import { useTranslations } from '@/store/localeStore'
 
 export default function ProductsPage() {
   // Protected route - require authentication
   const { isChecking } = useRequireAuth()
+  const t = useTranslations()
 
   const { data: products, isLoading, error } = useQuery({
     queryKey: ['products'],
@@ -31,7 +33,7 @@ export default function ProductsPage() {
       <div className="min-h-screen bg-[#0F111A] flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 border-4 border-[#FFD54F] border-t-transparent rounded-full animate-spin" />
-          <p className="text-[#9CA3AF] text-sm font-medium">Checking auth...</p>
+          <p className="text-[#9CA3AF] text-sm font-medium">{t.common.checkingAuth}</p>
         </div>
       </div>
     )
@@ -44,7 +46,7 @@ export default function ProductsPage() {
         <div className="flex items-center gap-2">
           <Image
             src="/assets/cohe-capitl-app-logo.png"
-            alt="Cohe Capital Logo"
+            alt={t.common.coheLogoAlt}
             width={32}
             height={32}
             className="w-8 h-8"
@@ -61,7 +63,7 @@ export default function ProductsPage() {
       {/* Back Button */}
       <div className="px-5 py-4">
         <Link href="/" className="text-white text-sm flex items-center gap-2 hover:opacity-80">
-          &lt; BACK
+          &lt; {t.common.backUpper}
         </Link>
       </div>
 
@@ -69,16 +71,16 @@ export default function ProductsPage() {
       <div className="flex-1 px-5 pb-8">
         {/* Title */}
         <h1 className="text-white text-2xl font-bold mb-2">
-          Insurance Products
+          {t.products.title}
         </h1>
         <p className="text-[#9CA3AF] text-sm mb-8">
-          Select an insurance product
+          {t.products.subtitle}
         </p>
 
         {/* Loading State */}
         {isLoading && (
           <div className="text-center text-[#9CA3AF] py-12">
-            Loading products...
+            {t.products.loading}
           </div>
         )}
 
@@ -86,7 +88,7 @@ export default function ProductsPage() {
         {error && (
           <div className="bg-red-500/10 border border-red-500/50 rounded-lg p-4 mb-6">
             <p className="text-red-500 text-sm">
-              Failed to load products. Please try again later.
+              {t.products.loadFailed}
             </p>
           </div>
         )}
@@ -104,20 +106,20 @@ export default function ProductsPage() {
 
               <div className="space-y-2 mb-6 text-sm">
                 <div className="flex items-center justify-between">
-                  <span className="text-[#9CA3AF]">Coverage:</span>
+                  <span className="text-[#9CA3AF]">{t.products.coverage}:</span>
                   <span className="text-white font-semibold">
                     {Utils.formatCurrency(product.coverageAmount)} USDT
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-[#9CA3AF]">Premium:</span>
+                  <span className="text-[#9CA3AF]">{t.products.premium}:</span>
                   <span className="text-white font-semibold">
                     {Utils.formatCurrency(product.premiumAmount)} USDT
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-[#9CA3AF]">Term:</span>
-                  <span className="text-white font-semibold">{product.termDays} days</span>
+                  <span className="text-[#9CA3AF]">{t.products.term}:</span>
+                  <span className="text-white font-semibold">{product.termDays} {t.products.days}</span>
                 </div>
               </div>
 
@@ -125,7 +127,7 @@ export default function ProductsPage() {
                 href={`/policy/form/${product.id}?name=${encodeURIComponent(product.name)}&termDays=${product.termDays}&premium=${product.premiumAmount}&coverage=${product.coverageAmount}`}
                 className="block text-center px-4 py-3 bg-[#FFD54F] text-[#0F111A] rounded-lg hover:brightness-110 transition-all font-semibold text-sm"
               >
-                Select
+                {t.products.select}
               </Link>
             </div>
           ))}
@@ -134,7 +136,7 @@ export default function ProductsPage() {
         {/* Empty State */}
         {!isLoading && displayProducts.length === 0 && (
           <div className="text-center text-[#9CA3AF] py-12">
-            No products available at the moment.
+            {t.products.empty}
           </div>
         )}
       </div>
