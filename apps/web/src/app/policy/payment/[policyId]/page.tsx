@@ -157,7 +157,16 @@ export default function PolicyPaymentPage() {
         router.replace(`/policy/detail/${policyId}`)
       }, 2000)
     } catch (err: any) {
-      setConfirmError(err.response?.data?.message || err.message || t.payment.confirmationFailedError)
+      // Extract detailed error message
+      const errorMessage = err.response?.data?.message || err.message || t.payment.confirmationFailedError
+
+      // Add helpful context for common errors
+      let userFriendlyMessage = errorMessage
+      if (errorMessage.includes('not found on chain')) {
+        userFriendlyMessage = `${errorMessage}\n\nPlease check:\n- Transaction hash is correct\n- Transaction was sent on ${product?.chainId === 97 ? 'BSC Testnet' : 'BSC Mainnet'}\n- Transaction is confirmed (wait a few minutes if just sent)`
+      }
+
+      setConfirmError(userFriendlyMessage)
     } finally {
       setConfirming(false)
     }

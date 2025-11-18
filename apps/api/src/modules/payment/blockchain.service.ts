@@ -29,6 +29,19 @@ export interface VerifiedTransfer {
 }
 
 /**
+ * Fallback RPC endpoints for BSC Mainnet
+ */
+const BSC_MAINNET_RPC_FALLBACKS = [
+  'https://bsc-dataseed.binance.org',
+  'https://bsc.publicnode.com',
+  'https://bsc-rpc.publicnode.com',
+  'https://bsc.drpc.org',
+  'https://binance.llamarpc.com',
+  'https://bsc-dataseed1.defibit.io',
+  'https://bsc-dataseed1.ninicoin.io',
+];
+
+/**
  * Fallback RPC endpoints for BSC Testnet
  */
 const BSC_TESTNET_RPC_FALLBACKS = [
@@ -46,12 +59,16 @@ export class BlockchainService {
   private readonly rpcFallbacks: Map<number, string[]> = new Map();
 
   constructor(private readonly config: ConfigService) {
-    // Initialize BSC Mainnet provider
+    // Initialize BSC Mainnet provider with fallback list
     const rpcBscMainnet = this.config.get<string>('RPC_BSC');
-    if (rpcBscMainnet) {
-      this.providers.set(56, new JsonRpcProvider(rpcBscMainnet));
-      this.logger.log(`BSC Mainnet provider initialized: ${rpcBscMainnet}`);
-    }
+    const mainnetFallbacks = rpcBscMainnet
+      ? [rpcBscMainnet, ...BSC_MAINNET_RPC_FALLBACKS]
+      : BSC_MAINNET_RPC_FALLBACKS;
+
+    this.rpcFallbacks.set(56, mainnetFallbacks);
+    this.providers.set(56, new JsonRpcProvider(mainnetFallbacks[0], 56, { staticNetwork: true }));
+    this.logger.log(`BSC Mainnet provider initialized: ${mainnetFallbacks[0]}`);
+    this.logger.log(`BSC Mainnet has ${mainnetFallbacks.length} fallback RPCs configured`);
 
     // Initialize BSC Testnet provider with fallback list
     const rpcBscTestnet = this.config.get<string>('RPC_BSC_TESTNET');
@@ -164,14 +181,16 @@ export class BlockchainService {
     ]);
 
     if (!tx) {
+      const chainName = chainId === 56 ? 'BSC Mainnet' : chainId === 97 ? 'BSC Testnet' : `Chain ${chainId}`;
       throw new BadRequestException(
-        `Transaction ${txHash} not found on chain ${chainId}`,
+        `Transaction ${txHash} not found on ${chainName} (chainId: ${chainId}). Please verify the transaction was sent on the correct network.`,
       );
     }
 
     if (!receipt) {
+      const chainName = chainId === 56 ? 'BSC Mainnet' : chainId === 97 ? 'BSC Testnet' : `Chain ${chainId}`;
       throw new BadRequestException(
-        `Transaction receipt ${txHash} not found on chain ${chainId}`,
+        `Transaction receipt ${txHash} not found on ${chainName} (chainId: ${chainId}). The transaction may not be confirmed yet.`,
       );
     }
 
