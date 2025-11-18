@@ -16,6 +16,7 @@
 import { Module } from '@nestjs/common';
 import { PolicyController } from './policy.controller';
 import { PolicyService } from './policy.service';
+import { SignatureStorageService } from './signature-storage.service';
 import { AuthModule } from '../auth/auth.module';
 
 /**
@@ -26,6 +27,7 @@ import { AuthModule } from '../auth/auth.module';
  *
  * Providers:
  * - PolicyService: Business logic for policy creation
+ * - SignatureStorageService: Handles signature image storage
  *
  * Dependencies:
  * - PrismaModule: Automatically available (global module)
@@ -34,7 +36,7 @@ import { AuthModule } from '../auth/auth.module';
 @Module({
   imports: [AuthModule],
   controllers: [PolicyController],
-  providers: [PolicyService],
+  providers: [PolicyService, SignatureStorageService],
   exports: [PolicyService],
 })
 export class PolicyModule {}

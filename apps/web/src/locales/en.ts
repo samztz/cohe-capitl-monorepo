@@ -454,6 +454,19 @@ export const en = {
       signNetwork: 'Wrong network. Please switch to {network}',
       signFetch: 'Failed to fetch policy details',
     },
+
+    // Handwritten Signature
+    signature: {
+      title: 'Handwritten Signature',
+      subtitle: 'Please sign in the area below to confirm you have read and agree to the policy terms.',
+      clear: 'Clear Signature',
+      signed: 'Signed',
+      notSigned: 'Not Signed',
+      confirmed: 'Confirmed',
+      required: 'Please provide your handwritten signature before submitting.',
+      confirmRequired: 'Please confirm your signature by clicking the "Confirm" button.',
+      confirm: 'Confirm',
+    },
   },
 
   // Payment Page

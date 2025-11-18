@@ -218,7 +218,7 @@ export class PolicyController {
   })
   async signContract(
     @Body() body: unknown,
-    @Req() req: { user: AuthenticatedUser },
+    @Req() req: { user: AuthenticatedUser; ip?: string; headers?: any },
   ): Promise<ContractSignResult> {
     // Validate request body using Zod schema
     const parsed = ContractSignRequestSchema.safeParse(body);
@@ -233,12 +233,32 @@ export class PolicyController {
     const { policyId, contractPayload, userSig } = parsed.data;
     const { userId } = req.user;
 
-    // Sign contract with authenticated user's ID
+    // Extract optional signature fields from body (if present)
+    const bodyTyped = body as any;
+    const signatureImageBase64 = bodyTyped?.signatureImageBase64;
+    const signatureWalletAddress = bodyTyped?.signatureWalletAddress;
+    const typedDataSignature = bodyTyped?.typedDataSignature;
+
+    // Extract IP and User-Agent from request
+    const clientIp =
+      req.ip ||
+      (req.headers && (req.headers['x-forwarded-for'] as string)) ||
+      (req.headers && (req.headers['x-real-ip'] as string)) ||
+      undefined;
+    const userAgent =
+      req.headers && (req.headers['user-agent'] as string) || undefined;
+
+    // Sign contract with authenticated user's ID and metadata
     return this.policyService.signContract({
       policyId,
       contractPayload,
       userSig,
       userId,
+      signatureImageBase64,
+      signatureWalletAddress,
+      typedDataSignature,
+      clientIp,
+      userAgent,
     });
   }
 

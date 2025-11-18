@@ -202,6 +202,70 @@ export default function PolicyDetailPage() {
               )}
             </CardContent>
           </Card>
+
+          {/* Handwritten Signature Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Handwritten Signature</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {policy.signatureImageUrl ? (
+                <div className="grid md:grid-cols-2 gap-6">
+                  {/* Signature Image */}
+                  <div>
+                    <div className="text-sm font-medium mb-2">Signature Image</div>
+                    <div className="border rounded-lg p-4 bg-white">
+                      <img
+                        src={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}${policy.signatureImageUrl}`}
+                        alt="Handwritten Signature"
+                        className="max-w-full h-auto"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Signature Metadata */}
+                  <div className="space-y-4">
+                    <div>
+                      <div className="text-xs text-muted-foreground mb-1">Signed At</div>
+                      <div className="text-sm">
+                        {policy.signatureSignedAt ? new Date(policy.signatureSignedAt).toLocaleString() : 'N/A'}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="text-xs text-muted-foreground mb-1">Wallet Address</div>
+                      <div className="font-mono text-sm">
+                        {policy.signatureWalletAddress || 'N/A'}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="text-xs text-muted-foreground mb-1">IP Address</div>
+                      <div className="text-sm">{policy.signatureIp || 'N/A'}</div>
+                    </div>
+
+                    <div>
+                      <div className="text-xs text-muted-foreground mb-1">User Agent</div>
+                      <div className="text-sm text-muted-foreground break-all">
+                        {policy.signatureUserAgent || 'N/A'}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="text-xs text-muted-foreground mb-1">SHA256 Hash</div>
+                      <div className="font-mono text-xs break-all">
+                        {policy.signatureHash || 'N/A'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-sm text-muted-foreground">
+                  No handwritten signature available for this policy
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="payments">

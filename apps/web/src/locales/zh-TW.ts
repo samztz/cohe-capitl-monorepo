@@ -454,6 +454,19 @@ export const zhTW = {
       signNetwork: '網路錯誤。請切換到 {network}',
       signFetch: '獲取保單詳情失敗',
     },
+
+    // 手寫簽名
+    signature: {
+      title: '手寫簽名',
+      subtitle: '請在下方區域簽名，確認您已閱讀並同意保單條款。',
+      clear: '清除簽名',
+      signed: '已簽名',
+      notSigned: '未簽名',
+      confirmed: '已確認',
+      required: '提交前請先提供您的手寫簽名。',
+      confirmRequired: '請點擊「確認」按鈕來確認您的簽名。',
+      confirm: '確認',
+    },
   },
 
   // Payment Page

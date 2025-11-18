@@ -6,6 +6,8 @@ import { NestFactory } from '@nestjs/core';
 import { Logger } from 'nestjs-pino';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import fastifyCors from '@fastify/cors';
+import fastifyStatic from '@fastify/static';
+import { join } from 'path';
 import { AppModule } from './app.module';
 
 async function bootstrap(): Promise<void> {
@@ -24,6 +26,13 @@ async function bootstrap(): Promise<void> {
   await app.register(fastifyCors, {
     origin: process.env.CORS_ORIGIN ?? '*',
     credentials: true,
+  });
+
+  // Register static file serving for signature images (Demo only)
+  // Production: Replace with private S3/R2 bucket + signed URLs
+  await app.register(fastifyStatic, {
+    root: join(process.cwd(), 'uploads'),
+    prefix: '/uploads/',
   });
 
   // Setup Swagger API documentation

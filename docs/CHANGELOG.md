@@ -4,6 +4,239 @@
 
 ---
 
+## [2025-11-18] - 🐛 签名板确认功能优化 ✅ 完成
+
+### ✅ Fixed - 签名板添加确认/锁定机制
+
+**问题**: 用户签署后签名板被清空，无法看到已签署的内容
+
+**解决方案**: 添加"确认签名"功能，签名后需点击确认按钮锁定
+- 签名状态分为三个阶段：未签名 → 已签名 → 已确认
+- 确认后签名被锁定并以图片形式展示（绿色边框）
+- 提供"编辑"按钮允许用户重新修改签名
+- 提交合约前验证签名必须已确认
+
+**实现细节**:
+- `SignaturePad` 组件新增状态：
+  - `isConfirmed`: 签名是否已确认（锁定）
+  - `signatureDataUrl`: 保存的签名图片数据
+- 新增方法：`isConfirmed()` 检查确认状态
+- UI 改进：
+  - 右下角添加"确认"按钮（签名后可点击）
+  - 确认后显示"编辑"按钮允许修改
+  - 确认后显示锁定的签名图片（替代 canvas）
+  - 状态指示器：未签名 → ✓ 已签名 → 🔒 已确认
+- 合约签署页验证：
+  - 检查签名非空
+  - 检查签名已确认（新增）
+  - 显示相应错误提示
+
+**相关文件**:
+```
+apps/web/src/components/SignaturePad.tsx
+apps/web/src/app/policy/contract-sign/[policyId]/page.tsx
+apps/web/src/locales/en.ts
+apps/web/src/locales/zh-TW.ts
+```
+
+**本地化新增**:
+- `signature.confirmed`: "Confirmed" / "已確認"
+- `signature.confirmRequired`: 确认提示消息
+- `signature.confirm`: "Confirm" / "確認"
+- `signature.edit`: "Edit" / "編輯"
+
+**用户体验改进**:
+1. ✅ 签名后用户可清晰看到自己的签名（保留显示）
+2. ✅ 确认后签名被锁定，防止意外修改
+3. ✅ 提供编辑功能，允许用户重新签署
+4. ✅ 视觉反馈明确（绿色边框 + 锁定图标）
+5. ✅ 防止未确认签名提交（双重验证）
+
+---
+
+## [2025-11-18] - ✍️ 手写电子签名功能完整实现 ✅ 完成
+
+### ✅ Added - 手写签名完整闭环（Web 前端 + API 后端 + Admin 前端）
+
+**功能**: 在保单合约签署流程中添加手写电子签名功能，包括签名板、图片存储、元数据记录和 Admin 端查看
+
+**实现细节**:
+
+**Part 1: Web 前端**
+- 创建 `SignaturePad` React 组件（基于 signature_pad 库）
+  - 支持鼠标和触摸输入
+  - 提供 isEmpty/clear/getPNGDataURL 方法
+  - 实时显示签名状态（已签名/未签名）
+- 集成到合约签署页面 (`apps/web/src/app/policy/contract-sign/[policyId]/page.tsx`)
+  - 在合约内容和确认按钮之间插入签名区域
+  - 提交前验证签名是否存在
+  - 提取 Base64 图片数据并发送到后端
+- 添加中英文本地化文案（signature.title, signature.subtitle, signature.clear, signature.required 等）
+
+**Part 2: API 后端**
+- Prisma Schema 扩展（Policy 模型新增 6 个字段）：
+  - `signatureImageUrl`: 签名图片 URL（相对路径）
+  - `signatureHash`: SHA256 哈希值（用于完整性验证）
+  - `signatureSignedAt`: 签名时间戳
+  - `signatureIp`: 客户端 IP 地址
+  - `signatureUserAgent`: 客户端 User-Agent
+  - `signatureWalletAddress`: 签名时的钱包地址
+- 创建 `SignatureStorageService`：
+  - 本地文件存储（uploads/signatures/）
+  - 自动计算 SHA256 哈希
+  - 文件命名：`{policyId}-{timestamp}.png`
+  - 预留 S3/R2 迁移接口（带注释说明）
+- 配置 `@fastify/static` 静态文件服务（/uploads/ 前缀）
+- 扩展 `ContractSignDto`（新增 3 个可选字段）
+- 增强 `PolicyService.signContract()` 方法：
+  - 解析 Base64 图片（移除 data URL 前缀）
+  - 调用存储服务保存图片
+  - 提取 request 中的 IP 和 User-Agent
+  - 写入所有签名元数据到数据库
+- 修改 `PolicyController` 传递完整 request 对象
+
+**Part 3: Admin 前端**
+- 扩展 Policy Schema 类型定义（新增 6 个签名字段）
+- 在保单详情页（Overview Tab）添加 "Handwritten Signature" 卡片：
+  - 左侧：签名图片预览（从静态 URL 加载）
+  - 右侧：签名元数据（时间、钱包地址、IP、User-Agent、Hash）
+  - 无签名时显示占位文本
+
+**相关文件**:
+```
+# Web 前端
+apps/web/src/components/SignaturePad.tsx
+apps/web/src/app/policy/contract-sign/[policyId]/page.tsx
+apps/web/src/locales/en.ts
+apps/web/src/locales/zh-TW.ts
+apps/web/package.json
+
+# API 后端
+apps/api/prisma/schema.prisma
+apps/api/src/modules/policy/signature-storage.service.ts
+apps/api/src/modules/policy/policy.module.ts
+apps/api/src/modules/policy/dto/contract-sign.dto.ts
+apps/api/src/modules/policy/policy.service.ts
+apps/api/src/modules/policy/policy.controller.ts
+apps/api/src/main.ts
+apps/api/.env.example
+apps/api/package.json
+
+# Admin 前端
+apps/admin/features/policies/schemas.ts
+apps/admin/app/(dashboard)/policies/[id]/page.tsx
+```
+
+**环境变量**:
+```bash
+# apps/api/.env
+SIGNATURE_STORAGE_DIR=uploads/signatures  # 签名图片存储目录
+```
+
+**数据库迁移**:
+```bash
+pnpm --filter api exec prisma db push  # 已执行，Schema 已同步
+```
+
+**测试步骤**:
+1. **Web 端**：访问 `/policy/contract-sign/[policyId]`
+   - 在签名板上绘制签名
+   - 点击"清除签名"按钮测试重置功能
+   - 未签名时点击"签署合约"应显示错误提示
+   - 签名后点击"签署合约"应成功提交
+2. **API 端**：检查日志确认
+   - 签名图片已保存到 `uploads/signatures/` 目录
+   - Policy 记录中 signature* 字段已填充
+3. **Admin 端**：访问 `/policies/[id]`
+   - Overview Tab 中查看 "Handwritten Signature" 卡片
+   - 确认签名图片正确显示
+   - 确认元数据（时间、IP、Hash 等）完整
+
+**注意事项**:
+- ✅ 所有签名字段均为可选（向后兼容，不影响现有流程）
+- ✅ 静态文件服务仅用于 Demo/开发环境
+- ⚠️ **生产环境建议**：
+  - 替换为 S3/R2/OBS 云存储
+  - 使用签名 URL 或受保护的下载端点（AdminGuard）
+  - 添加图片访问鉴权
+- ⚠️ Base64 图片较大（约 10-50KB），仅用于一次性上传
+- ⚠️ `typedDataSignature` 字段已预留，可用于 EIP-712 签名（未来扩展）
+
+---
+
+## [2025-11-18] - 📝 手写签名后端集成完成 ✅ 完成
+
+### ✅ Added - 手写签名存储与元数据记录功能
+
+**功能**: 将手写签名图片存储功能完全集成到后端 Policy 签署流程
+
+**实现细节**:
+- PolicyModule 添加 SignatureStorageService 依赖注入
+- ContractSignDto 扩展了 3 个可选字段：signatureImageBase64、signatureWalletAddress、typedDataSignature
+- PolicyService.signContract() 方法增强：
+  - 接收 Base64 签名图片并解码
+  - 调用 SignatureStorageService 保存图片（生成 URL 和 SHA256 hash）
+  - 从 HTTP 请求中提取 IP 和 User-Agent
+  - 更新 Policy 记录时写入所有签名元数据字段
+- PolicyController 修改：传递完整 request 对象以提取 IP 和 User-Agent
+- 添加日志记录：签名图片保存成功/失败、合同签署事件
+
+**相关文件**:
+```
+apps/api/src/modules/policy/policy.module.ts
+apps/api/src/modules/policy/dto/contract-sign.dto.ts
+apps/api/src/modules/policy/policy.service.ts
+apps/api/src/modules/policy/policy.controller.ts
+apps/api/src/modules/policy/signature-storage.service.ts
+apps/api/.env.example
+```
+
+**环境变量**:
+```bash
+SIGNATURE_STORAGE_DIR=uploads/signatures
+```
+
+**数据库字段** (Prisma Schema 已定义):
+- `signatureImageUrl`: 签名图片 URL（相对路径）
+- `signatureHash`: 签名图片 SHA256 哈希值
+- `signatureSignedAt`: 签名创建时间
+- `signatureIp`: 签名时的 IP 地址
+- `signatureUserAgent`: 签名时的 User-Agent
+- `signatureWalletAddress`: 签名时的钱包地址
+
+**API 使用示例**:
+```bash
+POST /policy/contract-sign
+Authorization: Bearer <jwt-token>
+Content-Type: application/json
+
+{
+  "policyId": "550e8400-e29b-41d4-a716-446655440000",
+  "contractPayload": {
+    "policyId": "550e8400-e29b-41d4-a716-446655440000",
+    "walletAddress": "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
+    "premiumAmount": "100.0",
+    "coverageAmount": "10000.0",
+    "termDays": 90,
+    "timestamp": 1704067200000
+  },
+  "userSig": "0x1234...",
+  "signatureImageBase64": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUg...",
+  "signatureWalletAddress": "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
+}
+```
+
+**注意事项**:
+- ✅ 签名字段为可选，不传则不保存（向后兼容）
+- ✅ Base64 图片自动移除 `data:image/png;base64,` 前缀
+- ✅ 支持 PNG 和 JPEG 格式
+- ✅ 图片文件名格式：`{policyId}-{timestamp}.png`
+- ✅ 已添加完整的错误处理和日志记录
+- ✅ TypeScript 类型安全，Prisma Client 已重新生成
+- ⚠️ 生产环境建议替换为云存储（S3/R2/OBS）
+
+---
+
 ## [2025-11-17] - 🗑️ 移除 DRAFT 状态 - 优化 Policy 状态机 ✅ 完成
 
 ### ✅ Removed - PolicyStatus.DRAFT 枚举值

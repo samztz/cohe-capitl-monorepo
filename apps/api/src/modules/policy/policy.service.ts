@@ -14,6 +14,7 @@ import {
 } from '@nestjs/common';
 import { PolicyStatus } from 'generated/prisma/enums';
 import { PrismaService } from '../prisma/prisma.service';
+import { SignatureStorageService } from './signature-storage.service';
 import { generateContractHash } from './utils/contract-hash.util';
 
 /** Ethereum address type alias (0x + 40 hex characters) */
@@ -58,6 +59,11 @@ export interface ContractSignInput {
   contractPayload: Record<string, unknown>;
   userSig: string;
   userId: string; // For ownership verification
+  signatureImageBase64?: string; // Optional handwritten signature (Base64)
+  signatureWalletAddress?: string; // Optional wallet address at signing time
+  typedDataSignature?: string; // Optional EIP-712 typed data signature
+  clientIp?: string; // Client IP address
+  userAgent?: string; // Client User-Agent
 }
 
 /**
@@ -84,7 +90,10 @@ export interface CountdownResult {
 export class PolicyService {
   private readonly logger = new Logger(PolicyService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly signatureStorageService: SignatureStorageService,
+  ) {}
 
   /**
    * Create a new policy draft
@@ -182,13 +191,15 @@ export class PolicyService {
    *
    * Generates a canonical hash of the contract payload and stores
    * it along with the user's signature. Updates policy status to "under_review".
+   * Optionally stores handwritten signature image and metadata.
    *
    * Process:
    * 1. Verify policy exists and belongs to the authenticated user
    * 2. Verify policy is in "pending" status (can only sign once)
    * 3. Generate canonical JSON hash of contract payload
-   * 4. Store contractHash and userSig
-   * 5. Update status to "under_review"
+   * 4. If signature image provided: decode, save, and hash it
+   * 5. Store contractHash, userSig, and signature metadata
+   * 6. Update status to "under_review"
    *
    * @param input - Contract signing data
    * @returns Contract hash (0x-prefixed)
@@ -198,7 +209,17 @@ export class PolicyService {
   async signContract(
     input: ContractSignInput,
   ): Promise<ContractSignResult> {
-    const { policyId, contractPayload, userSig, userId } = input;
+    const {
+      policyId,
+      contractPayload,
+      userSig,
+      userId,
+      signatureImageBase64,
+      signatureWalletAddress,
+      typedDataSignature,
+      clientIp,
+      userAgent,
+    } = input;
 
     // Load policy and verify ownership
     const policy = await this.prisma.policy.findUnique({
@@ -230,15 +251,74 @@ export class PolicyService {
     // Generate canonical hash
     const contractHash = generateContractHash(contractPayload);
 
-    // Update policy with contract hash, signature, and new status
+    // Process signature image if provided
+    let signatureImageUrl: string | undefined;
+    let signatureHash: string | undefined;
+
+    if (signatureImageBase64) {
+      try {
+        // Remove data URL prefix if present (data:image/png;base64,)
+        const base64Data = signatureImageBase64.replace(
+          /^data:image\/\w+;base64,/,
+          '',
+        );
+
+        // Decode Base64 to Buffer
+        const imageBuffer = Buffer.from(base64Data, 'base64');
+
+        // Determine MIME type (default to PNG)
+        const mimeType = signatureImageBase64.startsWith('data:image/png')
+          ? 'image/png'
+          : 'image/jpeg';
+
+        // Save signature image and get URL + hash
+        const result = await this.signatureStorageService.saveSignatureImage(
+          imageBuffer,
+          mimeType,
+          policyId,
+        );
+
+        signatureImageUrl = result.url;
+        signatureHash = result.hash;
+
+        this.logger.log(
+          `Signature image saved for policy ${policyId}: ${signatureImageUrl}`,
+        );
+      } catch (error: any) {
+        this.logger.error(
+          `Failed to process signature image: ${error.message}`,
+        );
+        throw new BadRequestException(
+          'Failed to process signature image. Ensure it is valid Base64-encoded PNG/JPEG.',
+        );
+      }
+    }
+
+    // Update policy with contract hash, signature, and metadata
     await this.prisma.policy.update({
       where: { id: policyId },
       data: {
         contractHash,
         userSig,
         status: PolicyStatus.PENDING_UNDERWRITING,
+        // Signature metadata (optional fields)
+        signatureImageUrl,
+        signatureHash,
+        signatureSignedAt: signatureImageBase64 ? new Date() : undefined,
+        signatureIp: clientIp,
+        signatureUserAgent: userAgent,
+        signatureWalletAddress,
       },
     });
+
+    this.logger.log(
+      `Contract signed for policy ${policyId} by user ${userId}`,
+      {
+        contractHash,
+        hasSignatureImage: !!signatureImageUrl,
+        clientIp,
+      },
+    );
 
     return { contractHash };
   }

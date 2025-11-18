@@ -2,7 +2,7 @@
 
 import { useRouter, useParams, useSearchParams } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { BrowserProvider } from 'ethers'
@@ -13,6 +13,7 @@ import { apiClient } from '@/lib/apiClient'
 import { API_ENDPOINTS } from '@/api/client'
 import * as Utils from '@/utils'
 import { useTranslations } from '@/store/localeStore'
+import SignaturePad, { SignaturePadHandle } from '@/components/SignaturePad'
 
 // Policy response type (from GET /policy/:id)
 interface PolicyResponse {
@@ -70,6 +71,10 @@ export default function ContractSignPage() {
   const [isSigning, setIsSigning] = useState(false)
   const [signError, setSignError] = useState<string | null>(null)
   const [currentChainId, setCurrentChainId] = useState<number | null>(null)
+  const [hasSignature, setHasSignature] = useState(false)
+
+  // Signature pad ref
+  const signaturePadRef = useRef<SignaturePadHandle>(null)
 
   // Fetch policy details
   const { data: policy, isLoading: isPolicyLoading, error: policyError } = useQuery({
@@ -113,7 +118,25 @@ export default function ContractSignPage() {
     setSignError(null)
 
     try {
+      // Validate handwritten signature (must be confirmed)
+      if (!signaturePadRef.current || signaturePadRef.current.isEmpty()) {
+        setSignError(t.contractSign.signature.required)
+        setIsSigning(false)
+        return
+      }
+
+      // Check if signature is confirmed
+      if (!signaturePadRef.current.isConfirmed()) {
+        setSignError(t.contractSign.signature.confirmRequired)
+        setIsSigning(false)
+        return
+      }
+
       console.log('[ContractSign] Starting contract signing for policy:', policyId)
+
+      // Get handwritten signature data
+      const signatureImageBase64 = signaturePadRef.current.getPNGDataURL()
+      console.log('[ContractSign] Handwritten signature captured')
 
       // Step 1: Verify chain ID
       const ethersProvider = new BrowserProvider(walletProvider as any)
@@ -155,11 +178,13 @@ export default function ContractSignPage() {
       const userSig = await signer.signMessage(messageToSign)
       console.log('[ContractSign] Signature obtained')
 
-      // Step 4: Submit to backend
+      // Step 4: Submit to backend (with handwritten signature)
       const response = await apiClient.post<ContractSignResponse>('/policy/contract-sign', {
         policyId: policy.id,
         contractPayload,
         userSig,
+        signatureImageBase64,
+        signatureWalletAddress: user.address,
       })
 
       console.log('[ContractSign] Contract signed successfully, hash:', response.data.contractHash)
@@ -461,6 +486,26 @@ export default function ContractSignPage() {
             </button>
           </div>
         )}
+
+        {/* Handwritten Signature Section */}
+        <div className="mb-4">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-white text-sm font-semibold">{t.contractSign.signature.title}</h3>
+            <button
+              onClick={() => signaturePadRef.current?.clear()}
+              className="text-[#FECF4C] text-xs hover:underline"
+            >
+              {t.contractSign.signature.clear}
+            </button>
+          </div>
+          <p className="text-[#9CA3AF] text-xs mb-3">{t.contractSign.signature.subtitle}</p>
+          <SignaturePad
+            ref={signaturePadRef}
+            onChange={(signed) => setHasSignature(signed)}
+            height={150}
+            className="mb-2"
+          />
+        </div>
 
         {/* Confirmation Button */}
         <button

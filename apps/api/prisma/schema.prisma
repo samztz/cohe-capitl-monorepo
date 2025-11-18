@@ -56,24 +56,33 @@ model Sku {
 }
 
 model Policy {
-  id              String        @id @default(uuid())
-  userId          String
-  user            User          @relation(fields: [userId], references: [id])
-  skuId           String
-  sku             Sku           @relation(fields: [skuId], references: [id])
-  walletAddress   String
-  premiumAmt      Decimal       @db.Decimal(38, 18)  // User-input premium amount
-  coverageAmt     Decimal       @db.Decimal(38, 18)  // User-input coverage amount
-  status          PolicyStatus  @default(PENDING_UNDERWRITING)
-  contractHash    String?
-  userSig         String?
-  paymentDeadline DateTime?     // Deadline for payment after approval (set when APPROVED_AWAITING_PAYMENT)
-  reviewerNote    String?       // Admin note when approving/rejecting policy
-  startAt         DateTime?     // Coverage start time (set when ACTIVE)
-  endAt           DateTime?     // Coverage end time (startAt + termDays)
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  payments        Payment[]
+  id                       String        @id @default(uuid())
+  userId                   String
+  user                     User          @relation(fields: [userId], references: [id])
+  skuId                    String
+  sku                      Sku           @relation(fields: [skuId], references: [id])
+  walletAddress            String
+  premiumAmt               Decimal       @db.Decimal(38, 18)  // User-input premium amount
+  coverageAmt              Decimal       @db.Decimal(38, 18)  // User-input coverage amount
+  status                   PolicyStatus  @default(PENDING_UNDERWRITING)
+  contractHash             String?
+  userSig                  String?
+
+  // Handwritten signature fields
+  signatureImageUrl        String?       // Signature image URL (or relative path)
+  signatureHash            String?       // SHA256 hash of signature image
+  signatureSignedAt        DateTime?     // When signature was created
+  signatureIp              String?       // IP address when signature was created
+  signatureUserAgent       String?       // User agent when signature was created
+  signatureWalletAddress   String?       // Wallet address at time of signature
+
+  paymentDeadline          DateTime?     // Deadline for payment after approval (set when APPROVED_AWAITING_PAYMENT)
+  reviewerNote             String?       // Admin note when approving/rejecting policy
+  startAt                  DateTime?     // Coverage start time (set when ACTIVE)
+  endAt                    DateTime?     // Coverage end time (startAt + termDays)
+  createdAt                DateTime      @default(now())
+  updatedAt                DateTime      @updatedAt
+  payments                 Payment[]
 
   @@index([userId])
   @@index([status])

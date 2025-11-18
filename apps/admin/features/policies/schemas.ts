@@ -44,6 +44,14 @@ export const Policy = z.object({
   contractHash: z.string().optional(),
   payments: z.array(Payment).default([]),
   reviewerNote: z.string().optional(),
+
+  // Handwritten signature fields
+  signatureImageUrl: z.string().nullable().optional(),
+  signatureHash: z.string().nullable().optional(),
+  signatureSignedAt: z.string().nullable().optional(),
+  signatureWalletAddress: z.string().nullable().optional(),
+  signatureIp: z.string().nullable().optional(),
+  signatureUserAgent: z.string().nullable().optional(),
 })
 
 export type Policy = z.infer<typeof Policy>
