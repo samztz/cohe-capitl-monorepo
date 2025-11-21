@@ -1,0 +1,132 @@
+# ============================================
+# Docker Compose - 本地开发专属配置
+# Cohe Capital Insurance Platform
+# ============================================
+#
+# 这个文件会被 docker compose 自动加载（无需 -f 参数）
+# 包含所有本地开发需要的配置：端口暴露、热更新、调试等
+#
+# 使用方式：
+#   docker compose up -d
+#     → 自动合并 docker-compose.yml + docker-compose.override.yml
+#
+# ============================================
+
+services:
+  # ============================================
+  # Database - 本地开发配置
+  # ============================================
+  db:
+    restart: unless-stopped
+
+    # 本地开发：暴露端口用于 Prisma Studio、pgAdmin 等工具
+    ports:
+      - "${DB_PORT:-5432}:5432"
+
+  # ============================================
+  # Database Initialization - 本地开发配置
+  # ============================================
+  db-init:
+    # 本地开发：迁移 + 自动种子数据
+    environment:
+      NODE_ENV: development
+    command: >
+      sh -c "
+        echo '🚀 Running Prisma migrations...' &&
+        cd /app/apps/api &&
+        pnpm prisma migrate deploy &&
+        echo '✅ Database migrations completed successfully!' &&
+        echo '🌱 Seeding database with demo data...' &&
+        export PRISMA_QUERY_ENGINE_LIBRARY=/app/apps/api/generated/prisma/libquery_engine-linux-musl-openssl-3.0.x.so.node &&
+        node prisma/seed.js &&
+        echo '✅ Database seed completed!'
+      "
+
+  # ============================================
+  # API - 本地开发配置
+  # ============================================
+  api:
+    restart: unless-stopped
+
+    environment:
+      # 本地开发模式
+      NODE_ENV: development
+
+    # 本地开发：暴露端口用于直接访问和调试
+    ports:
+      - "${API_PORT:-3001}:${API_PORT:-3001}"
+
+    # 可选：热更新配置（如果使用 volumes 挂载源码）
+    # volumes:
+    #   - ./apps/api/src:/app/apps/api/src
+    #   - ./packages:/app/packages
+
+  # ============================================
+  # Web - 本地开发配置
+  # ============================================
+  web:
+    restart: unless-stopped
+
+    environment:
+      # 本地开发模式
+      NODE_ENV: development
+
+    # 本地开发：暴露端口用于直接访问
+    ports:
+      - "${WEB_PORT:-3000}:${WEB_PORT:-3000}"
+
+    # 可选：Next.js 热更新端口（如果需要）
+    # - "${WEB_DEV_PORT:-24678}:24678"
+
+    # 可选：热更新配置
+    # volumes:
+    #   - ./apps/web/src:/app/apps/web/src
+    #   - ./apps/web/pages:/app/apps/web/pages
+    #   - ./apps/web/public:/app/apps/web/public
+
+  # ============================================
+  # Admin - 本地开发配置
+  # ============================================
+  admin:
+    restart: unless-stopped
+
+    environment:
+      # 本地开发模式
+      NODE_ENV: development
+
+    # 本地开发：暴露端口用于直接访问
+    ports:
+      - "${ADMIN_PORT:-3002}:${ADMIN_PORT:-3002}"
+
+    # 可选：热更新配置
+    # volumes:
+    #   - ./apps/admin/src:/app/apps/admin/src
+    #   - ./apps/admin/pages:/app/apps/admin/pages
+    #   - ./apps/admin/public:/app/apps/admin/public
+
+  # ============================================
+  # Nginx - 本地开发配置
+  # ============================================
+  nginx:
+    restart: unless-stopped
+
+    # 本地开发：暴露 HTTP 端口
+    ports:
+      - "${NGINX_HTTP_PORT:-80}:80"
+
+# ============================================
+# 本地开发说明
+# ============================================
+#
+# 1. 所有服务端口都暴露到宿主机，方便调试
+# 2. NODE_ENV=development 启用开发模式
+# 3. restart: unless-stopped 确保服务自动重启
+# 4. 如需源码热更新，取消注释 volumes 配置
+#
+# 访问地址：
+#   Web:      http://localhost:3000  (或 http://localhost/ 通过 Nginx)
+#   Admin:    http://localhost:3002
+#   API:      http://localhost:3001/api
+#   API Docs: http://localhost:3001/api-docs
+#   Database: localhost:5432 (Prisma Studio, pgAdmin)
+#

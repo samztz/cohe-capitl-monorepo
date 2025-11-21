@@ -3,7 +3,7 @@
   "compilerOptions": {
     "baseUrl": ".",
     "rootDir": ".",
-    "outDir": ".",
+    "outDir": "dist",
     "paths": {
       "@/*": ["src/*"]
     },
@@ -12,7 +12,18 @@
     "tsBuildInfoFile": "./dist/tsconfig.tsbuildinfo",
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
-    "types": ["jest", "node"]
+    "types": ["jest", "node"],
+    // Ensure ES2022 features are supported (private fields, etc.)
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    // Module resolution for Node.js
+    "module": "commonjs",
+    "moduleResolution": "node",
+    // Enable CommonJS interop for pino, zod, etc.
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    // Skip type checking of declaration files (fixes siwe + ethers v6 incompatibility)
+    "skipLibCheck": true
   },
   "include": ["src/**/*.ts", "generated/**/*.ts"],
   "exclude": ["node_modules", "dist"]

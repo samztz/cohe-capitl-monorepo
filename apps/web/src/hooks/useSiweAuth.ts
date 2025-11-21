@@ -10,9 +10,14 @@ import { useAuthStore } from '@/store/authStore'
 import { formatSiweMessage } from '@/lib/siweUtil'
 
 // API Configuration
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:3001'
+// Always use relative path /api - Next.js rewrites will handle routing to backend
+// This works in all scenarios:
+// - Development: Next.js rewrites proxy to api:3001
+// - Production: Nginx proxies /api to backend
+const API_BASE_URL = '/api'
+
 const SIWE_DOMAIN = process.env.NEXT_PUBLIC_SIWE_DOMAIN || 'localhost'
-const SIWE_URI = process.env.NEXT_PUBLIC_SIWE_URI || API_BASE_URL
+const SIWE_URI = process.env.NEXT_PUBLIC_SIWE_URI || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000')
 const CHAIN_ID = parseInt(process.env.NEXT_PUBLIC_CHAIN_ID || '97', 10) // BSC Testnet
 
 /**

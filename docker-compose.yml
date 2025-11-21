@@ -1,0 +1,226 @@
+# ============================================
+# Docker Compose - 共性配置
+# Cohe Capital Insurance Platform
+# ============================================
+#
+# 这是所有环境通用的基础配置。
+#
+# 使用方式：
+#   本地开发（自动加载 override）:
+#     docker compose up -d
+#
+#   本地模拟生产（压测）:
+#     docker compose -f docker-compose.yml -f docker-compose.prod.yml up
+#
+#   生产部署:
+#     docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# ============================================
+
+services:
+  # ============================================
+  # PostgreSQL Database
+  # ============================================
+  db:
+    image: postgres:16-alpine
+    container_name: cohe-db
+
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+
+    volumes:
+      - ${DB_DATA_PATH:-./docker-volumes/db-data}:/var/lib/postgresql/data
+
+    networks:
+      - cohe-network
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ============================================
+  # Database Initialization (Migrations)
+  # ============================================
+  db-init:
+    image: cohe-capitl-monorepo-api
+    container_name: cohe-db-init
+    restart: "no"
+
+    depends_on:
+      db:
+        condition: service_healthy
+
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+
+    command: >
+      sh -c "
+        echo '🚀 Running Prisma migrations...' &&
+        cd /app/apps/api &&
+        pnpm prisma migrate deploy &&
+        echo '✅ Database migrations completed successfully!'
+      "
+
+    networks:
+      - cohe-network
+
+  # ============================================
+  # API (NestJS Backend)
+  # ============================================
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      args:
+        NODE_VERSION: ${NODE_VERSION:-20-alpine}
+        APP_PORT: ${API_PORT:-3001}
+
+    image: cohe-capitl-monorepo-api
+    container_name: cohe-api
+
+    depends_on:
+      db:
+        condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
+
+    environment:
+      PORT: ${API_PORT:-3001}
+      API_PREFIX: ${API_PREFIX:-api}
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-15m}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      JWT_REFRESH_EXPIRATION: ${JWT_REFRESH_EXPIRATION:-7d}
+      SIWE_DOMAIN: ${SIWE_DOMAIN}
+      SIWE_URI: ${SIWE_URI}
+      ADMIN_TOKEN: ${ADMIN_TOKEN}
+      SIGNATURE_STORAGE_DIR: ${SIGNATURE_STORAGE_DIR:-uploads/signatures}
+      PRISMA_QUERY_ENGINE_LIBRARY: /app/apps/api/generated/prisma/libquery_engine-linux-musl-openssl-3.0.x.so.node
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+
+    volumes:
+      - ${UPLOADS_PATH:-./docker-volumes/uploads}:/app/apps/api/uploads
+
+    networks:
+      - cohe-network
+
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3001/healthz', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ============================================
+  # Web (Next.js User Frontend)
+  # ============================================
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        NODE_VERSION: ${NODE_VERSION:-20-alpine}
+        APP_PORT: ${WEB_PORT:-3000}
+        NEXT_PUBLIC_API_BASE: ${NEXT_PUBLIC_API_BASE:-/api}
+        NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID: ${NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID}
+        NEXT_PUBLIC_CHAIN_ID: ${NEXT_PUBLIC_CHAIN_ID:-97}
+        NEXT_PUBLIC_CHAIN_NAME: ${NEXT_PUBLIC_CHAIN_NAME:-BSC Testnet}
+        NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-Cohe Capital}
+        NEXT_PUBLIC_APP_DESCRIPTION: ${NEXT_PUBLIC_APP_DESCRIPTION:-Web3 Insurance Platform}
+
+    container_name: cohe-web
+
+    depends_on:
+      api:
+        condition: service_healthy
+
+    environment:
+      PORT: ${WEB_PORT:-3000}
+      API_INTERNAL_URL: http://api:3001
+      NEXT_PUBLIC_API_BASE: ${NEXT_PUBLIC_API_BASE:-/api}
+      NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID: ${NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID}
+      NEXT_PUBLIC_CHAIN_ID: ${NEXT_PUBLIC_CHAIN_ID:-97}
+      NEXT_PUBLIC_CHAIN_NAME: ${NEXT_PUBLIC_CHAIN_NAME:-BSC Testnet}
+      NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-Cohe Capital}
+      NEXT_PUBLIC_APP_DESCRIPTION: ${NEXT_PUBLIC_APP_DESCRIPTION:-Web3 Insurance Platform}
+
+    networks:
+      - cohe-network
+
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/', (r) => {process.exit(r.statusCode < 500 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ============================================
+  # Admin (Next.js Admin Panel)
+  # ============================================
+  admin:
+    build:
+      context: .
+      dockerfile: apps/admin/Dockerfile
+      args:
+        NODE_VERSION: ${NODE_VERSION:-20-alpine}
+        APP_PORT: ${ADMIN_PORT:-3002}
+        NEXT_PUBLIC_ADMIN_API_BASE: ${NEXT_PUBLIC_ADMIN_API_BASE:-/api}
+
+    container_name: cohe-admin
+
+    depends_on:
+      api:
+        condition: service_healthy
+
+    environment:
+      PORT: ${ADMIN_PORT:-3002}
+      API_INTERNAL_URL: http://api:3001
+      NEXT_PUBLIC_ADMIN_API_BASE: ${NEXT_PUBLIC_ADMIN_API_BASE:-/api}
+
+    networks:
+      - cohe-network
+
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3002/', (r) => {process.exit(r.statusCode < 500 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ============================================
+  # Nginx Reverse Proxy
+  # ============================================
+  nginx:
+    image: nginx:alpine
+    container_name: cohe-nginx
+
+    depends_on:
+      - web
+      - admin
+      - api
+
+    volumes:
+      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+
+    networks:
+      - cohe-network
+
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 80 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+# ============================================
+# Networks
+# ============================================
+networks:
+  cohe-network:
+    driver: bridge
+    name: cohe-network

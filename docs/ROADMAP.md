@@ -1,7 +1,7 @@
 # 🧭 Project State - Cohe Capital 项目状态追踪
 
-> **MVP 版本**: v0.2.0
-> **最后更新**: 2025-11-16 (tokenSymbol 字段 + BSC Testnet SKU 添加完成)
+> **MVP 版本**: v0.3.0
+> **最后更新**: 2025-01-19 (Docker 生产级部署方案完成)
 > **管理工具**: Claude Code 自动同步
 > **协作规划**: ChatGPT (Epic 设计) + Claude Code (实现)
 > **协作规则**: 详见 [CLAUDE.md](../CLAUDE.md) 第 11 章
@@ -18,9 +18,9 @@
 | **E1. 后端基础与认证**        | NestJS + Prisma + SIWE 登录与 JWT 鉴权      | ✅ 100%   | 4/4 完成   | 2025-10-28     |
 | **E2. 保单购买闭环**          | Products / Policy / Payment / Admin 模块    | ✅ 100%   | 11/11 完成 | 2025-11-16     |
 | **E3. ~~Mobile DApp~~** (已废弃) | ~~React Native (Expo) 移动端~~ ⚠️ 已暂停    | 🔴 废弃   | 3/6 (暂停) | -              |
-| **E4. 前端 Web DApp**         | Next.js 14 Web 应用（钱包登录 + 保单购买）   | 🟡 80%    | 4/5 完成   | 2025-01-20     |
+| **E4. 前端 Web DApp**         | Next.js 14 Web 应用（钱包登录 + 保单购买）   | 🟡 83.3%  | 5/6 完成   | 2025-01-20     |
 | **E5. 前后端联调与测试**      | E2E 测试 / API 对接 / Bug 修复              | ⚪ 0%      | 0/4 完成   | 2025-01-25     |
-| **E6. 部署与演示环境**        | Docker / CI/CD / Staging 部署               | ⚪ 0%      | 0/4 完成   | 2025-01-30     |
+| **E6. 部署与演示环境**        | Docker / CI/CD / Staging 部署               | 🟡 25%    | 1/4 完成   | 2025-01-30     |
 | **E7. Admin 审核前端**        | Next.js Web Admin Panel 保单审核与管理      | ✅ 100%   | 8/8 完成   | 2025-11-15     |
 
 ---
@@ -190,16 +190,16 @@
 
 **目标**：建立可部署的最小化运行环境，支持演示与测试。
 
-**状态**: ⚪ 0% 完成 (0/4 任务完成)
+**状态**: 🟡 25% 完成 (1/4 任务完成)
 
 ### Issues
 
-| ID     | 子任务                                              | 状态   | Owner  | 完成时间       |
-| ------ | --------------------------------------------------- | ------ | ------ | -------------- |
-| #21    | Dockerfile 与 docker-compose.yml                    | ⚪ 待做 | Samztz | -              |
-| #22    | CI/CD（GitHub Actions）                             | ⚪ 待做 | Samztz | -              |
-| #23    | Staging 环境部署（Vercel + Railway）                | ⚪ 待做 | Samztz | -              |
-| #24    | Demo 演示版打包（Web 前端 + 后端）                   | ⚪ 待做 | Samztz | -              |
+| ID     | 子任务                                              | 状态     | Owner  | 完成时间       |
+| ------ | --------------------------------------------------- | -------- | ------ | -------------- |
+| #21    | Dockerfile 与 docker-compose.yml                    | ✅ 完成   | Samztz | 2025-01-19     |
+| #22    | CI/CD（GitHub Actions）                             | ⚪ 待做   | Samztz | -              |
+| #23    | Staging 环境部署（Vercel + Railway）                | ⚪ 待做   | Samztz | -              |
+| #24    | Demo 演示版打包（Web 前端 + 后端）                   | ⚪ 待做   | Samztz | -              |
 
 ---
 
@@ -264,21 +264,23 @@ update_policy: Claude Code 自动同步 project_state.md 和 CHANGELOG.md
 
 | 状态       | Epic 数量 | Issue 数量 | 完成率     |
 | ---------- | --------- | ---------- | ---------- |
-| ✅ 完成     | 3         | 23         | 63.9%      |
-| 🟡 进行中   | 1         | 1          | 2.8%       |
-| ⚪ 待做     | 2         | 8          | 22.2%      |
-| 🔴 废弃     | 1         | 4          | 11.1%      |
-| **总计**   | **7**     | **37**     | **70.3%**  |
+| ✅ 完成     | 3         | 24         | 64.9%      |
+| 🟡 进行中   | 2         | 2          | 5.4%       |
+| ⚪ 待做     | 1         | 7          | 18.9%      |
+| 🔴 废弃     | 1         | 4          | 10.8%      |
+| **总计**   | **7**     | **38**     | **71.6%**  |
 
 **说明**：
 - 完成率 = (已完成 Issue 数量 + 已完成 Epic 的部分进度) / 总 Issue 数量
 - Epic 1（后端基础）: ✅ 100% 完成（4/4 Issues）
-- Epic 2（保单购买闭环）: ✅ 100% 完成（10/10 Issues）
+- Epic 2（保单购买闭环）: ✅ 100% 完成（11/11 Issues）
 - Epic 7（Admin 前端）: ✅ 100% 完成（8/8 Issues）+ 5 个 P0/P1 bug 修复
-- Epic 4（Web DApp）: 🟡 83.3% 进行中（5/6 Issues）← 新增 Issue #37 合同签署页完成
+- Epic 4（Web DApp）: 🟡 83.3% 进行中（5/6 Issues）
+- Epic 6（部署与演示环境）: 🟡 25% 完成（1/4 Issues）← **新完成 Issue #21 Docker 部署方案**
 - Epic 3（Mobile DApp）: 🔴 废弃（3/6 Issues 暂停）
-- **当前优先级**: 完成 Epic 4 (Web DApp) Issue #36 保单详情页，开启前后端联调测试
+- **当前优先级**: 完成 Epic 4 (Web DApp) Issue #36 保单详情页，完善 Epic 6 部署基础设施
 - **最新进展**:
+  - ✅ **Docker 生产级部署方案完成** - Dockerfile + docker-compose + Nginx + 一键部署脚本 + 完整运维文档（Issue #21, 2025-01-19）
   - ✅ **Admin 数据完整性修复** - 修复 5 个关键 Bug（搜索、SKU 数据、统计 API、reviewerNote 字段、Schema 不匹配）（2025-11-16）
   - ✅ 合同签署页完整实现 + 钱包签名 + 状态流转完成（Issue #37, 2025-11-15）
   - ✅ Policy 表单页完整重构 + 9 个问题修复完成（Issue #35, 2025-11-15）

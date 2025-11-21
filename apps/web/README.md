@@ -77,26 +77,26 @@ apps/web/
 创建 `.env.local` 文件：
 
 ```bash
-# API 后端地址
-NEXT_PUBLIC_API_URL=http://localhost:3001
+# API 后端地址（开发环境直连，生产环境通过 Nginx 反向代理使用 /api）
+NEXT_PUBLIC_API_BASE=http://localhost:3001   # 开发环境
+# NEXT_PUBLIC_API_BASE=/api                  # 生产环境（Docker + Nginx）
 
-# Reown AppKit 项目 ID（从 https://cloud.reown.com 获取）
-NEXT_PUBLIC_REOWN_PROJECT_ID=your_project_id_here
+# WalletConnect 项目 ID（从 https://cloud.reown.com 获取）
+NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=your_project_id_here
 
 # BSC 网络配置
 NEXT_PUBLIC_CHAIN_ID=97                          # 97 = BSC Testnet, 56 = BSC Mainnet
 NEXT_PUBLIC_CHAIN_NAME=BSC Testnet               # 网络显示名称
-NEXT_PUBLIC_CHAIN_RPC=https://data-seed-prebsc-1-s1.binance.org:8545/
 
-# SIWE 配置
-NEXT_PUBLIC_SIWE_DOMAIN=localhost                # 生产环境改为你的域名
-NEXT_PUBLIC_SIWE_URI=http://localhost:3030       # 生产环境改为 https://yourdomain.com
+# App 元数据
+NEXT_PUBLIC_APP_NAME=Cohe Capital
+NEXT_PUBLIC_APP_DESCRIPTION=Web3 Insurance Platform
 ```
 
-**获取 Reown Project ID**:
+**获取 WalletConnect Project ID**:
 1. 访问 https://cloud.reown.com
 2. 注册并创建新项目
-3. 复制 Project ID 到 `NEXT_PUBLIC_REOWN_PROJECT_ID`
+3. 复制 Project ID 到 `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID`
 
 ---
 

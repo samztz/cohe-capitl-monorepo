@@ -1,8 +1,8 @@
 /**
- * Database Seed Script
+ * Database Seed Script (JavaScript version for Docker)
  *
  * Populates the database with initial data for development and testing.
- * Run with: pnpm --filter api seed
+ * Run with: node prisma/seed.js
  *
  * Features:
  * - Idempotent: can be run multiple times without duplicating data (uses upsert)
@@ -10,10 +10,36 @@
  * - Fixed IDs: uses fixed IDs for consistent references
  */
 
-import { join } from 'path';
+const { join } = require('path');
+const fs = require('fs');
 
 // Dynamically load Prisma Client from custom output directory
-const { PrismaClient, PolicyStatus } = require(join(__dirname, '../generated/prisma/client'));
+// Try multiple paths to find the generated client
+let PrismaClient, PolicyStatus;
+
+const possiblePaths = [
+  join(__dirname, '../generated/prisma/client'),
+  join(__dirname, '../dist/generated/prisma/client'),
+  join(process.cwd(), 'generated/prisma/client'),
+];
+
+for (const clientPath of possiblePaths) {
+  try {
+    const client = require(clientPath);
+    PrismaClient = client.PrismaClient;
+    PolicyStatus = client.PolicyStatus;
+    console.log(`✅ Loaded Prisma Client from: ${clientPath}`);
+    break;
+  } catch (error) {
+    // Try next path
+  }
+}
+
+if (!PrismaClient) {
+  console.error('❌ Could not find Prisma Client in any of the expected paths:');
+  possiblePaths.forEach(p => console.error(`  - ${p}`));
+  process.exit(1);
+}
 
 const prisma = new PrismaClient();
 
@@ -77,7 +103,7 @@ async function seedSKUs() {
     tokenSymbol: bscMainnetSku.tokenSymbol,
   });
 
-  // SKU 2: BSC Testnet tBNB
+  // SKU 2: BSC Testnet USDT
   const bscTestnetSkuData = {
     name: 'YULILY SHIELD TESTNET',
     chainId: 97,
@@ -132,6 +158,7 @@ async function seedDemoData() {
     create: {
       id: 'demo-user-001',
       walletAddress: demoWalletAddress,
+      nonce: 'demo-nonce-' + Date.now(),
       email: 'demo@example.com',
       roles: ['user'],
       status: 'active',

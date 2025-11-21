@@ -1,0 +1,179 @@
+# ============================================
+# Docker Compose - 生产环境专属配置
+# Cohe Capital Insurance Platform
+# ============================================
+#
+# 这个文件包含生产环境的安全和性能优化配置
+# 必须显式指定才会被加载（覆盖 override.yml）
+#
+# 使用方式：
+#   本地模拟生产（压测）:
+#     docker compose -f docker-compose.yml -f docker-compose.prod.yml up
+#
+#   生产服务器部署:
+#     docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# ============================================
+
+services:
+  # ============================================
+  # Database - 生产安全配置
+  # ============================================
+  db:
+    restart: always
+
+    # 生产环境：禁止端口暴露（仅 Docker 内部网络访问）
+    ports: []
+
+    # 可选：资源限制（根据服务器配置调整）
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: '2'
+    #       memory: 2G
+    #     reservations:
+    #       cpus: '1'
+    #       memory: 1G
+
+  # ============================================
+  # API - 生产性能配置
+  # ============================================
+  api:
+    restart: always
+
+    environment:
+      # 强制生产模式
+      NODE_ENV: production
+
+      # 生产环境：严格的 CORS 配置
+      CORS_ORIGIN: ${CORS_ORIGIN:-https://yourdomain.com}
+
+    # 生产环境：禁止端口暴露（仅通过 Nginx 访问）
+    ports: []
+
+    # 可选：资源限制
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: '1'
+    #       memory: 1G
+    #     reservations:
+    #       cpus: '0.5'
+    #       memory: 512M
+
+  # ============================================
+  # Web - 生产性能配置
+  # ============================================
+  web:
+    restart: always
+
+    environment:
+      # 强制生产模式
+      NODE_ENV: production
+
+      # 生产环境：不注入 NEXT_PUBLIC_API_PORT，强制使用相对路径 /api
+      # 这样浏览器会使用同域名的 /api，通过 Nginx 转发
+      NEXT_PUBLIC_API_PORT: ""
+
+    # 生产环境：禁止端口暴露（仅通过 Nginx 访问）
+    ports: []
+
+    # 可选：资源限制
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: '1'
+    #       memory: 1G
+    #     reservations:
+    #       cpus: '0.5'
+    #       memory: 512M
+
+  # ============================================
+  # Admin - 生产性能配置
+  # ============================================
+  admin:
+    restart: always
+
+    environment:
+      # 强制生产模式
+      NODE_ENV: production
+
+    # 生产环境：禁止端口暴露（仅通过 Nginx 访问，建议使用子域名）
+    ports: []
+
+    # 可选：资源限制
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: '0.5'
+    #       memory: 512M
+    #     reservations:
+    #       cpus: '0.25'
+    #       memory: 256M
+
+  # ============================================
+  # Nginx - 生产 HTTPS 配置
+  # ============================================
+  nginx:
+    restart: always
+
+    ports:
+      # HTTP（生产环境通常重定向到 HTTPS）
+      - "${NGINX_HTTP_PORT:-80}:80"
+
+      # HTTPS（生产环境必须启用）
+      # 取消注释并配置 SSL 证书
+      # - "${NGINX_HTTPS_PORT:-443}:443"
+
+    # 生产环境：挂载 SSL 证书
+    # volumes:
+    #   - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    #   - ./infra/nginx/certs:/etc/nginx/certs:ro
+    #   - ./infra/nginx/ssl-params.conf:/etc/nginx/ssl-params.conf:ro
+
+    # 可选：资源限制
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: '0.5'
+    #       memory: 256M
+    #     reservations:
+    #       cpus: '0.25'
+    #       memory: 128M
+
+# ============================================
+# 生产环境配置清单
+# ============================================
+#
+# ✅ 必须配置：
+#   1. 数据库端口禁止暴露（ports: []）
+#   2. NODE_ENV=production 所有服务
+#   3. restart: always 所有服务
+#   4. 使用强密码（.env.production）：
+#      - JWT_SECRET (256-bit random)
+#      - JWT_REFRESH_SECRET (256-bit random)
+#      - POSTGRES_PASSWORD (strong password)
+#      - ADMIN_TOKEN (strong token)
+#   5. CORS 配置为实际域名
+#   6. SIWE_DOMAIN 配置为实际域名
+#
+# 🔒 安全建议：
+#   1. 配置 HTTPS（SSL/TLS 证书）
+#   2. 使用 .env.production（不提交到 git）
+#   3. 定期更新 Docker 镜像
+#   4. 配置防火墙规则
+#   5. 启用日志监控
+#
+# 📊 性能优化（可选）：
+#   1. 取消注释 deploy.resources 限制
+#   2. 根据服务器配置调整 CPU/内存
+#   3. 监控：docker stats
+#   4. 日志：docker compose logs -f
+#
+# 🚀 部署流程：
+#   1. 配置 .env.production（从 .env.production.example 复制）
+#   2. 构建镜像：docker compose -f docker-compose.yml -f docker-compose.prod.yml build
+#   3. 启动服务：docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#   4. 检查状态：docker compose ps
+#   5. 查看日志：docker compose logs -f
+#

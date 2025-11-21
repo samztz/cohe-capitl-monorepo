@@ -216,7 +216,7 @@ export default function PolicyDetailPage() {
                     <div className="text-sm font-medium mb-2">Signature Image</div>
                     <div className="border rounded-lg p-4 bg-white">
                       <img
-                        src={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}${policy.signatureImageUrl}`}
+                        src={`${process.env.NEXT_PUBLIC_ADMIN_API_BASE || '/api'}${policy.signatureImageUrl}`}
                         alt="Handwritten Signature"
                         className="max-w-full h-auto"
                       />

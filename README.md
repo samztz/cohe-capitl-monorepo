@@ -1,302 +1,418 @@
 
-# 🛡️ Web3 Insurance MVP
+# 🛡️ Cohe Capital - Web3 Insurance DApp
 
-一个面向 Web3 用户的 **去中心化登录 + 中心化管理** 的保险 DApp MVP。
-支持 **BSC 链钱包登录、电子合同签署、保费支付、后台审核与倒计时承保状态**。
-由单人全栈完成（**Next.js Web App** + Next.js Admin + NestJS API + PostgreSQL）。
+一个面向 Web3 用户的 **去中心化登录 + 中心化管理** 的保险 DApp MVP。支持 **BSC 链钱包登录、电子合同签署、保费支付、后台审核与倒计时承保状态**。
 
-> ⚠️ **架构变更**：项目已从 Mobile (React Native) 转向 **Web (Next.js)**
-> - Mobile 端代码保留在 `apps/mobile/` 作为参考，但不再维护
-> - 主要开发重心转移到 `apps/web/`（Next.js 14 Web DApp）
+**技术栈**: Next.js 14 + NestJS 11 + Prisma + PostgreSQL + ethers v6 + Reown AppKit
+
+> 📚 **完整文档请访问**: [docs/README.md](docs/README.md)
 
 ---
 
-## 🚀 项目简介
+## 🚀 Quick Start
 
-本项目在 15–20 天内交付一个可运行的演示版本（MVP）：
-- 用户通过钱包登录（SIWE）
-- 填写保险信息并签署电子合同
-- 使用 USDT（BEP-20）支付保费
-- 后台审核通过后，激活 90 天承保状态
-- 用户端查看保单状态与倒计时
+### 选择你的角色
+
+| 角色 | 快速入口 |
+|------|---------|
+| 🧑‍💻 **开发者** (首次) | [本地开发指南](docs/LOCAL_DEVELOPMENT.md) → 10 分钟快速启动 |
+| 🚀 **DevOps** (部署) | [部署指南](docs/DEPLOYMENT.md) / [繁体中文版](docs/DEPLOYMENT.zh-TW.md) |
+| 🏗️ **架构师** (深入) | [系统架构白皮书](docs/Cohe-Capital-架构系统白皮书.md) (71KB 完整技术文档) |
+| 📋 **项目经理** (进度) | [路线图](docs/ROADMAP.md) + [变更日志](docs/CHANGELOG.md) |
+| ⚙️ **运维** (日常) | [运维指南](docs/OPERATIONS.md) |
+
+### 最小化启动（3 步）
+
+```bash
+# 1. 安装依赖
+pnpm install
+
+# 2. 启动本地环境 (Docker + 数据库 + API + Web)
+./setup-local-dev.sh
+
+# 3. 访问服务
+# - Web DApp: http://localhost:3000
+# - API: http://localhost:3001
+# - API Docs: http://localhost:3001/api-docs
+```
+
+详细配置请参考 [本地开发指南](docs/LOCAL_DEVELOPMENT.md)
 
 ---
 
-## 🧭 系统架构图（Mermaid）
+## 📖 项目简介
+
+**Cohe Capital** 是一个面向 Web3 用户的保险 DApp，结合去中心化身份认证与中心化业务管理，提供流畅的保险购买与管理体验。
+
+### 核心功能
+
+- ✅ **钱包登录**: 基于 SIWE (EIP-4361) 的去中心化身份认证
+- 📝 **电子合同**: 手写签名 + SHA256 哈希存证
+- 💰 **链上支付**: 支持 BEP-20 USDT 保费支付
+- 🔍 **后台审核**: 管理员审批保单，激活承保状态
+- ⏱️ **倒计时承保**: 90 天保单期限实时倒计时
+- 🔐 **安全存证**: 签名、合同、支付记录完整审计链
+
+> 📊 **项目进度**: 71.6% 完成 | 查看 [路线图](docs/ROADMAP.md)
+
+---
+
+## 🏗️ 系统架构
 
 ```mermaid
-flowchart LR
-  subgraph UserApp["Web DApp (Next.js 14)"]
-    A1[Connect Wallet Reown AppKit]
-    A2[SIWE Login Signature]
-    A3[Fill Insurance Form]
-    A4[Sign Contract]
-    A5[Pay Premium BEP-20]
-    A6[View Policy Status & Countdown]
-    A1 --> A2 --> A3 --> A4 --> A5 --> A6
-  end
-  subgraph API["Backend API (NestJS + Prisma)"]
-    B1[Auth: SIWE + JWT]
-    B2[Policy Service: CRUD]
-    B3[Payment Listener: BSC RPC or Contract Events]
-    B4[File Storage: R2 or S3]
-    B5[Audit Log and Risk Rules]
-  end
-  subgraph Admin["Admin Dashboard (Next.js)"]
-    C1[Admin Login]
-    C2[Review Policy Approve or Reject]
-    C3[View Payments]
-    C4[Monitoring and Reports]
-  end
-  subgraph Chain["BSC Blockchain"]
-    D1[Verify Wallet Signature]
-    D2[PremiumCollector.sol Event]
-    D3[Treasury Address]
-  end
-    A1-- personal_sign -->B1
-    A3-- REST API -->B2
-    A5-- Call Contract -->D2
-    D2-- Event Notice -->B3
-    B3-- Update Status -->B2
-    B2-- Review API -->C2
-    C2-- Update Policy -->B2
-    B2-- JSON Response -->A6
+flowchart TB
+    subgraph Client["🌐 前端层"]
+        Web["Web DApp<br/>(Next.js 14)"]
+        Admin["Admin Dashboard<br/>(Next.js 14)"]
+    end
+
+    subgraph API["🔧 API 层 (NestJS 11)"]
+        Auth["SIWE Auth<br/>JWT 认证"]
+        Policy["Policy Service<br/>保单 CRUD"]
+        Payment["Payment Listener<br/>支付监听"]
+        Storage["File Storage<br/>签名/合同"]
+    end
+
+    subgraph Data["💾 数据层"]
+        DB["PostgreSQL<br/>(Prisma ORM)"]
+        S3["R2/S3<br/>对象存储"]
+    end
+
+    subgraph Chain["⛓️ 区块链层"]
+        BSC["BSC Mainnet/Testnet"]
+        Contract["PremiumCollector.sol<br/>保费收款合约"]
+    end
+
+    Web -->|"1. SIWE 签名"| Auth
+    Web -->|"2. 创建保单"| Policy
+    Web -->|"3. 签署合同"| Storage
+    Web -->|"4. 支付保费"| Contract
+    Admin -->|"审核操作"| Policy
+
+    Auth --> DB
+    Policy --> DB
+    Payment --> DB
+    Storage --> S3
+
+    Contract -->|"支付事件"| Payment
+    BSC -.->|"RPC 查询"| Payment
+
+    style Web fill:#e1f5ff
+    style Admin fill:#fff4e1
+    style Auth fill:#d4edda
+    style Contract fill:#f8d7da
 ```
+
+> 📚 详细架构设计请查看 [系统架构白皮书](docs/Cohe-Capital-架构系统白皮书.md)
 
 ---
 
 ## 🧩 技术栈
 
-| 模块          | 技术                                                                            | 说明             |
-| ----------- | ----------------------------------------------------------------------------- | -------------- |
-| 前端 (Web)    | Next.js 14 + Reown AppKit + ethers v6 + Zustand + TanStack Query + Tailwind CSS | BSC 钱包连接、签名与支付 |
-| 后台 (Admin)  | Next.js 14 + Tailwind CSS + shadcn/ui                                         | 审核操作、配置、报表     |
-| 后端 API      | NestJS (Fastify) + Prisma + PostgreSQL                                        | 核心业务 API、鉴权、存储 |
-| 数据层         | PostgreSQL (Neon/Supabase/Railway)                                            | 结构化数据          |
-| 存储层         | Cloudflare R2 / S3 兼容                                                         | 合同、附件、KYC 资料   |
-| 区块链         | ethers v6 + BSC RPC (Ankr/QuickNode)                                          | 钱包签名、支付监听      |
-| DevOps      | Docker + GitHub Actions + Render/Railway/Vercel + Cloudflare                  | 部署与监控          |
-| 认证          | SIWE (EIP-4361) + JWT（短期 15m）                                                 | 登录票据           |
-| 其他          | OpenTelemetry/Sentry（可选）                                                      | 观测与错误监控        |
+### 前端层
+- **Web DApp**: Next.js 14 (App Router) + TypeScript 5.3
+- **钱包集成**: Reown AppKit + ethers v6
+- **状态管理**: Zustand + TanStack Query
+- **UI 框架**: Tailwind CSS + shadcn/ui
+- **国际化**: next-intl (支持繁体中文/英文)
+
+### 后端层
+- **框架**: NestJS 11 + Fastify 5
+- **ORM**: Prisma 6 + PostgreSQL 14+
+- **认证**: SIWE (EIP-4361) + JWT (15m 短期)
+- **文件存储**: Cloudflare R2 / AWS S3
+
+### 区块链层
+- **网络**: BSC Mainnet / Testnet
+- **库**: ethers v6
+- **RPC**: Ankr / QuickNode
+- **合约**: PremiumCollector.sol (保费收款)
+
+### 基础设施
+- **Monorepo**: pnpm workspace + Turbo
+- **容器化**: Docker + Docker Compose
+- **部署**: Nginx + Cloudflare CDN
+- **监控**: Winston Logger + 健康检查
+
+> 🔍 完整技术栈详情请参考 [系统架构白皮书 - 第 3 章](docs/Cohe-Capital-架构系统白皮书.md#3-技术栈详解)
 
 ---
 
-## 📦 Monorepo 结构（pnpm + turbo）
+## 📦 项目结构
 
 ```
-.
+cohe-capitl-monorepo/
 ├── apps/
-│   ├── web/                   # Next.js 14 Web DApp (主要前端)
-│   ├── admin/                 # Next.js 14 审计后台
-│   ├── api/                   # NestJS 服务端
-│   └── mobile/                # ⚠️ 已废弃 - React Native (保留作为参考)
+│   ├── web/              # 🌐 Web DApp (Next.js 14) - 主要用户端
+│   ├── admin/            # 🔧 Admin Dashboard (Next.js 14) - 管理后台
+│   └── api/              # 🔌 Backend API (NestJS 11) - 核心业务逻辑
 │
 ├── packages/
-│   ├── ui/                    # 共享 UI 组件
-│   ├── types/                 # 共享 TS 类型 (User, Policy, Payment)
-│   └── config/                # tsconfig / eslint / prettier
+│   ├── ui/               # 🎨 共享 UI 组件库
+│   ├── types/            # 📝 共享 TypeScript 类型定义
+│   └── config/           # ⚙️ 共享配置 (tsconfig/eslint/prettier)
 │
 ├── contracts/
-│   └── PremiumCollector.sol   # 可选：保费收款合约 (BEP-20)
+│   └── PremiumCollector.sol  # 💎 保费收款智能合约 (Solidity)
 │
 ├── infra/
-│   ├── docker/                # docker-compose 等
-│   └── scripts/               # 启动/监听/迁移脚本
+│   ├── docker/           # 🐳 Docker Compose 配置
+│   └── scripts/          # 📜 自动化脚本 (启动/测试/部署)
 │
-└── README.md
+├── docs/                 # 📚 完整项目文档
+│   ├── README.md         # 文档导航中心
+│   ├── LOCAL_DEVELOPMENT.md
+│   ├── DEPLOYMENT.md
+│   └── ...
+│
+└── setup-local-dev.sh    # 🚀 一键启动脚本
 ```
+
+> 📂 各模块详细说明请查看对应目录下的 README.md
 
 ---
 
-## 🧱 核心数据模型（Prisma 摘要）
+## 🗄️ 核心数据模型
 
-```prisma
-model User {
-  id            String   @id @default(uuid())
-  walletAddress String   @unique
-  email         String?
-  createdAt     DateTime @default(now())
-  lastLoginAt   DateTime?
-  policies      Policy[]
-}
-
-model SKU {
-  id           String   @id @default(uuid())
-  name         String
-  chainId      Int
-  tokenAddress String
-  termDays     Int      @default(90)
-  minPremium   Decimal  @db.Decimal(38, 18)
-  maxCoverage  Decimal  @db.Decimal(38, 18)
-  termsUrl     String
-  status       String
-}
-
-model Policy {
-  id            String   @id @default(uuid())
-  user          User     @relation(fields: [userId], references: [id])
-  userId        String
-  skuId         String
-  walletAddress String
-  coverageAmt   Decimal  @db.Decimal(38, 18)
-  premiumAmt    Decimal  @db.Decimal(38, 18)
-  contractHash  String
-  userSig       String
-  status        String   // Draft | UnderReview | Active | Expired | Rejected
-  startAt       DateTime?
-  endAt         DateTime?
-  createdAt     DateTime @default(now())
-
-  @@unique([walletAddress, skuId]) // 单地址/单保险
-}
-
-model Payment {
-  id          String   @id @default(uuid())
-  policyId    String
-  chainId     Int
-  tokenAddr   String
-  amount      Decimal  @db.Decimal(38, 18)
-  from        String
-  to          String
-  txHash      String   @unique
-  blockNumber Int
-  confirmed   Boolean  @default(false)
-  detectedAt  DateTime @default(now())
-}
 ```
+User (用户)
+├── walletAddress (钱包地址, 唯一)
+├── email (可选)
+└── policies[] (关联保单)
+
+SKU (保险产品)
+├── name (产品名称)
+├── chainId + tokenAddress (支付代币)
+├── termDays (承保天数, 默认 90)
+└── minPremium / maxCoverage (保费/保额范围)
+
+Policy (保单)
+├── user (所属用户)
+├── skuId (保险产品)
+├── coverageAmt / premiumAmt (保额/保费)
+├── contractHash + userSig (合同哈希 + 用户签名)
+├── status (Draft → UnderReview → Active → Expired)
+└── @@unique([walletAddress, skuId]) 单用户单产品唯一约束
+
+Payment (支付记录)
+├── policyId (关联保单)
+├── txHash (交易哈希, 唯一)
+├── chainId + tokenAddr (链 ID + 代币地址)
+└── confirmed (确认状态)
+```
+
+> 🔍 完整数据模型与 ERD 图请查看 [系统架构白皮书 - 第 4 章](docs/Cohe-Capital-架构系统白皮书.md#4-数据模型与-erd)
 
 ---
 
-## 🔗 区块链交互设计
+## 🔄 业务流程
 
-* **登录**：SIWE（EIP-4361），前端 `personal_sign`，后端校验并签发短期 JWT。
-* **合同签署**：对 `contract_hash = sha256(合同内容 + 表单数据 + SKU + premium)` 做 `personal_sign` 并存证。
-* **支付**：BEP-20 转账至金库地址，或调用 `PremiumCollector.sol`（推荐，事件可监听）。
-* **监听**：后端通过 RPC 轮询或事件订阅，写入 `Payment` 并绑定到 `Policy`。
-* **激活**：后台审核通过 → `Policy.status = Active`，写 `startAt / endAt`（90 天）。
+### 完整保单流程
+
+```
+1. 🔐 钱包登录
+   ↓ SIWE 签名认证 (EIP-4361)
+   ↓ 后端验证签名并签发 JWT (15m)
+
+2. 📝 创建保单
+   ↓ 选择保险产品 (SKU)
+   ↓ 填写保额、受益人等信息
+   ↓ 生成 Policy (Draft)
+
+3. ✍️ 签署合同
+   ↓ contractHash = SHA256(合同内容 + 表单数据)
+   ↓ 用户 personal_sign 签名
+   ↓ 保存签名 → Policy (UnderReview)
+
+4. 💰 支付保费
+   ↓ BEP-20 USDT 转账到金库地址
+   ↓ 或调用 PremiumCollector.sol 合约
+   ↓ 后端监听链上事件 → 记录 Payment
+
+5. ✅ 后台审核
+   ↓ Admin 审查保单信息
+   ↓ Approve → Policy (Active, startAt/endAt)
+   ↓ Reject → Policy (Rejected)
+
+6. ⏱️ 承保倒计时
+   ↓ 用户查看 endAt - now 剩余天数
+   ↓ 到期后 → Policy (Expired)
+```
+
+> 🔍 详细业务流程与时序图请查看 [系统架构白皮书 - 第 5 章](docs/Cohe-Capital-架构系统白皮书.md#5-业务流程详解)
 
 ---
 
-## ⚙️ 本地开发
+## 📡 核心 API
 
-### 🚀 Quick Start (10 分钟)
+### 用户端 API
 
-详细的开发指南请查看：
-- **API 后端**: [apps/api/README.md](apps/api/README.md)
-- **Web 前端**: [apps/web/README.md](apps/web/README.md)
-- **管理后台**: apps/admin/README.md (待完成)
+```
+认证
+├── POST /auth/siwe/nonce          # 获取签名随机数
+└── POST /auth/siwe/verify         # 验证 SIWE 签名，返回 JWT
 
-### 先决条件
+保险产品
+├── GET /products                  # 获取产品列表
+└── GET /products/:id              # 获取产品详情
 
-* Node.js ≥ 20.x
-* pnpm ≥ 10.x
-* Docker & Docker Compose（用于本地 PostgreSQL）
-* 可选：BSC Testnet RPC
+保单管理
+├── POST /policy                   # 创建保单 (Draft)
+├── POST /policy/:id/sign          # 签署合同 (UnderReview)
+├── POST /policy/:id/signature     # 上传手写签名
+├── GET /policy/:id                # 获取保单详情
+└── GET /policy/user/:address      # 获取用户所有保单
 
-### 安装与启动
-
-```bash
-# 1) 安装依赖
-pnpm install
-
-# 2) 配置环境变量
-cp .env.example .env
-# 编辑 .env 文件，至少设置：
-# - DATABASE_URL
-# - JWT_SECRET (生成: openssl rand -base64 32)
-
-# 3) 启动 PostgreSQL 数据库
-docker compose -f infra/docker/docker-compose.yml up -d db
-
-# 4) 生成 Prisma Client 和应用数据库迁移
-pnpm --filter api prisma:generate
-pnpm --filter api prisma:migrate
-
-# 5) 启动 API 服务器
-pnpm --filter api dev
-
-# 6) 启动 Web 前端
-pnpm --filter web dev
-
-# 7) (可选) 启动 Admin 后台
-pnpm --filter admin dev
+支付
+└── POST /payment/verify           # 验证链上支付
 ```
 
-### 验证安装
+### 管理端 API
 
-```bash
-# 检查 API 健康状态
-curl http://localhost:3001
+```
+后台认证
+└── POST /admin/login              # 管理员登录
 
-# 请求 SIWE nonce
-curl -X POST http://localhost:3001/auth/siwe/nonce \
-  -H "Content-Type: application/json" \
-  -d '{"walletAddress": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"}'
+保单审核
+├── GET /admin/policies            # 获取待审核保单列表
+├── POST /admin/policies/:id/approve  # 批准保单
+└── POST /admin/policies/:id/reject   # 拒绝保单
 ```
 
-### 环境变量配置
+> 📖 完整 API 文档:
+> - 本地: http://localhost:3001/api-docs
+> - 生产: https://yourdomain.com/api-docs
+> - 详细说明: [系统架构白皮书 - 第 6 章](docs/Cohe-Capital-架构系统白皮书.md#6-api-设计)
 
-根目录 `.env` 文件包含所有必需的环境变量。关键配置：
+---
+
+## 🔒 安全特性
+
+- ✅ **SIWE 认证**: EIP-4361 标准，防重放攻击
+- ✅ **JWT 短期令牌**: 15 分钟过期，写操作校验地址一致性
+- ✅ **合同哈希存证**: SHA256 哈希，任何修改使签名失效
+- ✅ **手写签名验证**: Canvas 生成 PNG + SHA256 校验
+- ✅ **支付链上验证**: 验证交易哈希、金额、地址
+- ✅ **审计日志**: 完整记录登录、签署、支付、审批操作
+- ✅ **唯一约束**: `(walletAddress, skuId)` 防止重复购买
+- ✅ **私有存储**: 签名/合同文件使用签名 URL 访问
+
+> 🔐 安全设计详情请查看 [系统架构白皮书 - 第 11 章](docs/Cohe-Capital-架构系统白皮书.md#11-安全设计)
+
+---
+
+## 📚 完整文档导航
+
+### 核心文档 (SSoT)
+
+| 文档 | 用途 | 适合人群 |
+|------|------|---------|
+| [🏗️ 系统架构白皮书](docs/Cohe-Capital-架构系统白皮书.md) | 完整技术设计文档 | 架构师、技术负责人 |
+| [🔧 本地开发指南](docs/LOCAL_DEVELOPMENT.md) | 快速启动开发环境 | 开发者 |
+| [🚀 部署指南 (EN)](docs/DEPLOYMENT.md) | 生产环境部署 | DevOps 工程师 |
+| [🚀 部署指南 (繁中)](docs/DEPLOYMENT.zh-TW.md) | 生产環境部署 (香港客戶) | DevOps 工程師 |
+| [⚙️ 运维指南](docs/OPERATIONS.md) | 日常运维操作 | SRE、运维人员 |
+| [🗺️ 路线图](docs/ROADMAP.md) | 项目进度与规划 | 项目经理、团队 |
+| [📝 变更日志](docs/CHANGELOG.md) | 开发历史记录 | 全员 |
+
+### 深入文档
+
+| 文档 | 用途 | 字数 |
+|------|------|------|
+| [🏗️ 系统架构白皮书](docs/Cohe-Capital-架构系统白皮书.md) | 完整技术设计文档 | 71,000+ |
+
+### 代码规范
+
+| 文档 | 用途 |
+|------|------|
+| [CODEX.md](CODEX.md) | 编码规范与最佳实践 |
+| [CLAUDE.md](CLAUDE.md) | AI 协作指南与进度追踪规则 |
+
+### 归档文档
+
+历史文档与过程性知识: [docs/archived/](docs/archived/)
+
+---
+
+## 🛠️ 开发工具链
+
+### 推荐 IDE
+
+- **VSCode** + 推荐扩展:
+  - Prisma
+  - ESLint
+  - Prettier
+  - Tailwind CSS IntelliSense
+  - Solidity
+
+### 常用命令
 
 ```bash
+# 开发
+pnpm --filter web dev           # 启动 Web 前端
+pnpm --filter admin dev         # 启动 Admin 后台
+pnpm --filter api dev           # 启动 API 后端
+
 # 数据库
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/cohe_capital_dev
+pnpm --filter api prisma:studio # 打开 Prisma Studio
+pnpm --filter api prisma:migrate # 运行数据库迁移
+pnpm --filter api prisma:seed   # 填充测试数据
 
-# JWT 认证
-JWT_SECRET=your-secure-random-secret-here  # 使用 openssl rand -base64 32 生成
+# 构建
+pnpm build                      # 构建所有应用
+pnpm --filter web build         # 仅构建 Web
 
-# SIWE 配置
-SIWE_DOMAIN=localhost
-SIWE_URI=http://localhost:3001
-SIWE_CHAIN_ID=1
+# 测试
+pnpm test                       # 运行所有测试
+pnpm --filter api test          # 仅测试 API
 
-# 可选配置
-RPC_BSC=https://bsc-dataseed.binance.org/
-TREASURY_ADDRESS=0xYourTreasuryWallet
+# 代码质量
+pnpm lint                       # 代码检查
+pnpm format                     # 格式化代码
 ```
 
-完整的环境变量说明请参考 [apps/api/.env.example](apps/api/.env.example)
+---
+
+## 🤝 贡献指南
+
+### 开发流程
+
+1. 创建功能分支: `git checkout -b feature/your-feature`
+2. 开发并遵循 [CODEX.md](CODEX.md) 规范
+3. 编写测试并确保通过
+4. 提交代码: 遵循 [Conventional Commits](https://www.conventionalcommits.org/)
+5. 推送并创建 Pull Request
+
+### 文档更新要求 (CLAUDE.md 规则)
+
+完成功能后必须更新:
+- ✅ `docs/CHANGELOG.md` - 添加详细变更记录
+- ✅ `docs/ROADMAP.md` - 更新任务状态
 
 ---
 
-## 🧠 功能流程（端到端）
+## 📊 项目状态
 
-| 阶段  | 动作          | 触发                             | 结果                        |
-| --- | ----------- | ------------------------------ | ------------------------- |
-| 登录  | 钱包签名（SIWE）  | personal_sign                  | 生成 JWT，创建/更新用户            |
-| 创建  | 选择 SKU + 表单 | REST API                       | 生成 Policy（Draft）          |
-| 签署  | 合同哈希签名      | personal_sign                  | 保存 userSig，状态 UnderReview |
-| 支付  | 转账/调用合约     | ERC20 transfer 或 contract call | 记录 Payment                |
-| 审核  | 后台审核        | Approve/Reject                 | 激活保单或拒绝                   |
-| 倒计时 | 到期计算        | endAt - now                    | 展示倒计时与状态                  |
+- **进度**: 71.6% 完成
+- **当前 Sprint**: Epic 3 - 前端核心功能
+- **下一步**: Admin 审核流程 + 倒计时逻辑
+
+查看详细进度: [docs/ROADMAP.md](docs/ROADMAP.md)
 
 ---
 
-## 📡 API 概要
+## 📞 联系与支持
 
-* `GET /auth/siwe/nonce`
-* `POST /auth/siwe/verify`
-* `GET /sku` / `GET /sku/:id`
-* `POST /policy`
-* `POST /policy/:id/contract-sign`
-* `POST /policy/:id/payment/intent`
-* `GET /policy/:id`
-* `POST /policy/:id/attachments`
-
-**Admin**
-
-* `POST /admin/login`
-* `GET /admin/policies?status=UnderReview`
-* `POST /admin/policy/:id/approve`
-* `POST /admin/policy/:id/reject`
-* `GET /admin/payments?policyId=...`
+- **问题反馈**: 创建 GitHub Issue
+- **技术讨论**: 查看 [docs/README.md](docs/README.md) FAQ 部分
+- **部署问题**: 参考 [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) 故障排除章节
 
 ---
 
-## 🔒 安全与合规基线
+## 📄 许可证
 
-* JWT 短期（15m）+ Refresh；写操作校验 **JWT 地址 == 请求地址**。
-* 合同内容参与哈希，任何修改都会使签名失效。
-* 上传采用服务端签名 URL，存储桶默认私有。
-* 审计日志记录：登录、签署、支付、审批、状态变更。
-* 唯一约束 `(walletAddress, skuId)` 限制「单地址/单保险」。
+© 2025 Cohe Capital. All rights reserved.
+
+---
+
+**Built with ❤️ using Next.js, NestJS, Prisma, and Web3 technologies**

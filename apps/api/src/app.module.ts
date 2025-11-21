@@ -19,21 +19,9 @@ import { SettingsModule } from './modules/settings/settings.module';
       envFilePath: '../../.env',
     }),
 
-    // Pino logger with pretty printing in dev
+    // Pino logger (pretty printing disabled in production for performance)
     LoggerModule.forRoot({
       pinoHttp: {
-        transport:
-          process.env.NODE_ENV !== 'production'
-            ? {
-                target: 'pino-pretty',
-                options: {
-                  singleLine: true,
-                  colorize: true,
-                  translateTime: 'SYS:standard',
-                  ignore: 'pid,hostname',
-                },
-              }
-            : undefined,
         level: process.env.LOG_LEVEL ?? 'info',
         serializers: {
           req: (req) => ({

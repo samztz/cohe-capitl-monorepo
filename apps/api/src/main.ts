@@ -59,6 +59,14 @@ async function bootstrap(): Promise<void> {
     .addTag('Policy', 'Insurance policy management')
     .build();
 
+  // Set global API prefix (default: 'api')
+  // This allows Nginx to proxy /api/* directly without path manipulation
+  // Exclude /healthz and /uploads from the prefix for direct access
+  const apiPrefix = process.env.API_PREFIX ?? 'api';
+  app.setGlobalPrefix(apiPrefix, {
+    exclude: ['healthz', 'uploads/(.*)'],
+  });
+
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api-docs', app, document, {
     customSiteTitle: 'Cohe Capital API Docs',

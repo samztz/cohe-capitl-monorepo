@@ -36,13 +36,13 @@ Edit `.env` and update at minimum:
 From the monorepo root:
 
 ```bash
-docker compose -f infra/docker/docker-compose.yml up -d db
+docker compose up -d db
 ```
 
 Verify the database is running:
 
 ```bash
-docker compose -f infra/docker/docker-compose.yml ps
+docker compose ps
 ```
 
 ### 4. Run Database Migrations
