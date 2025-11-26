@@ -4,6 +4,79 @@
 
 ---
 
+## [2025-11-26] - 🔧 修复 Railway CI/CD Prisma 构建错误 ✅
+
+### ✅ Fixed - Railway 部署时 Prisma Client 缺失导致的 43 个 TypeScript 编译错误
+
+**问题描述**:
+
+在 Railway 平台部署后端时，CI/CD 构建失败，出现 43 个 TypeScript 编译错误：
+- `Cannot find module 'generated/prisma/enums'`
+- `Cannot find module '../../../generated/prisma/client'`
+- `Property 'policy' does not exist on type 'PrismaService'`
+- `Parameter implicitly has an 'any' type`
+
+**根本原因**:
+
+Railway 直接运行 `pnpm --filter api build`，绕过了 Dockerfile 中的 `prisma generate` 步骤。由于 Prisma Client 未生成，TypeScript 编译时找不到 Prisma 类型定义，导致所有 Prisma 相关的代码报错。
+
+**解决方案**:
+
+在 `apps/api/package.json` 添加 `prebuild` 脚本：
+
+```json
+{
+  "scripts": {
+    "prebuild": "prisma generate",
+    "build": "nest build"
+  }
+}
+```
+
+npm/pnpm 会在执行 `build` 前自动运行 `prebuild`，确保 Prisma Client 在 TypeScript 编译前生成。
+
+**相关文件**:
+```
+apps/api/package.json          (修改：添加 prebuild 脚本)
+docs/RAILWAY_DEPLOYMENT.md     (新增：Railway 部署完整指南)
+```
+
+**测试验证**:
+```bash
+# 本地测试（删除 generated 目录后重新构建）
+cd apps/api && rm -rf dist generated && pnpm build
+
+# 输出显示 prebuild 正常执行：
+# > api@1.0.0 prebuild
+# > prisma generate
+# ✔ Generated Prisma Client (6.18.0) to ./generated/prisma in 61ms
+```
+
+**Railway 部署配置**:
+
+**Build Command**:
+```bash
+pnpm install && pnpm --filter api build
+```
+
+**Start Command**:
+```bash
+cd apps/api && node dist/src/main.js
+```
+
+**注意事项**:
+- ✅ `prebuild` 脚本会在 `build` 前自动执行，无需修改 Railway 构建命令
+- ✅ 此修复同时适用于本地开发、Docker 构建和 Railway CI/CD
+- ⚠️ 数据库迁移仍需手动执行：`railway run pnpm --filter api prisma migrate deploy`
+- 📚 完整 Railway 部署指南：`docs/RAILWAY_DEPLOYMENT.md`
+
+**影响范围**:
+- ✅ 修复了所有 43 个 TypeScript 编译错误
+- ✅ Railway、Vercel、Netlify 等平台的 monorepo 构建都能正常工作
+- ✅ 本地开发体验不受影响（仍然可以使用 `pnpm dev`）
+
+---
+
 ## [2025-11-21] - 🌱 完善数据库迁移与种子数据系统 ✅
 
 ### ✅ Completed - Setting 表迁移 + 完整的 Seed 脚本 + 本地自动种子

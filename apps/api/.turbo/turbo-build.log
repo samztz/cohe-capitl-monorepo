@@ -1,4 +1,15 @@
 
+> api@1.0.0 prebuild /home/samztz/workspace/web3/cohe-capitl-monorepo/apps/api
+> prisma generate
+
+Loaded Prisma config from prisma.config.ts.
+
+Prisma config detected, skipping environment variable loading.
+Prisma schema loaded from prisma/schema.prisma
+
+✔ Generated Prisma Client (6.18.0) to ./generated/prisma in 61ms
+
+
 > api@1.0.0 build /home/samztz/workspace/web3/cohe-capitl-monorepo/apps/api
 > nest build
 

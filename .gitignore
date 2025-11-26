@@ -23,3 +23,4 @@ apps/web/.turbo/turbo-build.log
 apps/web/.turbo/turbo-dev.log
 docs/ui-snapshot/policy-form-001.png
 docker-volumes/*
+apps/api/.turbo/turbo-build.log

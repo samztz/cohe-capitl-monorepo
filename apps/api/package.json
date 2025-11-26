@@ -8,6 +8,7 @@
     "dev": "nest start --watch",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
+    "prebuild": "prisma generate",
     "build": "nest build",
     "prisma:migrate": "dotenv -e ../../.env -- prisma migrate dev",
     "prisma:generate": "dotenv -e ../../.env -- prisma generate",
