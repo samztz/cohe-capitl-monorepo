@@ -277,8 +277,9 @@ export class BlockchainService {
           };
         } catch (error) {
           // Not a Transfer event, skip
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
           this.logger.log(
-            `Log from ${log.address} is not a Transfer event: ${error.message}`,
+            `Log from ${log.address} is not a Transfer event: ${errorMessage}`,
           );
           return null;
         }

@@ -243,7 +243,7 @@ run_migrations() {
 
         # Ensure database is running
         log_info "Ensuring database is running..."
-        docker compose -f "$DOCKER_COMPOSE_FILE" up -d db
+        docker compose $DOCKER_COMPOSE_FILES up -d db
 
         # Wait for database to be healthy
         log_info "Waiting for database to be ready..."
@@ -251,7 +251,7 @@ run_migrations() {
         local attempt=0
 
         while [ $attempt -lt $max_attempts ]; do
-            if docker compose -f "$DOCKER_COMPOSE_FILE" exec -T db pg_isready >/dev/null 2>&1; then
+            if docker compose $DOCKER_COMPOSE_FILES exec -T db pg_isready >/dev/null 2>&1; then
                 log_success "Database is ready"
                 break
             fi
@@ -265,9 +265,8 @@ run_migrations() {
 
         log_info "Executing Prisma migrations..."
 
-        # Use `docker compose run --rm` for one-off migration task
-        # This is safer than exec as it doesn't require API container to be running
-        docker compose -f "$DOCKER_COMPOSE_FILE" run --rm api sh -c "cd /app/apps/api && pnpm prisma migrate deploy" || {
+        # Use db-init service for migrations (cleaner than running in api container)
+        docker compose $DOCKER_COMPOSE_FILES up db-init || {
             log_error "Migration failed. Check the error output above."
             log_info "Troubleshooting tips:"
             log_info "  1. Check database connection: docker compose logs db"
@@ -288,7 +287,7 @@ deploy_services() {
 
     log_info "Starting all services in detached mode..."
 
-    docker compose -f "$DOCKER_COMPOSE_FILE" up -d || {
+    docker compose $DOCKER_COMPOSE_FILES up -d || {
         log_error "Failed to start services"
         exit 1
     }

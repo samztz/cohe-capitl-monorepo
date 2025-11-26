@@ -112,6 +112,15 @@ services:
     #       memory: 256M
 
   # ============================================
+  # Database Initialization - 生产配置
+  # ============================================
+  db-init:
+    restart: "no"  # 生产环境：迁移只运行一次，不自动重启
+
+    environment:
+      NODE_ENV: production
+
+  # ============================================
   # Nginx - 生产 HTTPS 配置
   # ============================================
   nginx:
@@ -125,9 +134,11 @@ services:
       # 取消注释并配置 SSL 证书
       # - "${NGINX_HTTPS_PORT:-443}:443"
 
-    # 生产环境：挂载 Nginx 配置与（可选）SSL 证书
+    # 生产环境：使用子域名隔离的 Nginx 配置
+    # 注意：生产环境强烈建议使用子域名（admin.domain.com）而非路径（/admin）
     volumes:
       - ./infra/nginx/nginx.prod.conf:/etc/nginx/nginx.conf:ro
+      # SSL 证书挂载（使用 Let's Encrypt 或其他证书）
       # - ./infra/nginx/certs:/etc/nginx/certs:ro
       # - ./infra/nginx/ssl-params.conf:/etc/nginx/ssl-params.conf:ro
 
