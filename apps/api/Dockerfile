@@ -91,8 +91,8 @@ COPY --from=builder --chown=nestjs:nodejs /app/apps/api/prisma ./apps/api/prisma
 
 # Create uploads directory for signature storage
 # Must match the path where uploads volume will be mounted
-RUN mkdir -p /app/apps/api/uploads/signatures && \
-    chown -R nestjs:nodejs /app/apps/api/uploads
+# Note: Volume mount will override these permissions, so we handle it in entrypoint
+RUN mkdir -p /app/apps/api/uploads/signatures
 
 # Create symlink for Prisma Client to be accessible from compiled code
 # Compiled code in dist/src looks for ../../../generated, which resolves to dist/generated
@@ -101,8 +101,26 @@ RUN ln -s /app/apps/api/generated /app/apps/api/dist/generated
 
 WORKDIR /app/apps/api
 
-# Switch to non-root user
-USER nestjs
+# Create entrypoint script to fix permissions before starting app
+RUN echo '#!/bin/sh' > /app/entrypoint.sh && \
+    echo 'set -e' >> /app/entrypoint.sh && \
+    echo '' >> /app/entrypoint.sh && \
+    echo '# Fix uploads directory permissions if mounted as volume' >> /app/entrypoint.sh && \
+    echo 'if [ -d "/app/apps/api/uploads" ]; then' >> /app/entrypoint.sh && \
+    echo '  echo "Fixing uploads directory permissions..."' >> /app/entrypoint.sh && \
+    echo '  chown -R nestjs:nodejs /app/apps/api/uploads' >> /app/entrypoint.sh && \
+    echo 'fi' >> /app/entrypoint.sh && \
+    echo '' >> /app/entrypoint.sh && \
+    echo '# Switch to nestjs user and execute command' >> /app/entrypoint.sh && \
+    echo 'exec su-exec nestjs:nodejs "$@"' >> /app/entrypoint.sh && \
+    chmod +x /app/entrypoint.sh
+
+# Install su-exec for user switching in entrypoint
+RUN apk add --no-cache su-exec
+
+# Switch to non-root user (note: entrypoint will handle final user switch)
+# We keep root here to fix permissions, then su-exec to nestjs
+USER root
 
 # Expose port (configurable via environment variable)
 # Default port is defined in ARG, actual runtime port set via $PORT env var
@@ -111,6 +129,9 @@ EXPOSE ${APP_PORT}
 # Health check endpoint
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
   CMD node -e "require('http').get('http://localhost:${APP_PORT}/healthz', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+
+# Set entrypoint to fix permissions
+ENTRYPOINT ["/app/entrypoint.sh"]
 
 # Start the application
 # Use node to run the compiled dist/src/main.js

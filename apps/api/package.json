@@ -13,7 +13,7 @@
     "prisma:generate": "dotenv -e ../../.env -- prisma generate",
     "prisma:studio": "dotenv -e ../../.env -- prisma studio",
     "prisma:deploy": "dotenv -e ../../.env -- prisma migrate deploy",
-    "seed": "dotenv -e ../../.env -- ts-node prisma/seed.ts",
+    "seed": "dotenv -e ../../.env -- node prisma/seed.js",
     "run-migration": "dotenv -e ../../.env -- ts-node prisma/run-migration.ts",
     "migrate:dev": "dotenv -e ../../.env -- prisma migrate dev",
     "migrate:diff": "dotenv -e ../../.env -- prisma migrate diff --from-schema-datamodel prisma/schema.prisma --to-schema-datamodel prisma/schema.prisma --exit-code",

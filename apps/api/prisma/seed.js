@@ -108,7 +108,7 @@ async function seedSKUs() {
     name: 'YULILY SHIELD TESTNET',
     chainId: 97,
     tokenAddress: '0x337610d27c682E347C9cD60BD4b3b107C9d34dDd', // USDT on BSC Testnet
-    tokenSymbol: 'USDT',
+    tokenSymbol: 'tBNB',
     termDays: 90,
     premiumAmt: '100.0',
     coverageAmt: '10000.0',

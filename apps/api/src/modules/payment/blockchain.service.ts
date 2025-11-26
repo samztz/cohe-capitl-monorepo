@@ -174,11 +174,25 @@ export class BlockchainService {
     const normalizedTreasuryAddress = expectedTreasuryAddress.toLowerCase();
     const isNativeToken = normalizedTokenAddress === '0x0' || normalizedTokenAddress === '0x0000000000000000000000000000000000000000';
 
+    this.logger.log(`Token verification - expectedTokenAddress: ${expectedTokenAddress}, normalized: ${normalizedTokenAddress}, isNativeToken: ${isNativeToken}`);
+
     // Fetch transaction and receipt
+    this.logger.log(`Fetching transaction and receipt for ${txHash} on chain ${chainId}`);
     const [tx, receipt] = await Promise.all([
       provider.getTransaction(txHash),
       provider.getTransactionReceipt(txHash),
     ]);
+
+    this.logger.log(`Transaction found: ${!!tx}, Receipt found: ${!!receipt}`);
+    if (receipt) {
+      this.logger.log(`Receipt details: blockNumber=${receipt.blockNumber}, status=${receipt.status}, logs.length=${receipt.logs?.length ?? 0}`);
+      if (receipt.logs && receipt.logs.length > 0) {
+        this.logger.log(`Receipt has ${receipt.logs.length} logs`);
+        this.logger.log(`First log: ${JSON.stringify(receipt.logs[0])}`);
+      } else {
+        this.logger.warn(`Receipt logs is empty or undefined: ${JSON.stringify(receipt.logs)}`);
+      }
+    }
 
     if (!tx) {
       const chainName = chainId === 56 ? 'BSC Mainnet' : chainId === 97 ? 'BSC Testnet' : `Chain ${chainId}`;
@@ -243,6 +257,10 @@ export class BlockchainService {
 
     // Handle ERC20 token transfer
     // Parse Transfer events
+    this.logger.log(
+      `Transaction receipt has ${receipt.logs.length} logs for tx ${txHash}`,
+    );
+
     const transferInterface = new Interface(ERC20_TRANSFER_EVENT_ABI);
     const transferLogs = receipt.logs
       .map((log) => {
@@ -257,14 +275,24 @@ export class BlockchainService {
             to: parsed?.args[1]?.toLowerCase() ?? '',
             amount: parsed?.args[2]?.toString() ?? '0',
           };
-        } catch {
+        } catch (error) {
           // Not a Transfer event, skip
+          this.logger.log(
+            `Log from ${log.address} is not a Transfer event: ${error.message}`,
+          );
           return null;
         }
       })
       .filter((log) => log !== null);
 
+    this.logger.log(
+      `Found ${transferLogs.length} Transfer events in transaction ${txHash}`,
+    );
+
     if (transferLogs.length === 0) {
+      this.logger.error(
+        `No Transfer events found in transaction ${txHash}. Receipt has ${receipt.logs.length} logs total. First log topics: ${JSON.stringify(receipt.logs[0]?.topics || [])}`,
+      );
       throw new BadRequestException(
         `No Transfer events found in transaction ${txHash}`,
       );
