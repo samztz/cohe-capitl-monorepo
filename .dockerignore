@@ -1,34 +1,19 @@
-# Essential files (include first)
-!pnpm-lock.yaml
-!pnpm-workspace.yaml
-!package.json
-!apps/*/package.json
-!packages/*/package.json
-!apps/api/prisma/
-
-# Exclude patterns
-node_modules
-.git
+# Essential exclusions only
+node_modules/
+**/node_modules/
+.git/
+.next/
+**/.next/
+dist/
+**/dist/
 .env
 .env.*
 !.env.example
-.next
-dist
-build
-out
 .DS_Store
 
-# Logs (specific patterns to avoid matching pnpm-lock.yaml)
+# Specific log files (not wildcards)
 npm-debug.log
 yarn-error.log
 pnpm-debug.log
-*.log.txt
-*-debug.log
-*-error.log
 
-!pnpm-lock.yaml
-!pnpm-workspace.yaml
-!package.json
-!apps/*/package.json
-!packages/*/package.json
-!apps/api/prisma/
+# No ! rules needed - pnpm files included by default
