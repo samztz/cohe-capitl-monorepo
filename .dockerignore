@@ -1,154 +1,18 @@
-# ============================================
-# .dockerignore - Exclude files from Docker context
-# Reduces build context size and improves build performance
-# ============================================
-
-# ============================================
-# SECTION 1: EXCLUDE EVERYTHING FIRST
-# ============================================
-
-# Git and version control
-.git
-.gitignore
-.gitattributes
-
-# Node.js dependencies (will be installed in container)
+# Exclude
 node_modules
-**/node_modules
-
-# Build outputs (will be built in container)
+.git
+.env
+.next
 dist
 build
-.next
 out
-.turbo
-**/.next
-**/dist
-**/build
-**/out
-
-# Environment files (should be injected at runtime)
-.env
-.env.local
-.env.development
-.env.production
-.env.test
-**/.env
-**/.env.*
-
-# Development files
-.vscode
-.idea
-*.swp
-*.swo
-*~
-.DS_Store
-Thumbs.db
-
-# Logs (be specific - don't use wildcards that match lock files)
-logs/
-**/logs/
-npm-debug.log
-yarn-error.log
-pnpm-debug.log
-lerna-debug.log
 *.log
-pids
-*.pid
-*.seed
-*.pid.lock
-
-# Test coverage and test outputs
-coverage
-.nyc_output
-**/.nyc_output
-**/coverage
-
-# Temporary files
-tmp
-temp
-.cache
-**/.cache
-**/tmp
-**/temp
-
-# Documentation
-README.md
-CHANGELOG.md
-docs
-**/*.md
-
-# CI/CD files
-.github
-.gitlab-ci.yml
-.travis.yml
-azure-pipelines.yml
-Jenkinsfile
-
-# Docker files (avoid recursive copies)
-Dockerfile
-Dockerfile.*
-docker-compose.yml
-docker-compose.*.yml
-.dockerignore
-
-# Uploads and user-generated content
-uploads
-**/uploads
-
-# OS-specific files
 .DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Desktop.ini
-$RECYCLE.BIN/
 
-# IDE and editor files
-.vscode/
-.idea/
-*.sublime-project
-*.sublime-workspace
-*.code-workspace
-
-# Test files
-**/*.test.ts
-**/*.test.tsx
-**/*.spec.ts
-**/*.spec.tsx
-**/test/
-**/__tests__/
-
-# Scripts (not needed in production containers)
-scripts/
-
-# Lock files for other package managers
-package-lock.json
-yarn.lock
-
-# ============================================
-# SECTION 2: EXPLICITLY INCLUDE REQUIRED FILES
-# (These rules MUST come AFTER exclusions)
-# ============================================
-
-# CRITICAL: Workspace configuration files
+# Must include (放在最后)
 !pnpm-lock.yaml
 !pnpm-workspace.yaml
 !package.json
-
-# App-specific package.json files
 !apps/*/package.json
 !packages/*/package.json
-
-# Prisma files (needed for migrations and schema)
-!apps/api/prisma/schema.prisma
-!apps/api/prisma/migrations/
-
-# Environment examples (for documentation)
-!.env.example
-!**/.env.example
-
-# Keep app README files
-!apps/*/README.md
+!apps/api/prisma/
