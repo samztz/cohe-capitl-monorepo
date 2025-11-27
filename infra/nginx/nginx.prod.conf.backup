@@ -4,8 +4,8 @@
 # ============================================
 #
 # Expected DNS:
-#   Web:   cohe-capitl.com (and/or www.cohe-capitl.com)
-#   Admin: admin.cohe-capitl.com
+#   Web:   your-domain.com (and/or www.your-domain.com)
+#   Admin: admin.your-domain.com
 #
 # Both hosts proxy /api and /api-docs to the API backend.
 # Update server_name values to your actual domains before deployment.
@@ -68,7 +68,7 @@ http {
   server {
     listen 80;
     listen [::]:80;
-    server_name cohe-capitl.com www.cohe-capitl.com;  # TODO: change to real domain
+    server_name your-domain.com www.your-domain.com;  # TODO: change to real domain
 
     client_max_body_size 10M;
     client_body_timeout 60s;
@@ -149,7 +149,7 @@ http {
   server {
     listen 80;
     listen [::]:80;
-    server_name admin.cohe-capitl.com;  # TODO: change to real admin subdomain
+    server_name admin.your-domain.com;  # TODO: change to real admin subdomain
 
     client_max_body_size 10M;
     client_body_timeout 60s;
@@ -227,12 +227,12 @@ http {
   # Optional: HTTP->HTTPS redirect servers (uncomment when TLS is configured)
   # server {
   #   listen 80;
-  #   server_name cohe-capitl.com www.cohe-capitl.com;
+  #   server_name your-domain.com www.your-domain.com;
   #   return 301 https://$host$request_uri;
   # }
   # server {
   #   listen 80;
-  #   server_name admin.cohe-capitl.com;
+  #   server_name admin.your-domain.com;
   #   return 301 https://$host$request_uri;
   # }
 }

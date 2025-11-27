@@ -25,3 +25,4 @@ docs/ui-snapshot/policy-form-001.png
 docker-volumes/*
 apps/api/.turbo/turbo-build.log
 
+.env.production
