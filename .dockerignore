@@ -16,10 +16,6 @@
 # Node.js dependencies (will be installed in container)
 node_modules
 **/node_modules
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
 
 # Build outputs (will be built in container)
 dist
@@ -52,10 +48,11 @@ Thumbs.db
 # Logs (exclude log files but NOT pnpm-lock.yaml)
 logs/
 **/logs/
-npm-debug.log*
-yarn-error.log*
-pnpm-debug.log*
+npm-debug.log
+yarn-error.log
+pnpm-debug.log
 **/*.log
+!pnpm-lock.yaml
 pids
 *.pid
 *.seed
