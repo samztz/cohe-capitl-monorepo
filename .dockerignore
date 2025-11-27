@@ -25,3 +25,10 @@ pnpm-debug.log
 *.log.txt
 *-debug.log
 *-error.log
+
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
+!package.json
+!apps/*/package.json
+!packages/*/package.json
+!apps/api/prisma/
