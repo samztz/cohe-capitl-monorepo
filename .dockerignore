@@ -121,10 +121,16 @@ $RECYCLE.BIN/
 **/test/
 **/__tests__/
 
-# Scripts and tooling (usually not needed in production)
+# Scripts (not needed in production containers, but keep infra/)
 scripts/
-infra/
+
+# Keep infra/ for Nginx configuration (needed by docker-compose.prod.yml)
+# infra/ is mounted as volume, not copied into images
 
 # Lock files for other package managers (we use pnpm)
 package-lock.json
 yarn.lock
+
+# Explicitly include pnpm lock file (needed for Docker builds)
+!pnpm-lock.yaml
+!pnpm-workspace.yaml

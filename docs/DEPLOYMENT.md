@@ -1,741 +1,513 @@
-# 🚀 Deployment Guide - Cohe Capital Insurance Platform
+# 🚀 部署指南 - Cohe Capital 保险平台
 
-> **Production-ready Docker deployment guide with security best practices**
-
----
-
-## 📋 Table of Contents
-
-1. [Prerequisites](#prerequisites)
-2. [Quick Start](#quick-start)
-3. [Detailed Setup](#detailed-setup)
-4. [Security Hardening](#security-hardening)
-5. [Operational Guide](#operational-guide)
-6. [Troubleshooting](#troubleshooting)
-7. [Monitoring & Maintenance](#monitoring--maintenance)
+> **使用 Docker Compose 的生产级部署指南**
 
 ---
 
-## Prerequisites
+## 📋 目录
 
-### Server Requirements
+1. [部署架构](#部署架构)
+2. [前置要求](#前置要求)
+3. [快速开始](#快速开始)
+4. [详细部署步骤](#详细部署步骤)
+5. [安全加固](#安全加固)
+6. [运维指南](#运维指南)
+7. [故障排除](#故障排除)
 
-**Minimum Specifications:**
-- **OS**: Ubuntu 20.04+ / Debian 11+ / CentOS 8+ / RHEL 8+
-- **CPU**: 2 cores (4+ recommended for production)
-- **RAM**: 4GB (8GB+ recommended for production)
-- **Storage**: 20GB SSD (50GB+ for production with logs)
-- **Network**: Public IP address with open ports 80, 443
+---
 
-**Software Dependencies:**
+## 部署架构
+
+### 文件结构
+
+```
+project/
+├── docker-compose.yml           # 基础配置（所有环境共享）
+├── docker-compose.override.yml  # 本地开发配置（自动加载）
+├── docker-compose.prod.yml      # 生产环境配置（显式指定）
+├── deploy.sh                    # 一键部署脚本
+├── .env                         # 本地开发环境变量
+├── .env.production              # 生产环境变量（不提交 git）
+├── .env.production.example      # 生产环境变量模板
+└── infra/nginx/
+    ├── nginx.conf               # 路径路由配置（/admin）
+    ├── nginx.dev.conf           # 开发子域名配置（*.localhost）
+    └── nginx.prod.conf          # 生产子域名配置（*.domain.com）
+```
+
+### 配置文件选择逻辑
+
+| 环境 | 命令 | 使用的配置文件 | Nginx 配置 |
+|------|------|---------------|------------|
+| **本地开发** | `docker compose up -d` | base + override (自动) | nginx.dev.conf (子域名) |
+| **生产环境** | `./deploy.sh --prod` | base + prod (显式) | nginx.prod.conf (子域名) |
+| **本地测试生产配置** | `docker compose -f docker-compose.yml -f docker-compose.prod.yml up` | base + prod | nginx.prod.conf |
+
+---
+
+## 前置要求
+
+### 服务器配置
+
+**最低规格**：
+- **操作系统**: Ubuntu 20.04+ / Debian 11+ / CentOS 8+
+- **CPU**: 2 核（生产建议 4 核+）
+- **内存**: 4GB（生产建议 8GB+）
+- **存储**: 20GB SSD（生产建议 50GB+）
+- **网络**: 公网 IP，开放 80/443 端口
+
+**软件依赖**：
 - Docker Engine 24.0+
 - Docker Compose 2.0+
 - Git 2.0+
-- (Optional) Nginx or another reverse proxy if not using containerized nginx
 
-### Installation Commands
+### 安装 Docker
 
 ```bash
-# Update system packages
+# 更新系统
 sudo apt update && sudo apt upgrade -y
 
-# Install Docker (Ubuntu/Debian)
+# 一键安装 Docker
 curl -fsSL https://get.docker.com -o get-docker.sh
 sudo sh get-docker.sh
 
-# Add current user to docker group (avoid using sudo)
+# 添加当前用户到 docker 组
 sudo usermod -aG docker $USER
 newgrp docker
 
-# Install Docker Compose (if not included)
-sudo apt install docker-compose-plugin -y
-
-# Verify installation
+# 验证安装
 docker --version
 docker compose version
 ```
 
----
-
-## Quick Start
-
-### 1. Clone Repository
+### 配置防火墙
 
 ```bash
-# Clone the project
-git clone https://github.com/your-org/cohe-capitl-monorepo.git
-cd cohe-capitl-monorepo
-```
-
-### 2. Configure Environment
-
-```bash
-# Copy environment template
-cp .env.production.example .env
-
-# Edit configuration (see detailed setup below)
-nano .env
-```
-
-**⚠️ CRITICAL: Change all default values!**
-
-### 3. Deploy
-
-```bash
-# Make deploy script executable
-chmod +x deploy.sh
-
-# Run deployment
-./deploy.sh
-```
-
-**Expected Output:**
-```
-============================================
-Starting Deployment: cohe-capital
-============================================
-[INFO] Building Docker images...
-[SUCCESS] Docker images built successfully
-[INFO] Starting all services...
-[SUCCESS] All services started successfully
-[SUCCESS] Deployment completed successfully! 🚀
-```
-
-### 4. Verify Deployment
-
-```bash
-# Check service status
-docker compose ps
-
-# Access services
-# Web:        http://YOUR_SERVER_IP/
-# Admin:      http://YOUR_SERVER_IP/admin
-# API:        http://YOUR_SERVER_IP/api
-# API Docs:   http://YOUR_SERVER_IP/api-docs
-```
-
----
-
-## Detailed Setup
-
-### Step 1: Environment Configuration
-
-Edit `.env` file and configure these critical sections:
-
-#### 1.1 Database Credentials
-
-```bash
-# Generate strong password
-POSTGRES_PASSWORD=$(openssl rand -base64 32)
-
-POSTGRES_USER=cohe_user
-POSTGRES_PASSWORD=<generated-password>
-POSTGRES_DB=cohe_capital
-```
-
-#### 1.2 JWT Secrets
-
-```bash
-# Generate secure random secrets
-JWT_SECRET=$(openssl rand -base64 32)
-JWT_REFRESH_SECRET=$(openssl rand -base64 32)
-
-JWT_SECRET=<generated-secret>
-JWT_EXPIRATION=15m
-JWT_REFRESH_SECRET=<generated-refresh-secret>
-JWT_REFRESH_EXPIRATION=7d
-```
-
-#### 1.3 SIWE Configuration
-
-```bash
-SIWE_DOMAIN=your-domain.com
-SIWE_URI=https://your-domain.com
-```
-
-#### 1.4 Admin Token
-
-```bash
-# Generate admin token
-ADMIN_TOKEN=$(openssl rand -hex 32)
-
-ADMIN_TOKEN=<generated-admin-token>
-```
-
-#### 1.5 Blockchain Configuration
-
-```bash
-# Get project ID from https://cloud.reown.com/
-NEXT_PUBLIC_REOWN_PROJECT_ID=your_reown_project_id_here
-
-# Network settings
-NEXT_PUBLIC_CHAIN_ID=56          # BSC Mainnet (or 97 for testnet)
-NEXT_PUBLIC_CHAIN_NAME=BSC Mainnet
-```
-
-#### 1.6 API URLs
-
-```bash
-# For nginx reverse proxy setup
-NEXT_PUBLIC_API_URL=http://localhost/api
-
-# For production with domain
-# NEXT_PUBLIC_API_URL=https://api.your-domain.com/api
-```
-
-### Step 2: SSL/TLS Configuration (Production)
-
-#### Option A: Let's Encrypt (Recommended for most cases)
-
-```bash
-# Install certbot
-sudo apt install certbot -y
-
-# Obtain certificate (with nginx stopped)
-sudo certbot certonly --standalone -d your-domain.com -d www.your-domain.com
-
-# Certificates will be in:
-# /etc/letsencrypt/live/your-domain.com/fullchain.pem
-# /etc/letsencrypt/live/your-domain.com/privkey.pem
-```
-
-Then update `docker-compose.yml`:
-
-```yaml
-nginx:
-  volumes:
-    - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-    - /etc/letsencrypt:/etc/nginx/certs:ro  # Add this line
-```
-
-And uncomment HTTPS block in `infra/nginx/nginx.conf`.
-
-#### Option B: Cloud Provider SSL
-
-If using AWS/GCP/Azure load balancer, configure SSL termination at load balancer level.
-
-### Step 3: Firewall Configuration
-
-```bash
-# Allow SSH (important - don't lock yourself out!)
-sudo ufw allow 22/tcp
-
-# Allow HTTP and HTTPS
-sudo ufw allow 80/tcp
-sudo ufw allow 443/tcp
-
-# Enable firewall
+# Ubuntu/Debian (使用 ufw)
+sudo ufw allow 22/tcp    # SSH
+sudo ufw allow 80/tcp    # HTTP
+sudo ufw allow 443/tcp   # HTTPS
 sudo ufw enable
 
-# Check status
-sudo ufw status
-```
-
-### Step 4: Database Migration
-
-Migrations run automatically during deployment. To run manually:
-
-```bash
-# Execute migrations
-docker compose exec api sh -c "cd /app/apps/api && pnpm prisma migrate deploy"
-
-# Verify database schema
-docker compose exec api sh -c "cd /app/apps/api && pnpm prisma db pull"
+# CentOS/RHEL (使用 firewalld)
+sudo firewall-cmd --permanent --add-service=ssh
+sudo firewall-cmd --permanent --add-service=http
+sudo firewall-cmd --permanent --add-service=https
+sudo firewall-cmd --reload
 ```
 
 ---
 
-## Security Hardening
+## 快速开始
 
-### 🔒 Critical Security Checklist
-
-#### Before Production Deployment:
-
-- [ ] **Change all default passwords** in `.env`
-- [ ] **Generate secure JWT secrets** (32+ characters, random)
-- [ ] **Set CORS_ORIGIN** to specific domain(s), not `*`
-- [ ] **Disable database port exposure** (comment out `DB_PORT` mapping in `docker-compose.yml`)
-- [ ] **Configure SSL/TLS certificates** (HTTPS only in production)
-- [ ] **Enable firewall** (ufw/iptables)
-- [ ] **Restrict SSH access** (key-only, disable password auth)
-- [ ] **Set up log rotation** (prevent disk space issues)
-- [ ] **Configure backup strategy** (daily database backups)
-- [ ] **Review nginx rate limits** (prevent DDoS)
-- [ ] **Enable HSTS** (after confirming HTTPS works)
-- [ ] **Set secure file permissions** (`.env` should be 600)
-
-### 1. Secure Environment File
+### 方法 1：使用自动化脚本（推荐）
 
 ```bash
-# Set restrictive permissions on .env
-chmod 600 .env
+# 1. 运行准备脚本
+./scripts/prepare-production.sh
 
-# Ensure it's in .gitignore (already done)
-grep -q '^.env$' .gitignore || echo '.env' >> .gitignore
+# 脚本会：
+# - 生成强随机密钥（JWT_SECRET, ADMIN_TOKEN 等）
+# - 创建 .env.production
+# - 更新 nginx.prod.conf 中的域名
+# - 显示 Admin Token（请保存！）
 
-# Never commit .env to Git
-git update-index --assume-unchanged .env
+# 2. 执行部署
+./deploy.sh --prod --build
 ```
 
-### 2. Disable Database External Access (Production)
-
-Edit `docker-compose.yml`:
-
-```yaml
-db:
-  # Comment out or remove this in production
-  # ports:
-  #   - "${DB_PORT:-5432}:5432"
-```
-
-Database will only be accessible via Docker internal network.
-
-### 3. CORS Configuration
-
-In `.env`:
+### 方法 2：手动配置
 
 ```bash
-# Development
-CORS_ORIGIN=*
+# 1. 复制环境变量模板
+cp .env.production.example .env.production
 
-# Production - specify exact domains
-CORS_ORIGIN=https://your-domain.com,https://admin.your-domain.com
+# 2. 编辑环境变量
+nano .env.production
+# 修改所有 CHANGE_ME 项
+
+# 3. 更新 Nginx 配置中的域名
+sed -i 's/your-domain.com/yourdomain.com/g' infra/nginx/nginx.prod.conf
+
+# 4. 执行部署
+./deploy.sh --prod --build
 ```
 
-### 4. Rate Limiting
+---
 
-Review `infra/nginx/nginx.conf`:
+## 详细部署步骤
 
+### 第一步：准备环境变量
+
+#### 使用自动化脚本（推荐）
+
+```bash
+./scripts/prepare-production.sh
+```
+
+**脚本会询问你**：
+1. 域名（如 `example.com`）
+2. WalletConnect Project ID（从 https://cloud.reown.com/ 获取）
+
+**脚本会生成**：
+- `.env.production`（环境变量文件）
+- 更新 `nginx.prod.conf`（自动替换域名）
+- 显示 **Admin Token**（记得保存！）
+
+#### 手动配置环境变量
+
+```bash
+# 1. 复制模板
+cp .env.production.example .env.production
+
+# 2. 生成密钥
+openssl rand -base64 32  # JWT_SECRET
+openssl rand -base64 32  # JWT_REFRESH_SECRET (不同值)
+openssl rand -hex 32     # ADMIN_TOKEN
+
+# 3. 编辑 .env.production
+nano .env.production
+```
+
+**必须修改的配置**：
+
+```bash
+# 数据库密码（强密码）
+POSTGRES_PASSWORD=<强密码>
+
+# JWT 密钥（使用上面生成的值）
+JWT_SECRET=<生成的密钥1>
+JWT_REFRESH_SECRET=<生成的密钥2>
+
+# 管理员令牌（使用上面生成的值）
+ADMIN_TOKEN=<生成的hex值>
+
+# 域名配置（你的实际域名）
+SIWE_DOMAIN=example.com
+SIWE_URI=https://example.com
+CORS_ORIGIN=https://example.com,https://admin.example.com
+
+# WalletConnect Project ID
+NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=<你的项目ID>
+```
+
+### 第二步：配置 DNS
+
+在域名服务商（如 Cloudflare、阿里云）添加 A 记录：
+
+| 类型 | 主机名 | 值（IP） | 说明 |
+|------|--------|---------|------|
+| A | @ | 服务器IP | 主域名（example.com） |
+| A | www | 服务器IP | www 子域名 |
+| A | admin | 服务器IP | Admin 后台子域名 |
+
+**验证 DNS 生效**（等待 5-10 分钟）：
+```bash
+nslookup example.com
+nslookup admin.example.com
+```
+
+### 第三步：执行部署
+
+```bash
+# 给脚本执行权限
+chmod +x deploy.sh
+
+# 首次部署（包含构建）
+./deploy.sh --prod --build
+
+# 后续更新（不重新构建）
+./deploy.sh --prod
+```
+
+**部署脚本会自动**：
+1. 检查 Docker 和 Docker Compose
+2. 验证 `.env.production` 存在
+3. 构建 Docker 镜像（如使用 --build）
+4. 启动数据库
+5. 运行数据库迁移
+6. 启动所有服务
+7. 执行健康检查
+
+### 第四步：验证部署
+
+```bash
+# 检查容器状态
+docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
+
+# 期望输出：所有服务 STATUS 为 "Up (healthy)"
+# cohe-db      Up (healthy)
+# cohe-api     Up (healthy)
+# cohe-web     Up (healthy)
+# cohe-admin   Up (healthy)
+# cohe-nginx   Up (healthy)
+```
+
+**测试健康检查端点**：
+
+```bash
+# Nginx 健康检查
+curl http://example.com/health
+# 期望输出: healthy
+
+# API 健康检查
+curl http://example.com/api/healthz
+# 期望输出: "ok"
+```
+
+**浏览器测试**：
+- Web 前端：`http://example.com`
+- Admin 后台：`http://admin.example.com`
+- API 文档：`http://example.com/api-docs`
+
+---
+
+## 安全加固
+
+### 1. 配置 HTTPS（强烈推荐）
+
+#### 使用 Let's Encrypt（免费）
+
+```bash
+# 1. 安装 Certbot
+sudo apt-get install certbot
+
+# 2. 临时停止服务
+docker compose -f docker-compose.yml -f docker-compose.prod.yml stop nginx
+
+# 3. 获取证书
+sudo certbot certonly --standalone \
+  -d example.com \
+  -d www.example.com \
+  -d admin.example.com \
+  --email your@email.com \
+  --agree-tos
+
+# 4. 复制证书到项目
+sudo mkdir -p infra/nginx/certs
+sudo cp /etc/letsencrypt/live/example.com/fullchain.pem infra/nginx/certs/
+sudo cp /etc/letsencrypt/live/example.com/privkey.pem infra/nginx/certs/
+sudo chown -R $USER:$USER infra/nginx/certs/
+
+# 5. 配置 Docker Compose（取消注释）
+nano docker-compose.prod.yml
+# 取消注释以下行：
+# - "443:443"
+# - ./infra/nginx/certs:/etc/nginx/certs:ro
+
+# 6. 配置 Nginx（取消注释 HTTPS 配置）
+nano infra/nginx/nginx.prod.conf
+
+# 7. 重启服务
+./deploy.sh --prod
+```
+
+#### 证书自动续期
+
+```bash
+# 添加定时任务
+sudo crontab -e
+
+# 每月 1 号凌晨 3 点自动续期
+0 3 1 * * certbot renew --quiet && docker compose -f /path/to/project/docker-compose.yml -f /path/to/project/docker-compose.prod.yml restart nginx
+```
+
+### 2. 修改默认端口（可选）
+
+```bash
+# 编辑 docker-compose.prod.yml
+nano docker-compose.prod.yml
+
+# 修改 Nginx 映射端口（例如改为 8080:80）
+# 然后更新防火墙规则
+```
+
+### 3. 限制 CORS Origin
+
+确保 `.env.production` 中：
+```bash
+CORS_ORIGIN=https://example.com,https://admin.example.com
+# 不要使用 CORS_ORIGIN=*（不安全）
+```
+
+### 4. 启用 Rate Limiting（可选）
+
+编辑 `infra/nginx/nginx.prod.conf`，添加：
 ```nginx
-# Adjust based on expected traffic
 limit_req_zone $binary_remote_addr zone=api_limit:10m rate=10r/s;
-limit_req_zone $binary_remote_addr zone=general_limit:10m rate=30r/s;
-```
 
-### 5. Non-root User Verification
-
-All containers run as non-root users. Verify:
-
-```bash
-# Check API container user
-docker compose exec api whoami
-# Expected output: nestjs
-
-# Check Web container user
-docker compose exec web whoami
-# Expected output: nextjs
-```
-
-### 6. File Storage Security
-
-**⚠️ Current setup uses local file storage for uploads (signatures).**
-
-**Production Recommendations:**
-- Replace with cloud storage (AWS S3, Cloudflare R2, Alibaba OSS)
-- Use signed URLs for downloads
-- Implement access control (AdminGuard for signature viewing)
-- Enable virus scanning on uploads
-
-Example S3 integration (future):
-
-```typescript
-// apps/api/src/modules/policy/signature-storage.service.ts
-async saveSignature(base64: string, policyId: string): Promise<SignatureMetadata> {
-  // Upload to S3 instead of local filesystem
-  const s3 = new S3Client({ region: process.env.AWS_REGION });
-  const key = `signatures/${policyId}-${Date.now()}.png`;
-
-  await s3.send(new PutObjectCommand({
-    Bucket: process.env.AWS_S3_BUCKET,
-    Key: key,
-    Body: buffer,
-    ContentType: 'image/png',
-  }));
-
-  return { url: `https://cdn.your-domain.com/${key}`, hash };
+location /api {
+    limit_req zone=api_limit burst=20 nodelay;
+    # ... 其他配置
 }
-```
-
-### 7. Log Management
-
-**Prevent disk space issues:**
-
-```bash
-# Configure Docker log rotation
-sudo nano /etc/docker/daemon.json
-```
-
-Add:
-
-```json
-{
-  "log-driver": "json-file",
-  "log-opts": {
-    "max-size": "10m",
-    "max-file": "3"
-  }
-}
-```
-
-Restart Docker:
-
-```bash
-sudo systemctl restart docker
-```
-
-### 8. Backup Strategy
-
-**Database Backups:**
-
-Create backup script `scripts/backup-db.sh`:
-
-```bash
-#!/bin/bash
-# Daily database backup
-
-BACKUP_DIR="/var/backups/cohe-capital/db"
-DATE=$(date +%Y%m%d_%H%M%S)
-BACKUP_FILE="$BACKUP_DIR/backup_$DATE.sql.gz"
-
-mkdir -p "$BACKUP_DIR"
-
-docker compose exec -T db pg_dump -U cohe_user -d cohe_capital | gzip > "$BACKUP_FILE"
-
-# Keep only last 7 days of backups
-find "$BACKUP_DIR" -name "backup_*.sql.gz" -mtime +7 -delete
-
-echo "Backup completed: $BACKUP_FILE"
-```
-
-Setup cron job:
-
-```bash
-# Edit crontab
-crontab -e
-
-# Add daily backup at 2 AM
-0 2 * * * /path/to/cohe-capitl-monorepo/scripts/backup-db.sh
 ```
 
 ---
 
-## Operational Guide
+## 运维指南
 
-### Common Operations
-
-#### View Logs
+### 日志查看
 
 ```bash
-# All services
-docker compose logs -f
+# 所有服务日志
+docker compose -f docker-compose.yml -f docker-compose.prod.yml logs -f
 
-# Specific service
-docker compose logs -f api
-docker compose logs -f web
-docker compose logs -f db
+# 特定服务日志
+docker compose -f docker-compose.yml -f docker-compose.prod.yml logs -f api
 
-# Last 100 lines
-docker compose logs --tail=100 api
+# 最近 100 行
+docker compose -f docker-compose.yml -f docker-compose.prod.yml logs --tail=100 api
 ```
 
-#### Restart Services
+### 重启服务
 
 ```bash
-# Restart all
-docker compose restart
+# 重启所有服务
+docker compose -f docker-compose.yml -f docker-compose.prod.yml restart
 
-# Restart specific service
-docker compose restart api
-docker compose restart web
+# 重启单个服务
+docker compose -f docker-compose.yml -f docker-compose.prod.yml restart api
 ```
 
-#### Stop/Start Services
+### 数据库备份
 
 ```bash
-# Stop all
-docker compose down
+# 手动备份
+docker exec cohe-db pg_dump -U cohe_user cohe_capital > backup-$(date +%Y%m%d).sql
 
-# Start all
-docker compose up -d
-
-# Stop without removing containers
-docker compose stop
-
-# Start stopped containers
-docker compose start
+# 自动备份（添加到 crontab）
+0 2 * * * docker exec cohe-db pg_dump -U cohe_user cohe_capital > /backup/db-$(date +\%Y\%m\%d).sql
 ```
 
-#### Update Application
+### 更新代码
 
 ```bash
-# Pull latest code
+# 1. 拉取最新代码
 git pull origin main
 
-# Rebuild and redeploy
-./deploy.sh --build
+# 2. 重新构建并部署
+./deploy.sh --prod --build
 ```
 
-#### Database Operations
+### 数据库迁移
 
 ```bash
-# Access PostgreSQL CLI
-docker compose exec db psql -U cohe_user -d cohe_capital
+# 查看迁移状态
+docker compose -f docker-compose.yml -f docker-compose.prod.yml exec api pnpm prisma migrate status
 
-# Run migrations
-docker compose exec api sh -c "cd /app/apps/api && pnpm prisma migrate deploy"
-
-# Open Prisma Studio (database GUI)
-docker compose exec api sh -c "cd /app/apps/api && pnpm prisma studio"
-```
-
-#### Container Shell Access
-
-```bash
-# API container
-docker compose exec api sh
-
-# Web container
-docker compose exec web sh
-
-# Admin container
-docker compose exec admin sh
+# 应用迁移
+docker compose -f docker-compose.yml -f docker-compose.prod.yml exec api pnpm prisma migrate deploy
 ```
 
 ---
 
-## Troubleshooting
+## 故障排除
 
-### Issue: Container fails to start
+### Q1: 部署后访问域名显示 502
 
-**Check logs:**
+**原因**: 后端服务未启动或 Nginx 配置错误
+
+**解决**:
 ```bash
-docker compose logs <service-name>
+# 检查服务状态
+docker compose -f docker-compose.yml -f docker-compose.prod.yml ps
+
+# 查看 API 日志
+docker compose -f docker-compose.yml -f docker-compose.prod.yml logs api
+
+# 检查 Nginx 配置
+docker compose -f docker-compose.yml -f docker-compose.prod.yml exec nginx nginx -t
 ```
 
-**Common causes:**
-- Environment variable missing or invalid
-- Port already in use
-- Database not ready
+### Q2: CORS 错误
 
-**Solution:**
+**原因**: `CORS_ORIGIN` 配置不正确
+
+**解决**:
 ```bash
-# Check all containers
-docker compose ps
+# 检查 .env.production
+grep CORS_ORIGIN .env.production
 
-# Restart specific service
-docker compose restart <service-name>
+# 应该是：
+CORS_ORIGIN=https://example.com,https://admin.example.com
+
+# 修改后重启 API
+docker compose -f docker-compose.yml -f docker-compose.prod.yml restart api
 ```
 
-### Issue: Database connection failed
+### Q3: 数据库连接失败
 
-**Symptoms:**
-```
-Error: P1001: Can't reach database server
-```
+**原因**: 数据库未启动或密码错误
 
-**Check database health:**
+**解决**:
 ```bash
-docker compose exec db pg_isready -U cohe_user -d cohe_capital
+# 检查数据库容器
+docker compose -f docker-compose.yml -f docker-compose.prod.yml ps db
+
+# 检查数据库日志
+docker compose -f docker-compose.yml -f docker-compose.prod.yml logs db
+
+# 测试数据库连接
+docker compose -f docker-compose.yml -f docker-compose.prod.yml exec db psql -U cohe_user -d cohe_capital
 ```
 
-**Solution:**
-```bash
-# Restart database
-docker compose restart db
+### Q4: SSL 证书问题
 
-# Wait for health check
-docker compose ps db
+**原因**: 证书路径不正确或未挂载
+
+**解决**:
+```bash
+# 检查证书文件
+ls -la infra/nginx/certs/
+
+# 检查 Nginx 容器内证书
+docker compose -f docker-compose.yml -f docker-compose.prod.yml exec nginx ls -la /etc/nginx/certs/
+
+# 查看 Nginx 错误日志
+docker compose -f docker-compose.yml -f docker-compose.prod.yml logs nginx | grep -i ssl
 ```
 
-### Issue: Nginx 502 Bad Gateway
+### Q5: 钱包登录失败
 
-**Cause:** Upstream service (web/admin/api) not running
+**原因**: `SIWE_DOMAIN` 配置不正确
 
-**Check:**
+**解决**:
 ```bash
-docker compose ps
-```
+# 检查 .env.production
+grep SIWE_DOMAIN .env.production
 
-**Solution:**
-```bash
-# Restart upstream service
-docker compose restart api web admin
-
-# Check nginx config syntax
-docker compose exec nginx nginx -t
-```
-
-### Issue: Out of disk space
-
-**Check disk usage:**
-```bash
-df -h
-docker system df
-```
-
-**Clean up:**
-```bash
-# Remove unused images
-docker image prune -a
-
-# Remove unused volumes
-docker volume prune
-
-# Remove stopped containers
-docker container prune
+# 应该是你的实际域名（不带 https://）
+# 如果不对，修改后重启 API
+docker compose -f docker-compose.yml -f docker-compose.prod.yml restart api
 ```
 
 ---
 
-## Monitoring & Maintenance
+## 部署后清单
 
-### Health Checks
-
-All services have built-in health checks:
-
-```bash
-# Check service health
-docker compose ps
-
-# Expected output shows "healthy" status
-```
-
-### Resource Monitoring
-
-```bash
-# Monitor resource usage
-docker stats
-
-# Check container logs for errors
-docker compose logs --tail=100 | grep -i error
-```
-
-### Performance Tuning
-
-**Database:**
-
-Edit `docker-compose.yml` to add PostgreSQL tuning:
-
-```yaml
-db:
-  environment:
-    POSTGRES_SHARED_BUFFERS: 512MB
-    POSTGRES_MAX_CONNECTIONS: 200
-```
-
-**Nginx:**
-
-Adjust worker processes in `infra/nginx/nginx.conf`:
-
-```nginx
-worker_processes auto;  # Automatically use all CPU cores
-```
-
-### Regular Maintenance Tasks
-
-**Weekly:**
-- [ ] Review logs for errors
-- [ ] Check disk space usage
-- [ ] Verify backups are working
-
-**Monthly:**
-- [ ] Update Docker images (`docker compose pull`)
-- [ ] Review and rotate access tokens/secrets
-- [ ] Audit database for orphaned records
-
-**Quarterly:**
-- [ ] Security audit (dependencies, CVEs)
-- [ ] Performance review and optimization
-- [ ] Disaster recovery drill
+- [ ] 所有容器状态为 healthy
+- [ ] 可以通过域名访问 Web 前端
+- [ ] 可以通过子域名访问 Admin 后台
+- [ ] API 健康检查返回正常
+- [ ] HTTPS 证书有效（如已配置）
+- [ ] HTTP 自动重定向到 HTTPS（如已配置）
+- [ ] 钱包登录功能正常
+- [ ] Admin Token 登录正常
+- [ ] 数据库备份策略已配置
+- [ ] 防火墙规则已配置
+- [ ] DNS 记录已生效
+- [ ] 所有密钥已更换为强随机值
+- [ ] `.env.production` 未提交到 Git
 
 ---
 
-## Production Deployment Checklist
+## 相关文档
 
-Before going live:
-
-### Infrastructure
-- [ ] Server meets minimum requirements
-- [ ] Firewall configured and enabled
-- [ ] SSH hardened (key-only, custom port)
-- [ ] SSL/TLS certificates installed and configured
-- [ ] DNS records configured (A, AAAA, CNAME)
-
-### Application
-- [ ] All environment variables configured
-- [ ] Database migrations applied
-- [ ] Seed data loaded (if applicable)
-- [ ] Admin account created and secured
-- [ ] File uploads tested
-- [ ] API endpoints tested (Postman/Swagger)
-
-### Security
-- [ ] All default credentials changed
-- [ ] CORS configured for specific domains
-- [ ] Database external access disabled
-- [ ] Log rotation configured
-- [ ] Backup strategy implemented and tested
-- [ ] Monitoring/alerting set up
-
-### Testing
-- [ ] Smoke tests passed
-- [ ] Load testing completed
-- [ ] Security scan performed
-- [ ] SSL certificate validated (A+ on SSL Labs)
+- [本地开发指南](./LOCAL_DEVELOPMENT.md)
+- [运维指南](./OPERATIONS.md)
+- [变更日志](./CHANGELOG.md)
+- [项目路线图](./ROADMAP.md)
 
 ---
 
-## Emergency Procedures
-
-### Rollback Deployment
-
-```bash
-# Stop current version
-docker compose down
-
-# Checkout previous version
-git log --oneline  # Find commit hash
-git checkout <previous-commit-hash>
-
-# Redeploy
-./deploy.sh
-```
-
-### Restore from Backup
-
-```bash
-# Stop services
-docker compose down
-
-# Restore database
-gunzip -c /var/backups/cohe-capital/db/backup_20250119.sql.gz | \
-  docker compose exec -T db psql -U cohe_user -d cohe_capital
-
-# Restart services
-docker compose up -d
-```
-
----
-
-## Additional Resources
-
-- **Docker Docs**: https://docs.docker.com/
-- **Docker Compose Reference**: https://docs.docker.com/compose/
-- **Nginx Documentation**: https://nginx.org/en/docs/
-- **PostgreSQL Documentation**: https://www.postgresql.org/docs/
-- **Security Best Practices**: https://cheatsheetseries.owasp.org/
-
----
-
-## Support & Contact
-
-For deployment issues:
-1. Check this documentation
-2. Review logs: `docker compose logs -f`
-3. Search GitHub issues
-4. Contact DevOps team
-
----
-
-**Last Updated**: 2025-01-19
-**Version**: 1.0.0
+**最后更新**: 2025-11-26

@@ -299,7 +299,7 @@ Starting Deployment: cohe-capital
 
 ============================================
 Checking Prerequisites
-============================================
+============================================w
 [SUCCESS] Docker is installed
 [SUCCESS] Docker Compose is available
 ...
