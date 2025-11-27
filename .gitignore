@@ -26,3 +26,4 @@ docker-volumes/*
 apps/api/.turbo/turbo-build.log
 
 .env.production
+password.txt
