@@ -3,10 +3,9 @@
 # Reduces build context size and improves build performance
 # ============================================
 
-# CRITICAL: Include pnpm files first (highest priority)
-!pnpm-lock.yaml
-!pnpm-workspace.yaml
-!package.json
+# ============================================
+# SECTION 1: EXCLUDE EVERYTHING FIRST
+# ============================================
 
 # Git and version control
 .git
@@ -30,11 +29,12 @@ out
 
 # Environment files (should be injected at runtime)
 .env
-.env.*
-!.env.example
+.env.local
+.env.development
+.env.production
+.env.test
 **/.env
 **/.env.*
-!**/.env.example
 
 # Development files
 .vscode
@@ -45,14 +45,14 @@ out
 .DS_Store
 Thumbs.db
 
-# Logs (exclude log files but NOT pnpm-lock.yaml)
+# Logs (be specific - don't use wildcards that match lock files)
 logs/
 **/logs/
 npm-debug.log
 yarn-error.log
 pnpm-debug.log
-**/*.log
-!pnpm-lock.yaml
+lerna-debug.log
+*.log
 pids
 *.pid
 *.seed
@@ -72,12 +72,11 @@ temp
 **/tmp
 **/temp
 
-# Documentation (not needed in runtime)
+# Documentation
 README.md
 CHANGELOG.md
 docs
 **/*.md
-!apps/*/README.md
 
 # CI/CD files
 .github
@@ -88,16 +87,12 @@ Jenkinsfile
 
 # Docker files (avoid recursive copies)
 Dockerfile
+Dockerfile.*
 docker-compose.yml
 docker-compose.*.yml
 .dockerignore
 
-# Prisma schema and migrations (needed for migrations in production)
-# Note: We need both schema.prisma and migrations/ for prisma migrate deploy
-# apps/api/prisma/migrations  # Commented out - migrations needed for production
-!apps/api/prisma/schema.prisma
-
-# Uploads and user-generated content (should be in volumes)
+# Uploads and user-generated content
 uploads
 **/uploads
 
@@ -118,7 +113,7 @@ $RECYCLE.BIN/
 *.sublime-workspace
 *.code-workspace
 
-# Test files (optional - remove if you want to run tests in container)
+# Test files
 **/*.test.ts
 **/*.test.tsx
 **/*.spec.ts
@@ -126,12 +121,34 @@ $RECYCLE.BIN/
 **/test/
 **/__tests__/
 
-# Scripts (not needed in production containers, but keep infra/)
+# Scripts (not needed in production containers)
 scripts/
 
-# Keep infra/ for Nginx configuration (needed by docker-compose.prod.yml)
-# infra/ is mounted as volume, not copied into images
-
-# Lock files for other package managers (we use pnpm)
+# Lock files for other package managers
 package-lock.json
 yarn.lock
+
+# ============================================
+# SECTION 2: EXPLICITLY INCLUDE REQUIRED FILES
+# (These rules MUST come AFTER exclusions)
+# ============================================
+
+# CRITICAL: Workspace configuration files
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
+!package.json
+
+# App-specific package.json files
+!apps/*/package.json
+!packages/*/package.json
+
+# Prisma files (needed for migrations and schema)
+!apps/api/prisma/schema.prisma
+!apps/api/prisma/migrations/
+
+# Environment examples (for documentation)
+!.env.example
+!**/.env.example
+
+# Keep app README files
+!apps/*/README.md
