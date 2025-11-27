@@ -6,7 +6,7 @@ dist
 .pnpm-store/
 expo-temp/
 expo-temp/*
-pnpm-lock.yaml
+# pnpm-lock.yaml should be committed for reproducible builds
 .turbo/*
 
 # Review bundles
