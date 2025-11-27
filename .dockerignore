@@ -3,6 +3,11 @@
 # Reduces build context size and improves build performance
 # ============================================
 
+# CRITICAL: Include pnpm files first (highest priority)
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
+!package.json
+
 # Git and version control
 .git
 .gitignore
@@ -44,9 +49,12 @@ out
 .DS_Store
 Thumbs.db
 
-# Logs
-logs
-*.log
+# Logs (exclude log files but NOT pnpm-lock.yaml)
+logs/
+**/logs/
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
 **/*.log
 pids
 *.pid
@@ -130,7 +138,3 @@ scripts/
 # Lock files for other package managers (we use pnpm)
 package-lock.json
 yarn.lock
-
-# Explicitly include pnpm lock file (needed for Docker builds)
-!pnpm-lock.yaml
-!pnpm-workspace.yaml
