@@ -1,2 +1,0 @@
-Note: This is a placeholder. Replace with actual USDC token icon (32x32px PNG with transparent background).
-The icon should be a blue circle with white "USDC" text or the official USDC logo.

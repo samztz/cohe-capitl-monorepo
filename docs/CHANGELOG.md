@@ -6,19 +6,24 @@
 
 ## [2025-11-26] - 🔧 修复 Railway CI/CD Prisma 构建错误 ✅
 
-### ✅ Fixed - Railway 部署时 Prisma Client 缺失导致的 43 个 TypeScript 编译错误
+### ✅ Fixed - Railway 部署时 Prisma 构建错误（PRISMA_QUERY_ENGINE_LIBRARY 路径问题）
 
 **问题描述**:
 
-在 Railway 平台部署后端时，CI/CD 构建失败，出现 43 个 TypeScript 编译错误：
-- `Cannot find module 'generated/prisma/enums'`
-- `Cannot find module '../../../generated/prisma/client'`
-- `Property 'policy' does not exist on type 'PrismaService'`
-- `Parameter implicitly has an 'any' type`
+在 Railway 平台部署后端时，构建失败，错误信息：
+```
+Error: Env var PRISMA_QUERY_ENGINE_LIBRARY is provided but provided path
+/app/apps/api/generated/prisma/libquery_engine-linux-musl-openssl-3.0.x.so.node
+can't be resolved.
+```
+
+此前还遇到过 43 个 TypeScript 编译错误（`Cannot find module 'generated/prisma/client'` 等）。
 
 **根本原因**:
 
-Railway 直接运行 `pnpm --filter api build`，绕过了 Dockerfile 中的 `prisma generate` 步骤。由于 Prisma Client 未生成，TypeScript 编译时找不到 Prisma 类型定义，导致所有 Prisma 相关的代码报错。
+1. Railway 环境中**错误地设置了** `PRISMA_QUERY_ENGINE_LIBRARY` 环境变量
+2. 该变量指向的路径在构建阶段还不存在（因为 `generated` 目录要在 `prisma generate` 后才创建）
+3. Railway 直接运行 `pnpm --filter api build`，需要先执行 `prisma generate`
 
 **解决方案**:
 
@@ -67,8 +72,15 @@ cd apps/api && node dist/src/main.js
 **注意事项**:
 - ✅ `prebuild` 脚本会在 `build` 前自动执行，无需修改 Railway 构建命令
 - ✅ 此修复同时适用于本地开发、Docker 构建和 Railway CI/CD
+- ⚠️ **关键**：在 Railway 环境变量中**删除** `PRISMA_QUERY_ENGINE_LIBRARY`（如果存在）
 - ⚠️ 数据库迁移仍需手动执行：`railway run pnpm --filter api prisma migrate deploy`
 - 📚 完整 Railway 部署指南：`docs/RAILWAY_DEPLOYMENT.md`
+
+**Railway 部署步骤**:
+1. 删除 `PRISMA_QUERY_ENGINE_LIBRARY` 环境变量（如有）
+2. 确保 `DATABASE_URL` 和其他必需变量已设置
+3. Push 代码触发部署
+4. 运行数据库迁移
 
 **影响范围**:
 - ✅ 修复了所有 43 个 TypeScript 编译错误
