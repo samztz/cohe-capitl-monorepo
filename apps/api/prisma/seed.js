@@ -18,8 +18,11 @@ const fs = require('fs');
 let PrismaClient, PolicyStatus;
 
 const possiblePaths = [
-  join(__dirname, '../generated/prisma/client'),
+  join(__dirname, '../generated/prisma'),  // Primary: matches schema.prisma output
+  join(__dirname, '../generated/prisma/client'),  // Fallback: legacy path
+  join(__dirname, '../dist/generated/prisma'),
   join(__dirname, '../dist/generated/prisma/client'),
+  join(process.cwd(), 'generated/prisma'),
   join(process.cwd(), 'generated/prisma/client'),
 ];
 
