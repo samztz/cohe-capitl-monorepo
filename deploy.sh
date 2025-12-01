@@ -35,7 +35,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Project configuration
-PROJECT_NAME="cohe-capital"
+PROJECT_NAME="cohe-capitl"
 
 # Environment configuration (can be overridden via --env or --prod flag)
 ENVIRONMENT="${ENVIRONMENT:-local}"  # local or production

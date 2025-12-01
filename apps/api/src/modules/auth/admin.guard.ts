@@ -32,6 +32,18 @@ export class AdminGuard implements CanActivate {
    */
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest();
+
+    // DEMO MODE: Skip auth if ADMIN_AUTH_BYPASS is enabled
+    // ⚠️ REMOVE THIS IN PRODUCTION
+    if (process.env.ADMIN_AUTH_BYPASS === 'true') {
+      request.user = {
+        userId: 'admin',
+        email: 'admin@cohe.capital',
+        role: 'admin',
+      };
+      return true;
+    }
+
     const authHeader = request.headers['authorization'];
 
     if (!authHeader) {
