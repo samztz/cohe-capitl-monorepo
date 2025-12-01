@@ -5,7 +5,7 @@
  */
 
 import { ApiProperty } from '@nestjs/swagger';
-import { PolicyStatus } from 'generated/prisma/enums';
+import { PolicyStatus } from '@prisma/client';
 
 export class PolicyResponseDto {
   @ApiProperty({

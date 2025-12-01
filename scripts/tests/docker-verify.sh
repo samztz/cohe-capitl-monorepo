@@ -168,7 +168,7 @@ echo -n "Testing Test 6: Database Connection from API... "
 test_container_command \
     "Test 6: Database Connection" \
     "api" \
-    "node -e \"const { PrismaClient } = require('./generated/prisma'); const prisma = new PrismaClient(); prisma.\\\$connect().then(() => console.log('DB_CONNECTED')).catch(e => console.error('DB_FAILED:', e.message))\"" \
+    "node -e \"const { PrismaClient } = require('@prisma/client'); const prisma = new PrismaClient(); prisma.\\\$connect().then(() => console.log('DB_CONNECTED')).catch(e => console.error('DB_FAILED:', e.message))\"" \
     "DB_CONNECTED"
 
 # ✅ Test 7: 数据库外网隔离（从宿主机）

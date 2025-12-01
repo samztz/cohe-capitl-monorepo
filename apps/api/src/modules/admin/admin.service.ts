@@ -11,7 +11,7 @@ import {
   BadRequestException,
   Logger,
 } from '@nestjs/common';
-import { PolicyStatus } from 'generated/prisma/enums';
+import { PolicyStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { ReviewAction } from './dto/review-policy.dto';
 

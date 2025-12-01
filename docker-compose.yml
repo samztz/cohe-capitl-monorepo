@@ -101,7 +101,6 @@ services:
       SIWE_URI: ${SIWE_URI}
       ADMIN_TOKEN: ${ADMIN_TOKEN}
       SIGNATURE_STORAGE_DIR: ${SIGNATURE_STORAGE_DIR:-uploads/signatures}
-      PRISMA_QUERY_ENGINE_LIBRARY: /app/apps/api/generated/prisma/libquery_engine-linux-musl-openssl-3.0.x.so.node
       CORS_ORIGIN: ${CORS_ORIGIN:-*}
 
     volumes:

@@ -28,7 +28,7 @@
  */
 
 import { INestApplication, Injectable, OnModuleDestroy } from '@nestjs/common';
-import { PrismaClient } from '../../../generated/prisma/client';
+import { PrismaClient } from '@prisma/client';
 
 /**
  * Prisma Service

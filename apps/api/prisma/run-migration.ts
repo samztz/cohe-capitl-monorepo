@@ -1,5 +1,4 @@
-const { join } = require('path');
-const { PrismaClient } = require(join(__dirname, '../generated/prisma'));
+const { PrismaClient } = require('@prisma/client');
 
 async function runMigration() {
   const prisma = new PrismaClient();

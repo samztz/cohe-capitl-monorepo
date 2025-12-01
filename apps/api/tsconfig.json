@@ -25,6 +25,6 @@
     // Skip type checking of declaration files (fixes siwe + ethers v6 incompatibility)
     "skipLibCheck": true
   },
-  "include": ["src/**/*.ts", "generated/**/*.ts"],
+  "include": ["src/**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }

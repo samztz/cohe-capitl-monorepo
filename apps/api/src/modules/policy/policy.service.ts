@@ -12,7 +12,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { PolicyStatus } from 'generated/prisma/enums';
+import { PolicyStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { SignatureStorageService } from './signature-storage.service';
 import { generateContractHash } from './utils/contract-hash.util';

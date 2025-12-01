@@ -49,9 +49,6 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/apps/api/node_modules ./apps/api/node_modules
 
-# Copy Prisma Client generated in deps stage
-COPY --from=deps /app/apps/api/generated ./apps/api/generated
-
 # Copy source code
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/api ./apps/api
@@ -85,7 +82,6 @@ COPY --from=deps --chown=nestjs:nodejs /app/apps/api/node_modules ./apps/api/nod
 
 # Copy built application
 COPY --from=builder --chown=nestjs:nodejs /app/apps/api/dist ./apps/api/dist
-COPY --from=builder --chown=nestjs:nodejs /app/apps/api/generated ./apps/api/generated
 COPY --from=builder --chown=nestjs:nodejs /app/apps/api/package.json ./apps/api/
 
 # Copy Prisma schema and migrations (needed for prisma migrate deploy)
@@ -95,11 +91,6 @@ COPY --from=builder --chown=nestjs:nodejs /app/apps/api/prisma ./apps/api/prisma
 # Must match the path where uploads volume will be mounted
 # Note: Volume mount will override these permissions, so we handle it in entrypoint
 RUN mkdir -p /app/apps/api/uploads/signatures
-
-# Create symlink for Prisma Client to be accessible from compiled code
-# Compiled code in dist/src looks for ../../../generated, which resolves to dist/generated
-# We create a symlink from dist/generated to the actual generated directory
-RUN ln -s /app/apps/api/generated /app/apps/api/dist/generated
 
 WORKDIR /app/apps/api
 

@@ -37,7 +37,6 @@ services:
         pnpm prisma migrate deploy &&
         echo '✅ Database migrations completed successfully!' &&
         echo '🌱 Seeding database with demo data...' &&
-        export PRISMA_QUERY_ENGINE_LIBRARY=/app/apps/api/generated/prisma/libquery_engine-linux-musl-openssl-3.0.x.so.node &&
         node prisma/seed.js &&
         echo '✅ Database seed completed!'
       "

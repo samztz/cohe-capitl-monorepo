@@ -10,39 +10,8 @@
  * - Fixed IDs: uses fixed IDs for consistent references
  */
 
-const { join } = require('path');
-const fs = require('fs');
-
-// Dynamically load Prisma Client from custom output directory
-// Try multiple paths to find the generated client
-let PrismaClient, PolicyStatus;
-
-const possiblePaths = [
-  join(__dirname, '../generated/prisma'),  // Primary: matches schema.prisma output
-  join(__dirname, '../generated/prisma/client'),  // Fallback: legacy path
-  join(__dirname, '../dist/generated/prisma'),
-  join(__dirname, '../dist/generated/prisma/client'),
-  join(process.cwd(), 'generated/prisma'),
-  join(process.cwd(), 'generated/prisma/client'),
-];
-
-for (const clientPath of possiblePaths) {
-  try {
-    const client = require(clientPath);
-    PrismaClient = client.PrismaClient;
-    PolicyStatus = client.PolicyStatus;
-    console.log(`✅ Loaded Prisma Client from: ${clientPath}`);
-    break;
-  } catch (error) {
-    // Try next path
-  }
-}
-
-if (!PrismaClient) {
-  console.error('❌ Could not find Prisma Client in any of the expected paths:');
-  possiblePaths.forEach(p => console.error(`  - ${p}`));
-  process.exit(1);
-}
+// Load Prisma Client from standard @prisma/client package
+const { PrismaClient, PolicyStatus } = require('@prisma/client');
 
 const prisma = new PrismaClient();
 

@@ -7,7 +7,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsOptional, IsInt, Min, IsEnum } from 'class-validator';
 import { Type } from 'class-transformer';
-import { PolicyStatus } from 'generated/prisma/enums';
+import { PolicyStatus } from '@prisma/client';
 
 /**
  * Query parameters for GET /admin/policies
